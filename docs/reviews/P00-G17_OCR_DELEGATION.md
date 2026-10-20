@@ -106,6 +106,53 @@ fresh-context judges plus two delta re-reviews) and by the delegated rule applic
 above. All were fixed before the merge candidate. They are enumerated in
 `docs/reviews/P00-G17_PSTACK_PANELS.md`.
 
+## Final-candidate section (merge candidate `8c08246`)
+
+The merge candidate adds two governed code/configuration files to the reviewed candidate's
+diff, so the applicability evidence is recorded here for the merge candidate as well.
+
+`ocr delegate preview --from 3156969ab52d801258af616f1556023572c2990c --to 8c082465dec4a8fda0ed77526587d500fb0f19c5 --format json`
+
+- `total_files`: 25
+- `reviewable_count`: **3**
+- `excluded_count`: 22, every excluded file with `exclude_reason: unsupported_ext`
+- `total_insertions`: 776, `total_deletions`: 36
+
+**Reviewable (3):** `.gitignore` (+4/-0), `UPSTREAMS.lock.yml` (+38/-0),
+`scripts/ci_hygiene.py` (+1/-1).
+
+`ocr delegate rule scripts/ci_hygiene.py` resolved **Rule Group 1: system /
+`**/*.{py,pyi,ipynb}`**, whose bars are Content (favour precision over recall; treat
+security and correctness findings as blocking), Identity and Equality Comparisons,
+Resource Management, Performance, Concurrency and Async, and Security-Sensitive Code.
+
+### Delegated review of `scripts/ci_hygiene.py`
+
+The diff is a single line:
+
+```python
+-FORBIDDEN_TRACKED_PARTS = {"__pycache__", "graft", "node_modules"}
++FORBIDDEN_TRACKED_PARTS = {".claude", "__pycache__", "graft", "node_modules"}
+```
+
+- **Content** — one path component is added to the forbidden set. The check that consumes
+  it (`if any(part in FORBIDDEN_TRACKED_PARTS for part in rel.parts)`) rejects any
+  tracked path with a `.claude` component. No tracked path in the repository has such a
+  component, so the change cannot break an existing tree.
+- **Identity and equality comparisons** — no comparison is introduced or changed.
+- **Resource management** — no file, socket, lock, or connection is opened or closed.
+- **Performance** — the set grows from three to four members; membership on a `set` stays
+  O(1) and the check runs once per tracked path, not on a hot path.
+- **Concurrency and async** — the module is a synchronous CLI script with no shared
+  mutable state and no async entry point.
+- **Security-sensitive code** — no `eval`, `exec`, `compile`, `subprocess`, `shell=True`,
+  `pickle`, `marshal`, unsafe `yaml.load`, string-built SQL, secret logging, weak
+  cryptography, or unvalidated path join is introduced. The change is strictly
+  *strengthening*: it converts the `.gitignore` convention into a mechanical block on
+  tracked third-party agent instructions, closing the supply-chain path the security judge
+  identified. Regression coverage is added in `tests/test_ci_hygiene.py`, and the test is
+  proven non-vacuous.
+
 ## Scope honesty
 
 - OCR did not scan anything. It resolved the applicable rule groups and produced the

@@ -3,9 +3,11 @@
 Status: RECONCILED AUDIT RECORD on `skelet/af12-matrix-reconcile-2`. Base: `068956e` (PR #128 merge, CI `38722581990` SUCCESS 15/15).
 
 Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the mandatory TypeSafe
-Jev gate was waived by founder decision. Forward-looking gate statements in this document
-now name the PStack review panel. Every *historical* per-pull-request entry below is
-preserved verbatim as evidence of what actually ran at that time; its Jev mentions are
+Jev gate was waived by founder decision. The forward-looking gate statements this decision
+edits now name the PStack review panel, and the R7 evidence inventory is forward-looking
+and names the records new grains produce. The historical `docs/reviews/*_JEV_REVIEW.*`
+files remain on disk and are preserved as evidence of what ran at the time. Every
+*historical* per-pull-request entry below is preserved verbatim; its Jev mentions are
 historical statements and are not to be read as a current gate or rewritten.
 Method: each row cites live implementation, committed tests, reproducible commands, and evidence. No invented evidence. A passing unit test alone does not verify an integrated feature. Missing functionality is never NOT APPLICABLE without an authoritative reason. Rows below remain the audit of `543641a` except where Post-Audit Deltas (now current through PR #128) supersede them; the delta log is the reconcilement record.
 Frontier revalidated 2026-10-15:
@@ -355,7 +357,7 @@ Column key per row: (1) ID, (2) acceptance criterion (abridged with source secti
 1. ID: R7.
 2. Acceptance: signed release, SBOM, dependency/secret scans, migration rehearsal, restore and incident exercise; SLOs/alerts documented; critical journeys pass on production-like env; zero blocking PStack-panel/OCR.
 3. Implementation: `.github/workflows/ci.yml` 15-job exact-head gates, `scripts/ci_hygiene.py` binary/secret guardrails, `requirements-ci.txt` hashed pins, `pnpm-lock.yaml` frozen installs, migration-tested DB suites, smoke/consumer/registry proofs.
-4. Tests: `tests/test_ci_hygiene.py`, migration suites, `smoke-web.mjs`, `prove_starter_consumer.mjs`, `prove_registry_install.mjs`, per-grain Jev/OCR/PStack/Graft records under `docs/reviews/`.
+4. Tests: `tests/test_ci_hygiene.py`, migration suites, `smoke-web.mjs`, `prove_starter_consumer.mjs`, `prove_registry_install.mjs`, per-grain PStack/OCR/Graft records under `docs/reviews/` (the historical `*_JEV_REVIEW.*` files stay as evidence of what ran at the time).
 5. Verify: exact-head CI on the release candidate; `python scripts/ci_hygiene.py --expected-head <HEAD>`; full local qualification matrix per AF-12 record.
 6. Evidence: PR #91 plus PRs #100 (drill plus runbook), #101 (SBOM/scans/rehearsal/SLOs), #102 (final qual rerun with zero failures), all per-grain `docs/reviews/AF-*` records; HEAD CI SUCCESS on every head since (15/15 each, incl. post-merge mains).
 7. Security/rights: exact-HEAD checkout enforcement; no force-push/squash/rebase on governed branches; normal merges only; post-merge verification required.

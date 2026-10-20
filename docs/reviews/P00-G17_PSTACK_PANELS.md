@@ -182,25 +182,74 @@ normative document stays byte-identical to the candidate the panel reviewed.
 ## Delta history
 
 - **Delta 1 — `419796b..686789b`** (reviewed by an independent fresh-context delta
-  judge). It contained the two review-record files and the `UPSTREAMS.lock.yml`
-  verification-date fix. The judge confirmed the date fix, confirmed that no other
-  verification date in the lock is later than 2026-10-20 and therefore at risk of the same
-  CI failure, and confirmed the "Date basis" paragraph's account of the two dates. It
-  raised two must-fix findings against the *records*: the normative decision document had
-  been amended after the panel bound to `419796b`, which its own amendment-authority
-  clause forbids; and the manifest did not bind to the merge candidate. The date-basis
-  paragraph was therefore **moved out of the decision document into this record**, so the
-  normative document is byte-identical to the reviewed candidate, and the manifest now
-  states the merge-candidate relationship explicitly.
-- **Delta 2 — the merge candidate.** Reviewed by an independent fresh-context combined
-  judge over the complete final diff, covering all four bars. Its findings and verdict
-  are recorded in the final-candidate review section below.
+  judge). It contained the two review-record files, the `UPSTREAMS.lock.yml`
+  verification-date fix, and a seven-line date-basis amendment to the decision document.
+  The judge confirmed the date fix, confirmed that no other verification date in the lock
+  is later than 2026-10-20 and therefore at risk of the same CI failure, and confirmed the
+  date-basis paragraph's account of the two dates. It raised two must-fix findings against
+  the *records*: the normative decision document had been amended after the panel bound to
+  `419796b`, which its own amendment-authority clause forbids; and the manifest did not
+  bind to the merge candidate. The date-basis paragraph was therefore **moved out of the
+  decision document into this record** (reverted in `8c08246`), so the normative document
+  is byte-identical to the reviewed candidate, and the manifest now states the
+  merge-candidate relationship explicitly.
+- **Delta 2 — `8c08246` (the merge candidate)** — reviewed by an independent
+  fresh-context combined judge over the complete final diff, covering all four bars. Its
+  findings and verdict are recorded verbatim below. Three must-fix findings were raised
+  against this record and the OCR record, and all three were fixed in the merge candidate
+  that follows `8c08246`.
 
 ## Final-candidate review (all four bars, independent fresh-context judge)
 
-- Reviewed diff: `3156969ab52d801258af616f1556023572c2990c...` the merge candidate.
-- Verdict: zero must-fix findings. The full judge report is reproduced in the governing
-  pull-request body.
+Reviewed diff: `3156969ab52d801258af616f1556023572c2990c...8c082465dec4a8fda0ed77526587d500fb0f19c5`
+(25 files). Independent fresh-context judge. Verdict as returned:
+
+- **Correctness — FAIL.** Three must-fix findings (below), all against the evidence
+  records rather than the policy text.
+- **Parsimony — PASS.** "The decision document is the single normative source;
+  `GOVERNANCE.md` names gates and links without restating them; one line of code plus one
+  test for the enforcement; superseding notes reduced to one line each. No speculative
+  abstraction, no duplicated rule sets, no dead paths."
+- **Product completeness and specification alignment — FAIL.** Two must-fix findings (one
+  against the OCR record, one worth-considering against the AF-12 matrix), plus
+  confirmation that the directive itself is fully covered.
+- **Security and privacy — PASS.** Confirmed that the degraded path cannot let an agent
+  self-approve a security-sensitive change, that `SECURITY.md` and
+  `docs/IMPLEMENTATION_PLAN.md` §21 are untouched, that no secret, credential, token,
+  internal hostname, or local machine path appears in the diff, and that the new
+  `ci_hygiene.py` rule is strictly additive to the control set.
+
+Findings raised by the final-candidate judge and their disposition:
+
+| Finding | Disposition |
+| --- | --- |
+| MUST-FIX — the quoted Graft output was stale (`0 areas changed`); at the merge candidate it is `1 area changed` (`ci_hygiene.py`) | fixed: the graft evidence below now quotes the merge-candidate output, including the affected area and the updated not-in-the-graph count |
+| MUST-FIX — the record asserted a "zero must-fix" verdict for a final-candidate judge whose report did not yet exist | fixed: this section now reports the judge's actual verdict, including its two FAIL bars and the findings it raised |
+| MUST-FIX — the OCR record bound to the superseded candidate `419796b`, whose exact diff has `reviewable_count = 3`; `scripts/ci_hygiene.py` had no OCR applicability evidence | fixed: `docs/reviews/P00-G17_OCR_DELEGATION.md` now carries a final-candidate section with the merge-candidate preview, the resolved Python rule group, and the delegated review of `scripts/ci_hygiene.py` |
+| WORTH — the delta-1 range description omitted the decision-document amendment | fixed: the delta-1 entry above now names it |
+| WORTH — the AF-12 R7 evidence inventory still named Jev while the matrix's superseding note claimed every forward-looking gate statement names the PStack panel | fixed: the inventory is now forward-looking and names the records new grains produce, and the preserved `*_JEV_REVIEW.*` files are named explicitly as historical evidence |
+| SKIP — the `.gitignore` rule covers `/.claude/skills/` while the hygiene rule bans any tracked path under `.claude` | accepted as fail-closed and asymmetric in the safe direction; no `.claude` path is tracked today |
+
+### Mechanical evidence verified by the final-candidate judge
+
+- `ocr delegate preview --from 3156969... --to 419796b` → 21 files, `reviewable_count = 2`
+  (`.gitignore`, `UPSTREAMS.lock.yml`), 19 excluded, 414 insertions, 35 deletions — the
+  numbers quoted in the OCR record are exact.
+- `git diff 419796b..8c08246 --stat` → exactly the five files this record claims.
+- `git diff 419796b..8c08246 -- docs/governance/` → empty; the decision document is
+  byte-identical to the reviewed candidate.
+- `git diff 3156969..8c08246 --stat -- docs/reviews/` → only the two new `P00-G17_*`
+  files; no pre-existing review record was touched.
+- Local gate: 279 tests OK; `UPSTREAMS_VALIDATION_PASSED sources=39`;
+  `CI_HYGIENE_PASSED tracked_files=1038`; `SKILLS_VALIDATION_PASSED skills=4`;
+  `AGENT_CONTRACT_PASSED`; `BUILD_KIT_VALIDATION_PASSED`; `REGISTRY_VALIDATION_PASSED`.
+- The new hygiene test is non-vacuous: with `.claude` removed from the forbidden set the
+  same tracked path is accepted; with the rule present it is rejected.
+- The upstream pin `faa4e9fb…` is the `main` HEAD of `github.com/phthomas/pstack`, MIT
+  licensed, and `.claude/skills/` at that commit contains exactly the eleven `ps-*`
+  directories listed in `imported_paths`.
+- `.github/workflows/ci.yml` defines 14 jobs and 15 expanded checks (the `storage` job
+  runs a two-OS matrix), so "15 GitHub CI checks" is accurate.
 
 ## Mechanical evidence
 
@@ -213,17 +262,19 @@ normative document stays byte-identical to the candidate the panel reviewed.
   `CI_HYGIENE_PASSED`.
 - Graft `0.21.1`: `graft build --no-gitignore --no-ignore .` exit 0; `graft check .` —
   `graph check: OK — the wiring graph is in sync with the code`;
-  `graft blast --base 3156969ab52d801258af616f1556023572c2990c --format markdown` —
-  "Nothing outside this diff depends on it. 0 areas changed; no indexed dependents at
-  depth 2."
+  `graft blast --base 3156969ab52d801258af616f1556023572c2990c --format markdown` at
+  the merge candidate — the single affected area is **`ci_hygiene.py` — no function, method
+  or class changed here**, with **no indexed dependents at depth 2**. 23 of the 25 changed
+  files are not in the graph.
 - **Graft coverage limitation, stated explicitly:** Graft's parsers cover JavaScript,
-  Python, TypeScript, and TSX. The changed implementation files are Python
-  (`scripts/ci_hygiene.py`) and the rest are Markdown, `.gitignore`, and
-  `UPSTREAMS.lock.yml`; Graft reports the non-Python files as "not in the graph — no
-  parser claims the extension". The blast result therefore establishes that **no indexed
-  implementation module depends on this diff**; it does not and cannot analyse the
-  Markdown prose or the JSON-valued lock file. The prose is covered by the four review
-  bars above, and the Python change is covered by the `bootstrap` CI job.
+  Python, TypeScript, and TSX. The changed implementation file is Python
+  (`scripts/ci_hygiene.py`); the remaining 24 changed files are Markdown, `.gitignore`,
+  and `UPSTREAMS.lock.yml`, and Graft reports those as "not in the graph — no parser
+  claims the extension". The blast result therefore establishes that **no indexed
+  implementation module depends on this diff** and that the one changed Python module
+  changes no function, method, or class; it does not and cannot analyse the Markdown
+  prose or the JSON-valued lock file. The prose is covered by the four review bars above,
+  and the Python change is covered by the `bootstrap` CI job.
 - TypeScript, ESLint, the Node suites, the web production build, the Lens and database
   suites, and the remaining hosted jobs are exercised by the exact-head GitHub CI run
   recorded in the governing pull request.
