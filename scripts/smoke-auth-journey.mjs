@@ -3,7 +3,7 @@
  * `node scripts/smoke-auth-journey.mjs [port]`
  *
  * Proves real, isolated, authenticated human UI journeys on a clean install.
- * Two scenarios run against two disposable databases:
+ * Three scenarios run against three disposable databases:
  *
  *   bootstrap — an empty installation: the owner creates the first account
  *     through the real form, receives a HttpOnly session cookie with no
@@ -11,6 +11,12 @@
  *     workspace, creates a board inside it, is refused a workspace it
  *     cannot see, cannot distinguish an unknown email from a wrong
  *     password, and is signed out at the end.
+ *
+ *   expiry — an already initialized installation with a real short-remaining-
+ *     lifetime session held in the browser's HttpOnly cookie: the session
+ *     works while live, expires while that browser stays open, fails closed
+ *     for both cookie and bearer authorization, and lets the user sign in
+ *     again without reopening owner bootstrap.
  *
  *   isolation — two pre-seeded actors, each owning a real workspace: the
  *     first actor signs in through the real form, sees only its own
@@ -33,7 +39,7 @@
  * build) and the pinned Playwright Chromium headless shell.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -47,6 +53,7 @@ const { chromium } = requireLens("playwright-core");
 
 const ROUTES = {
   signup: "/signup",
+  status: "/api/v1/auth/status",
   login: "/login",
   boards: "/boards",
   session: "/api/v1/auth/session",
@@ -57,6 +64,11 @@ const ROUTES = {
 const OWNER_EMAIL = "owner@skilit.example";
 const OWNER_PASSWORD = "journey-password-01";
 const ALICE_EMAIL = "alice@skilit.example";
+const EXPIRY_EMAIL = "expiry@skilit.example";
+// Production TTL is unchanged: this fixture creates a legitimate 60-second
+// session with a backdated trusted server clock, leaving ~45 seconds for
+// startup, browser possession and an actual expiry transition.
+const EXPIRY_BACKDATE_MS = 15_000;
 const BOB_EMAIL = "bob@skilit.example";
 const ACTOR_PASSWORD = "journey-password-01";
 // A well-formed workspace id that belongs to nobody.
@@ -79,7 +91,7 @@ if (process.argv[2] === "--prepare") {
   const { migrateUp } = await import(
     pathToFileURL(path.join(root, "packages/db/src/migrate.ts")).href
   );
-  const { signUp } = await import(
+  const { signUp, createSession } = await import(
     pathToFileURL(path.join(root, "packages/db/src/auth.ts")).href
   );
   const { createWorkspace } = await import(
@@ -88,6 +100,20 @@ if (process.argv[2] === "--prepare") {
   const db = await openDatabase({ dataDir });
   await migrateUp(db);
   const prepared = { scenario };
+  if (scenario === "expiry") {
+    const owner = await signUp(db, { email: EXPIRY_EMAIL, password: ACTOR_PASSWORD });
+    const space = await createWorkspace(db, { name: "Expiry owner workspace", ownerId: owner.id });
+    const { token, session } = await createSession(db, owner.id, {
+      ttlSeconds: 60,
+      now: new Date(Date.now() - EXPIRY_BACKDATE_MS),
+    });
+    // Never print a live bearer token to stdout, CI logs, or a GitHub artifact.
+    // The parent reads this private fixture file and the enclosing temp
+    // directory is deleted after the real browser/server finish.
+    writeFileSync(path.join(dataDir, ".expiry-session-token"), token, { mode: 0o600 });
+    prepared.expiresAt = session.expiresAt;
+    prepared.ownerWorkspaceId = space.workspace.id;
+  }
   if (scenario === "isolation") {
     const alice = await signUp(db, { email: ALICE_EMAIL, password: ACTOR_PASSWORD });
     const bob = await signUp(db, { email: BOB_EMAIL, password: ACTOR_PASSWORD });
@@ -102,10 +128,11 @@ if (process.argv[2] === "--prepare") {
 
 const basePort = Number(process.env.SMOKE_PORT ?? process.argv[2] ?? 3105);
 const isolationPort = basePort + 1;
+const expiryPort = basePort + 2;
 if (
   !Number.isInteger(basePort) ||
   basePort < 1 ||
-  isolationPort > 65535
+  expiryPort > 65535
 ) {
   console.error(`SMOKE_FAIL invalid port: ${process.argv[2] ?? ""}`);
   process.exit(2);
@@ -152,7 +179,13 @@ async function prepareDatabase(scenario) {
       `could not prepare the isolated database: ${prepare.stderr || prepare.stdout}`,
     );
   }
-  return { dataDir, prepared: JSON.parse(prepare.stdout) };
+  const prepared = JSON.parse(prepare.stdout);
+  if (scenario === "expiry") {
+    prepared.privateFixtureToken = readFileSync(
+      path.join(dataDir, ".expiry-session-token"), "utf8",
+    );
+  }
+  return { dataDir, prepared };
 }
 
 async function runScenario(name, port, journey) {
@@ -218,8 +251,14 @@ async function runScenario(name, port, journey) {
 
 // ---------------------------------------------------------------- bootstrap
 async function bootstrapJourney({ page, context, base }) {
-  // --- A. owner bootstrap through the real form -------------------------
   await page.goto(base + ROUTES.signup, { waitUntil: "load" });
+  // --- A. public bootstrap status before the first owner exists ----------
+  const freshStatus = await apiCall(page, ROUTES.status);
+  check(
+    freshStatus.status === 200 && freshStatus.body?.result?.initialized === false,
+    "an empty installation must report initialized:false with HTTP 200",
+  );
+  // --- B. owner bootstrap through the real form -------------------------
   await page.fill("#signup-email", OWNER_EMAIL);
   await page.fill("#signup-password", OWNER_PASSWORD);
   await page.click("form button[type=submit]");
@@ -232,6 +271,12 @@ async function bootstrapJourney({ page, context, base }) {
   check(
     (await page.locator("p[role='alert']").count()) === 0,
     "sign-up reported an error instead of succeeding",
+  );
+
+  const initializedStatus = await apiCall(page, ROUTES.status);
+  check(
+    initializedStatus.status === 200 && initializedStatus.body?.result?.initialized === true,
+    "creating the owner must permanently close bootstrap and report initialized:true",
   );
 
   const cookies = await context.cookies();
@@ -385,6 +430,12 @@ async function bootstrapJourney({ page, context, base }) {
     (cookie) => cookie.name === "skilit_session" && cookie.value !== "",
   );
   check(cleared === undefined, "sign-out must clear the session cookie");
+  const afterSignoutStatus = await apiCall(page, ROUTES.status);
+  check(
+    afterSignoutStatus.status === 200 &&
+      afterSignoutStatus.body?.result?.initialized === true,
+    "sign-out must not reopen owner bootstrap",
+  );
   // The revoked token must not work again, even if it is presented
   // directly.
   const revoked = await apiCall(page, ROUTES.session, {
@@ -497,10 +548,114 @@ async function isolationJourney({ page, context, base, prepared }) {
   );
 }
 
+// -------------------------------------------------------------- session expiry
+async function expiryJourney({ page, context, base, prepared }) {
+  const { expiresAt, ownerWorkspaceId, privateFixtureToken } = prepared;
+  check(
+    typeof privateFixtureToken === "string" && privateFixtureToken.length > 32,
+    "expiry fixture must provide a genuine opaque token",
+  );
+  const expiryTime = Date.parse(expiresAt);
+  check(Number.isFinite(expiryTime), "expiry fixture must have a valid server expiry timestamp");
+
+  // Put a legitimate DB-issued session into the browser's HttpOnly cookie.
+  // This is NOT a UI signin journey; bootstrap/isolation already test the UI.
+  // The browser retains the cookie even after the DB session stops being live.
+  await context.addCookies([{
+    name: "skilit_session",
+    value: privateFixtureToken,
+    url: base,
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+  await page.goto(base + ROUTES.login, { waitUntil: "load" });
+  const live = await apiCall(page, ROUTES.session);
+  check(live.status === 200, `the fixture session must initially be live, saw ${live.status}`);
+  check(
+    live.body?.result?.user?.email === EXPIRY_EMAIL,
+    "the live fixture session must identify the pre-seeded owner",
+  );
+  const beforeStatus = await apiCall(page, ROUTES.status);
+  check(
+    beforeStatus.status === 200 && beforeStatus.body?.result?.initialized === true,
+    "auth/status must report initialized:true during a live session",
+  );
+
+  // Wait until *the actual database timestamp*, not a mock clock or a
+  // database mutation while PGlite is opened by the Next.js server.
+  // Allow up to one minute of additional CI slowness, but fail if the
+  // session was already expired before the browser could own it.
+  const waitMs = expiryTime - Date.now() + 1_500;
+  check(waitMs > 0, "fixture session expired before the browser exercised it");
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  const heldCookie = (await context.cookies()).find(
+    (cookie) => cookie.name === "skilit_session",
+  );
+  check(
+    heldCookie?.httpOnly === true && heldCookie.value === privateFixtureToken,
+    "the browser must still hold the expired HttpOnly cookie",
+  );
+
+  const expired = await apiCall(page, ROUTES.session);
+  check(
+    expired.status === 401 && expired.body?.error?.code === "UNAUTHENTICATED",
+    `expired cookie must fail closed with 401 UNAUTHENTICATED, saw ${expired.status} ${expired.body?.error?.code}`,
+  );
+  const deniedBoards = await apiCall(
+    page, `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(ownerWorkspaceId)}`,
+  );
+  check(
+    deniedBoards.status === 401,
+    `expired cookie must not read its former workspace, saw ${deniedBoards.status}`,
+  );
+  const expiredBearer = await apiCall(page, ROUTES.session, {
+    headers: { Authorization: `Bearer ${privateFixtureToken}` },
+  });
+  check(
+    expiredBearer.status === 401,
+    `an expired token must also be refused in Bearer mode, saw ${expiredBearer.status}`,
+  );
+
+  const afterStatus = await apiCall(page, ROUTES.status);
+  check(
+    afterStatus.status === 200 && afterStatus.body?.result?.initialized === true,
+    "auth/status must stay initialized:true when a session expires",
+  );
+  // Reloading the *same tab* must show a recoverable, signed-out UI.
+  await page.reload({ waitUntil: "load" });
+  await page.getByText("No active session in this browser.").waitFor({ timeout: 20_000 });
+  await page.fill("#login-email", EXPIRY_EMAIL);
+  await page.fill("#login-password", ACTOR_PASSWORD);
+  await page.click("form button[type=submit]");
+  await page.getByText(/Signed in as/).waitFor({ timeout: 20_000 });
+  const recovered = await apiCall(page, ROUTES.session);
+  check(
+    recovered.status === 200 && recovered.body?.result?.user?.email === EXPIRY_EMAIL,
+    "the same browser must recover by signing in normally after expiry",
+  );
+  const freshCookie = (await context.cookies()).find(
+    (cookie) => cookie.name === "skilit_session",
+  );
+  check(
+    freshCookie?.httpOnly === true && freshCookie.value !== privateFixtureToken,
+    "recovery must replace the expired token with a new HttpOnly cookie",
+  );
+  const ownerBoards = await apiCall(
+    page, `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(ownerWorkspaceId)}`,
+  );
+  check(
+    ownerBoards.status === 200,
+    `recovered owner session must restore authorized workspace access, saw ${ownerBoards.status}`,
+  );
+}
+
 // ------------------------------------------------------------------- main
 try {
   await runScenario("bootstrap", basePort, bootstrapJourney);
   await runScenario("isolation", isolationPort, isolationJourney);
+  await runScenario("expiry", expiryPort, expiryJourney);
 } catch (error) {
   failures.push(`smoke error: ${error?.message ?? error}`);
 }
@@ -510,5 +665,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  "SMOKE_PASSED authenticated browser journeys (bootstrap sign-up, session, workspace, isolation, enumeration, sign-out)",
+  "SMOKE_PASSED authenticated browser journeys (bootstrap status, signup, workspace, isolation, enumeration, sign-out, expiry, session recovery)",
 );
