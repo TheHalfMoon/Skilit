@@ -346,25 +346,37 @@ never distributed.
     - Upstream: https://github.com/google/fonts (Inter Tight,
       "Copyright 2022 The Inter Project Authors")
     - Pinned commit: fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69
-    - Upstream source SHA-256: recorded in
-      docs/brand/wordmark-inter-tight-600.json (upstreamTtfSha256)
+    - Upstream source file: ofl/intertight/InterTight[wght].ttf
+    - Upstream source SHA-256:
+      b81b73dcb64df3c230cabade7df6c5773bf863233f24c9ee51087519f1f88b6f
+      (upstreamTtfSha256), re-verified against the pinned path
+    - Upstream licence file: ofl/intertight/OFL.txt, upstream SHA-256
+      50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58
+      (upstreamOflSha256). The licence text in this tree is a
+      whitespace-normalised copy of that file, not a byte-identical one;
+      its own SHA-256 is sourceLicenseSha256.
     - License: SIL Open Font License 1.1. The upstream copyright notice
       specifies NO Reserved Font Name, so OFL clause 3 does not restrict
       naming; the bundled webfont is still distributed under the distinct
       family name "Inter Tight Skilit" so a modified subset is not
-      presented as the upstream family.
+      presented as the upstream family. Only the CSS alias is renamed:
+      the WOFF2 binary itself retains the upstream name identifiers and
+      carries the copyright notice but no embedded licence description or
+      URL.
     - Bundled paths:
         apps/web/public/brand/inter-tight-latin-600.woff2  (reduced basic
           Latin WOFF2 subset; SHA-256 in the same JSON, subsetSha256)
+        apps/web/public/brand/Inter-Tight-OFL.txt  (the licence text,
+          served to users beside the font)
         docs/brand/wordmark-inter-tight-600.json  (wordmark outline
           geometry converted from the font; an OFL Modified Version)
         docs/brand/licenses/Inter-Tight-OFL.txt  (the OFL 1.1 text and
           the upstream copyright notice)
-    - Serving copies: the web application also serves the OFL text to
-      users at apps/web/public/brand/Inter-Tight-OFL.txt, linked from the
-      legal terms surface, so a deployed instance carries the notice with
-      the font it serves (OFL condition 2). Any deployment that serves the
-      subset MUST serve that notice to its users as well.
+    - Serving copies: the web application serves the OFL text to users at
+      /brand/Inter-Tight-OFL.txt, linked from the legal terms surface, so
+      a deployed instance carries the notice with the font it serves (OFL
+      condition 2). Any deployment that serves the subset MUST serve that
+      notice to its users as well.
     - Why it is compliant: OFL 1.1 condition 2 permits bundling a
       Modified Version provided each copy contains the copyright notice
       and the license; condition 5 requires the Modified Version to stay
@@ -372,6 +384,9 @@ never distributed.
       distributed in this tree, the subset and the outlines are recorded
       as OFL-governed derivatives, and no upstream file is modified in
       place.
+    - Known limitation: the subsetting tool and its version are not
+      recorded, so the upstream-TTF-to-WOFF2 derivation is asserted by
+      digest rather than reproducible offline.
     - Rights scope: source and assets are license-governed; trademarks
       are restricted (§10) and the font name is used descriptively only.
       No endorsement is claimed or implied.

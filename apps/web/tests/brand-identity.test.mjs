@@ -62,12 +62,22 @@ test("pinned offline Inter Tight font, outline paths and OFL provenance are cons
   assert.equal(source.family, "Inter Tight");
   assert.equal(source.weight, 600);
   assert.match(source.upstreamCommit, /^[a-f0-9]{40}$/);
-  // upstreamTtfSha256 is provenance-only: it records the upstream TTF digest
-  // and is not verifiable against a file in this repository, unlike
-  // subsetSha256 and sourceLicenseSha256 which are hashed against committed
-  // bytes. It is deliberately not named sourceSha256, which elsewhere in
-  // this repository means "SHA-256 of the rendered source page".
+  assert.match(source.upstreamPath, /^ofl\/intertight\//, "the upstream file path is recorded");
+  // upstreamTtfSha256 is the digest of the upstream file at the pinned
+  // commit. It is not verifiable against a file in this repository, so it
+  // is only shape-checked here; the digest can be re-checked by fetching
+  // upstreamPath at upstreamCommit.
   assert.match(source.upstreamTtfSha256, /^[a-f0-9]{64}$/);
+  // upstreamOflSha256 is the digest of the upstream licence file. The
+  // in-tree licence text is a whitespace-normalised copy, so it has its
+  // own digest (sourceLicenseSha256) and is checked against the file
+  // below.
+  assert.match(source.upstreamOflSha256, /^[a-f0-9]{64}$/);
+  assert.notEqual(
+    source.upstreamOflSha256,
+    source.sourceLicenseSha256,
+    "the upstream licence digest and the in-tree copy digest must differ",
+  );
   assert.equal(font.subarray(0, 4).toString("ascii"), "wOF2");
   assert.equal(createHash("sha256").update(font).digest("hex"), source.subsetSha256);
   assert.equal(createHash("sha256").update(ofl).digest("hex"), source.sourceLicenseSha256);

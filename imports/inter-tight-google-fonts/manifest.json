@@ -1,0 +1,93 @@
+{
+  "schema_version": "1",
+  "grain": "P00-G15",
+  "source": "inter-tight-google-fonts",
+  "upstream_source_id": "inter-tight-google-fonts",
+  "immutable_pin": "fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69",
+  "pin_kind": "git_commit",
+  "base_sha": "3156969ab52d801258af616f1556023572c2990c",
+  "verification_date": "2026-10-20",
+  "state": "imported",
+  "activation_allowed": true,
+  "license": "SIL Open Font License 1.1",
+  "permission_basis": {
+    "type": "upstream_license",
+    "note": "SIL OFL 1.1 as shipped at ofl/intertight/OFL.txt in google/fonts at the pinned commit. The upstream copyright notice specifies no Reserved Font Name, so the OFL rename restriction does not apply."
+  },
+  "upstream_files": {
+    "font": {
+      "path": "ofl/intertight/InterTight[wght].ttf",
+      "sha256": "b81b73dcb64df3c230cabade7df6c5773bf863233f24c9ee51087519f1f88b6f",
+      "note": "Re-verified against the pinned path during qualification."
+    },
+    "license": {
+      "path": "ofl/intertight/OFL.txt",
+      "sha256": "50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58",
+      "note": "The in-tree licence text is a whitespace-normalised copy of this file, not a byte-identical one. Its own SHA-256 is recorded in docs/brand/wordmark-inter-tight-600.json as sourceLicenseSha256."
+    }
+  },
+  "paths_to_include": [
+    "ofl/intertight/InterTight[wght].ttf",
+    "ofl/intertight/OFL.txt"
+  ],
+  "paths_to_exclude": [
+    "ofl/intertight/InterTight-Italic[wght].ttf",
+    "ofl/intertight/METADATA.pb",
+    "ofl/intertight/upstream.yaml",
+    "ofl/intertight/DESCRIPTION.en_us.html",
+    "ofl/intertight/InterTight[wght].ttf.source",
+    "all other font families under ofl/"
+  ],
+  "imported_paths": [
+    "apps/web/public/brand/inter-tight-latin-600.woff2",
+    "apps/web/public/brand/Inter-Tight-OFL.txt",
+    "docs/brand/wordmark-inter-tight-600.json",
+    "docs/brand/licenses/Inter-Tight-OFL.txt"
+  ],
+  "notices_and_licenses_to_preserve": [
+    "docs/brand/licenses/Inter-Tight-OFL.txt",
+    "apps/web/public/brand/Inter-Tight-OFL.txt",
+    "Copyright 2022 The Inter Project Authors",
+    "SIL Open Font License Version 1.1"
+  ],
+  "generated_or_binary_files_to_reject": [
+    "the upstream variable TTF and its italic sibling, unmodified",
+    "upstream.yaml, METADATA.pb and DESCRIPTION.en_us.html",
+    "any upstream .ttf left in the tree",
+    "any upstream repository metadata, CI configuration or tooling"
+  ],
+  "project_owned_names_that_may_change": [
+    "the CSS family alias used to present the subset: 'Inter Tight Skilit'"
+  ],
+  "external_identifiers_that_must_not_change": [
+    "the upstream font path ofl/intertight/InterTight[wght].ttf",
+    "the pinned commit fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69",
+    "the copyright notice 'Copyright 2022 The Inter Project Authors'",
+    "the embedded font name identifiers (family 'Inter Tight', full name 'Inter Tight Regular', PostScript name 'InterTight-Regular')",
+    "the SIL OFL 1.1 licence body"
+  ],
+  "planned_transformations": [
+    "Instance the variable font at weight 600.",
+    "Subset to basic Latin and emit WOFF2.",
+    "Convert the lowercase 'skilit' letter outlines to immutable SVG path geometry, tracked in docs/brand/wordmark-inter-tight-600.json.",
+    "Serve the licence text beside the font at /brand/Inter-Tight-OFL.txt and link it from the legal terms surface.",
+    "Leave the founder-approved S geometry untouched."
+  ],
+  "known_limitations": [
+    "The subsetting tool and its version are not recorded, so the upstream-TTF-to-WOFF2 derivation is asserted by digest rather than reproducible offline.",
+    "Only the CSS alias is renamed. The WOFF2 binary retains the upstream name identifiers and carries the copyright notice but no embedded licence description or URL."
+  ],
+  "rights_gate": {
+    "status": "resolved-assets-license-governed",
+    "resolution": "upstream-license",
+    "restricted_scope": [
+      "datasets",
+      "model-weights",
+      "hosted-services",
+      "brands/trademarks",
+      "provider-credentials"
+    ]
+  },
+  "provenance_record": "UPSTREAMS.lock.yml (id inter-tight-google-fonts, status imported)",
+  "notice_record": "NOTICE section 7a"
+}
