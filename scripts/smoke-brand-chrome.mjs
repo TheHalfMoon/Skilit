@@ -14,6 +14,7 @@
  * error. Any other failed resource fails the smoke.
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -194,6 +195,25 @@ try {
           check(
             allowed !== undefined && allowed.has(failed.status),
             `${label}: unexpected failed resource ${failed.path} (${failed.status})`,
+          );
+        }
+
+        // NOTICE section 7a requires a deployment that serves the font to
+        // serve the licence notice to its users as well. Check the BUILT
+        // instance actually does, not just the source tree.
+        if (route === "/") {
+          const served = await page.evaluate(async () => {
+            const response = await fetch("/brand/Inter-Tight-OFL.txt");
+            return { status: response.status, body: await response.text() };
+          });
+          check(
+            served.status === 200,
+            `the built instance must serve the font licence, saw ${served.status}`,
+          );
+          const digest = createHash("sha256").update(served.body).digest("hex");
+          check(
+            digest === wordmark.sourceLicenseSha256,
+            "the served font licence must match the recorded source licence digest",
           );
         }
       } finally {

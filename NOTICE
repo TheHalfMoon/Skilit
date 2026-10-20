@@ -462,6 +462,7 @@ remain under this license.
   - Cloud backlog: docs/qualification/CLOUD_COMMERCIAL_BACKLOG.md
   - Bundled font (SIL OFL 1.1, §7a):
       docs/brand/licenses/Inter-Tight-OFL.txt
+      apps/web/public/brand/Inter-Tight-OFL.txt
       docs/brand/wordmark-inter-tight-600.json
       apps/web/public/brand/inter-tight-latin-600.woff2
 

@@ -10,6 +10,7 @@ the builder manifest license state, and the updated RC procedure doc.
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -134,9 +135,15 @@ class LicenseNoticeTests(unittest.TestCase):
             .read_text(encoding="utf-8")
             .split()
         )
-        self.assertNotRegex(
+        self.assertIn(
+            f"({len(sources)} sources)",
             contract,
-            r"38 sources",
+            msg="the acceptance contract must carry the current source tally",
+        )
+        stale = set(re.findall(r"\((\d+) sources\)", contract)) - {str(len(sources))}
+        self.assertEqual(
+            stale,
+            set(),
             msg="the acceptance contract must not carry a stale source tally",
         )
 

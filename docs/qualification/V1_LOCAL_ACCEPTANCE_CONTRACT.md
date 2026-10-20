@@ -2,6 +2,7 @@
 
 Status: RELEASE-SCOPED ACCEPTANCE RECORD. Base: `1dba33e` (PR #141 merge, exact-head CI SUCCESS 15/15, post-merge CI SUCCESS).
 Scope: define what **Skelet v1 Local** (free, self-hosted, no mandatory paid services) means, row by row against the original P00–P15 / R0–R7 requirements, without altering the original acceptance matrix or its coverage number. No product code changed by this grain. Machine-checked by `tests/test_v1_local_scope.py` (offline).
+Evidence scope: the §1 sweep citation is base-pinned evidence of the run at `1dba33e`. The row tallies that describe the current tree — notably the `UPSTREAMS.lock.yml` source count — track the live lock file and are re-checked against it by `tests/test_license_notice.py`. Dated AF-12 qualification records keep the counts they actually observed.
 
 ## 0. Rules of this contract
 
