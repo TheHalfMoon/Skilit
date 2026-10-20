@@ -310,7 +310,7 @@ added without its own governed rights record:
   - Mixamo animation renders (characters_gif/)
   - AI provider and service logos (trademarks of their owners)
   - Brand fonts other than the Inter Tight 600 subset recorded in §7a:
-    Carter One, Archivo, Geist Mono, Source Sans 3, Source Serif 4,
+    Inter, Carter One, Archivo, Geist Mono, Source Sans 3, Source Serif 4,
     JetBrains Mono, Noto Serif, BIZ UDPGothic, Shippori Mincho, BIZ
     UDMincho, Noto Sans CJK SC, Noto Sans Arabic — governed by SIL OFL
     1.1 texts that ship beside the fonts; these fonts themselves are NOT
@@ -360,6 +360,11 @@ never distributed.
           geometry converted from the font; an OFL Modified Version)
         docs/brand/licenses/Inter-Tight-OFL.txt  (the OFL 1.1 text and
           the upstream copyright notice)
+    - Serving copies: the web application also serves the OFL text to
+      users at apps/web/public/brand/Inter-Tight-OFL.txt, linked from the
+      legal terms surface, so a deployed instance carries the notice with
+      the font it serves (OFL condition 2). Any deployment that serves the
+      subset MUST serve that notice to its users as well.
     - Why it is compliant: OFL 1.1 condition 2 permits bundling a
       Modified Version provided each copy contains the copyright notice
       and the license; condition 5 requires the Modified Version to stay

@@ -75,6 +75,20 @@ test("pinned offline Inter Tight font, outline paths and OFL provenance are cons
   assert.match(ofl, /Copyright 2022 The Inter Project Authors/);
   assert.match(css, /url\("\/brand\/inter-tight-latin-600\.woff2"\)/);
   assert.ok(source.path.length > 100);
+  // The web application serves the OFL text to users alongside the font it
+  // serves (OFL condition 2). The served copy must not drift from the
+  // source of truth in docs/brand/licenses/.
+  const servedOfL = readFileSync(new URL("../public/brand/Inter-Tight-OFL.txt", import.meta.url));
+  assert.equal(
+    createHash("sha256").update(servedOfL).digest("hex"),
+    source.sourceLicenseSha256,
+    "the served OFL text must be byte-identical to the source licence",
+  );
+  assert.match(
+    read("../app/terms/page.tsx"),
+    /\/brand\/Inter-Tight-OFL\.txt/,
+    "the legal surface must link the font licence",
+  );
   for (const asset of [
     ...assets.slice(2, 4),
     read("../public/brand/skilit-social-light.svg"),

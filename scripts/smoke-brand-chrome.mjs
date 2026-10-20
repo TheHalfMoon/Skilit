@@ -5,8 +5,13 @@
  * keeps the approved wordmark geometry, and remains reachable by keyboard at
  * 390 / 768 / 1440 px. Exit non-zero on any failure.
  *
- * The pages exercised are statically prerendered and need no database, no
- * session and no network egress. Nothing here touches user data.
+ * The pages are statically prerendered and need no production data, but the
+ * auth surfaces and the workspace shell do call the auth API. Those probes
+ * are expected to fail here and are asserted explicitly below rather than
+ * being ignored: the session probe answers 401 because the browser holds no
+ * session cookie, and the bootstrap probe answers 500 because this smoke
+ * stands up no database, so it fails closed with a typed INTERNAL_OPAQUE
+ * error. Any other failed resource fails the smoke.
  */
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -42,12 +47,13 @@ function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
-// The auth pages probe /api/v1/auth/status to adapt to bootstrap state.
-// That probe needs a database, which this smoke deliberately does not stand
-// up, and it correctly fails closed with a typed INTERNAL_OPAQUE error. It
-// is the only resource failure this smoke tolerates, and it is asserted
-// explicitly rather than ignored.
-const TOLERATED_FAILED_RESOURCES = new Set(["/api/v1/auth/status"]);
+// The auth pages and the workspace shell probe the auth API. Those probes
+// are expected to fail in this smoke, and each expected failure is pinned to
+// its exact status so a real regression cannot hide inside the allowlist.
+const TOLERATED_FAILED_RESOURCES = new Map([
+  ["/api/v1/auth/session", new Set([401])],
+  ["/api/v1/auth/status", new Set([500])],
+]);
 
 const server = spawn(
   process.execPath,
@@ -103,6 +109,9 @@ try {
         const response = await page.goto(base + route, { waitUntil: "load" });
         const label = `${viewport.name} ${viewport.width}px ${route}`;
         check(response?.status() === 200, `${label}: document status ${response?.status()}`);
+        // Let the page's own async probes finish before the failures are
+        // read, so a slow auth probe cannot be mistaken for a clean page.
+        await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
         await page.evaluate(() => document.fonts.ready);
 
         const overflow = await page.evaluate(
@@ -178,8 +187,9 @@ try {
 
         check(errors.length === 0, `${label}: page errors: ${errors.join(" | ")}`);
         for (const failed of failedResources) {
+          const allowed = TOLERATED_FAILED_RESOURCES.get(failed.path);
           check(
-            TOLERATED_FAILED_RESOURCES.has(failed.path),
+            allowed !== undefined && allowed.has(failed.status),
             `${label}: unexpected failed resource ${failed.path} (${failed.status})`,
           );
         }
@@ -193,6 +203,7 @@ try {
 } finally {
   if (browser) await browser.close();
   server.kill("SIGTERM");
+  setTimeout(() => server.kill("SIGKILL"), 5000).unref();
 }
 
 if (failures.length > 0) {

@@ -30,6 +30,12 @@ export default function Terms() {
         attributions are preserved in the provenance records. A source
         permission never implies asset, dataset, model, or trademark rights.
       </p>
+      <p>
+        The bundled Inter Tight 600 wordmark font is licensed under the{" "}
+        <a href="/brand/Inter-Tight-OFL.txt">SIL Open Font License 1.1</a>.
+        That license and its upstream copyright notice are served alongside
+        the font.
+      </p>
       <h2>Acceptable use</h2>
       <ul>
         <li>Operate within workspace quotas, rate limits, and rights classifications.</li>

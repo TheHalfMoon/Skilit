@@ -126,6 +126,19 @@ class LicenseNoticeTests(unittest.TestCase):
             r"UPSTREAMS\.lock\.yml \(\d+ sources\)",
             msg="the release builder must derive the source count, not hardcode it",
         )
+        # The live acceptance contract is a current canonical reference, so
+        # its tally must track the lock too. Dated AF-12 qualification runs
+        # are historical evidence and are deliberately left alone.
+        contract = " ".join(
+            (ROOT / "docs" / "qualification" / "V1_LOCAL_ACCEPTANCE_CONTRACT.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        self.assertNotRegex(
+            contract,
+            r"38 sources",
+            msg="the acceptance contract must not carry a stale source tally",
+        )
 
     def test_no_signed_final_claim(self) -> None:
         self.assertNotRegex(self.notice, r"(?i)officially signed")
