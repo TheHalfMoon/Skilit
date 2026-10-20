@@ -44,7 +44,12 @@ function fail(code, message) {
 // drift from the inventory it claims to describe.
 function upstreamSourceCount() {
   const lockPath = join(REPO_ROOT, "UPSTREAMS.lock.yml");
-  const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  let lock;
+  try {
+    lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  } catch (error) {
+    fail(2, `UPSTREAMS.lock.yml is unreadable: ${error?.message ?? error}`);
+  }
   const count = Array.isArray(lock?.sources) ? lock.sources.length : 0;
   if (count === 0) fail(2, "UPSTREAMS.lock.yml lists no sources");
   return count;

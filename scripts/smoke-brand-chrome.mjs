@@ -14,6 +14,7 @@
  * error. Any other failed resource fails the smoke.
  */
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -37,9 +38,13 @@ const VIEWPORTS = [
 ];
 const PAGES = ["/", "/login", "/signup"];
 // The approved outline geometry bakes tracking into the glyph advances; the
-// sidebar wordmark must use the same tracking ratio. See
-// docs/brand/wordmark-inter-tight-600.json and apps/web/app/globals.css.
-const APPROVED_WORDMARK_TRACKING_EM = -0.035;
+// sidebar wordmark must use the same tracking ratio. The expectation is read
+// from the brand source of truth rather than duplicated here, so the smoke
+// compares the stylesheet against the approved geometry itself.
+const wordmark = JSON.parse(
+  readFileSync(path.join(root, "docs/brand/wordmark-inter-tight-600.json"), "utf8"),
+);
+const APPROVED_WORDMARK_TRACKING_EM = wordmark.trackingPx / wordmark.baselinePx;
 const MOBILE_BRAND_MARK_WIDTH_PX = 36;
 
 const failures = [];
@@ -159,9 +164,7 @@ try {
               );
             }
           }
-        }
 
-        if (route === "/") {
           await page.keyboard.press("Tab");
           let focused = null;
           for (let attempt = 0; attempt < 12; attempt += 1) {
