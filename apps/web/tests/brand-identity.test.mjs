@@ -28,6 +28,32 @@ test("Skilit is the sole first-party brand identity in the active assets", () =>
   }
 });
 
+test("web chrome wordmark tracking matches the approved outline geometry", () => {
+  const source = JSON.parse(read("../../../docs/brand/wordmark-inter-tight-600.json"));
+  const css = read("../app/globals.css");
+  const brand = css.match(/\.sk-brand\s*\{([^}]*)\}/)?.[1] ?? "";
+  const letterSpacing = brand.match(/letter-spacing:\s*(-?[\d.]+)em/)?.[1];
+  assert.ok(letterSpacing, "the sidebar wordmark declares an em letter-spacing");
+  const applied = Number(letterSpacing);
+  // The approved outlines bake trackingPx into the glyph advances at
+  // baselinePx, so the HTML wordmark must use the same tracking ratio or the
+  // two renderings of one wordmark drift apart.
+  const expected = source.trackingPx / source.baselinePx;
+  assert.ok(
+    Math.abs(applied - expected) < 0.002,
+    `wordmark letter-spacing ${applied}em must match outline tracking ratio ${expected}em`,
+  );
+  // The brand mark must not use a fixed flex-basis: that silently defeats a
+  // later responsive width override for the same flex item.
+  const symbol = css.match(/\.sk-brand-symbol\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(symbol, /flex:\s*0\s+0\s+auto/, "brand mark must keep width authoritative");
+  const mobile = css.match(/@media \(max-width: 760px\)[\s\S]*?\.sk-brand-symbol\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(mobile, /width:\s*\d+px/, "mobile breakpoint still overrides the brand mark width");
+  // The reverse-field token is named for its role, matching docs/brand/tokens.json.
+  assert.match(css, /--sk-orange-field:\s*#ff782d/i);
+  assert.doesNotMatch(css, /--sk-orange-soft/);
+});
+
 test("pinned offline Inter Tight font, outline paths and OFL provenance are consistent", () => {
   const source = JSON.parse(read("../../../docs/brand/wordmark-inter-tight-600.json"));
   const font = readFileSync(new URL("../public/brand/inter-tight-latin-600.woff2", import.meta.url));
@@ -36,7 +62,12 @@ test("pinned offline Inter Tight font, outline paths and OFL provenance are cons
   assert.equal(source.family, "Inter Tight");
   assert.equal(source.weight, 600);
   assert.match(source.upstreamCommit, /^[a-f0-9]{40}$/);
-  assert.match(source.sourceSha256, /^[a-f0-9]{64}$/);
+  // upstreamTtfSha256 is provenance-only: it records the upstream TTF digest
+  // and is not verifiable against a file in this repository, unlike
+  // subsetSha256 and sourceLicenseSha256 which are hashed against committed
+  // bytes. It is deliberately not named sourceSha256, which elsewhere in
+  // this repository means "SHA-256 of the rendered source page".
+  assert.match(source.upstreamTtfSha256, /^[a-f0-9]{64}$/);
   assert.equal(font.subarray(0, 4).toString("ascii"), "wOF2");
   assert.equal(createHash("sha256").update(font).digest("hex"), source.subsetSha256);
   assert.equal(createHash("sha256").update(ofl).digest("hex"), source.sourceLicenseSha256);

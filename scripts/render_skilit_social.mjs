@@ -18,6 +18,8 @@ const requireLens = createRequire(path.join(root, "packages/lens/package.json"))
 const { chromium } = requireLens("playwright-core");
 // Bind each committed preview to its exact SVG source without relying on
 // cross-platform font pixel equality. PNG tEXt chunks are standard metadata.
+// The CRC-32 is spelled out here rather than taken from node:zlib because
+// zlib.crc32 only exists from Node 20.15 and this repo supports Node >=20.9.0.
 function withSourceDigest(png, sourceDigest) {
   const signature = "89504e470d0a1a0a";
   if (png.subarray(0, 8).toString("hex") !== signature ||

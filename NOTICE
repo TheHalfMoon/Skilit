@@ -241,13 +241,31 @@ Reviewed before packaging, as required by OD-05:
     SOLELY under the recorded founder authorization, carved out of the
     Apache-2.0 grant. NO RELICENSING is claimed. NO CONFLICT provided
     this carve-out is preserved in redistribution.
+  - Inter Tight 600 wordmark font, SIL OFL 1.1 (§7a): the candidate DOES
+    bundle a reduced Latin WOFF2 subset and OFL-derived wordmark outline
+    geometry, so this finding was redone for that distribution. SIL OFL
+    1.1 grants unrestricted use, bundling, modification and redistribution
+    provided the copyright notice and the license text travel with the
+    font and the Modified Version remains under this license. The upstream
+    notice ("Copyright 2022 The Inter Project Authors", immutable pin
+    fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69) specifies no Reserved Font
+    Name, so the OFL rename restriction does not apply; the webfont is
+    nonetheless distributed under the distinct family name "Inter Tight
+    Skilit" so that a modified subset is not presented as the upstream
+    family. The OFL text ships with the font
+    (docs/brand/licenses/Inter-Tight-OFL.txt), the outline geometry is
+    recorded as an OFL-governed derivative, and the font name is used
+    descriptively only (trademarks remain excluded, §10). NO CONFLICT.
   - Restricted third-party assets, weights, services, brands (§7–§9):
-    EXCLUDED from the candidate. NO CONFLICT.
+    EXCLUDED from the candidate, apart from the Inter Tight subset
+    recorded in §7a. NO CONFLICT.
 
 Result: no genuine licensing conflict blocks this source-release
-candidate. If any future grain vendors additional donor code, modifies
-MPL-licensed files, enables HEIF, or bundles weights/fonts/assets, this
-finding must be redone before that distribution.
+candidate. This finding was redone for the first bundled font asset
+(Inter Tight 600, §7a). If any future grain vendors additional donor
+code, modifies MPL-licensed files, enables HEIF, or bundles further
+weights/fonts/assets, this finding must be redone again before that
+distribution.
 
 --------------------------------------------------------------------------------
 6. JavaScript/TypeScript runtime dependencies (direct, bundled by
@@ -291,11 +309,12 @@ added without its own governed rights record:
   - Third-party MMD motion data (Lumine Idle cycle .vmd)
   - Mixamo animation renders (characters_gif/)
   - AI provider and service logos (trademarks of their owners)
-  - Brand fonts: Carter One, Inter, Archivo, Geist Mono, Source Sans 3,
-    Source Serif 4, JetBrains Mono, Noto Serif, BIZ UDPGothic, Shippori
-    Mincho, BIZ UDMincho, Noto Sans CJK SC, Noto Sans Arabic — governed
-    by SIL OFL 1.1 texts that ship beside the fonts; fonts themselves
-    are NOT bundled here (Skilit indexes font metadata only)
+  - Brand fonts other than the Inter Tight 600 subset recorded in §7a:
+    Carter One, Archivo, Geist Mono, Source Sans 3, Source Serif 4,
+    JetBrains Mono, Noto Serif, BIZ UDPGothic, Shippori Mincho, BIZ
+    UDMincho, Noto Sans CJK SC, Noto Sans Arabic — governed by SIL OFL
+    1.1 texts that ship beside the fonts; these fonts themselves are NOT
+    bundled here (Skilit indexes font metadata only)
   - Font Awesome Free icons (CC BY 4.0); Lucide icons (ISC, plus MIT
     for Feather-derived icons); DesignCraft UI icons (original work)
   - SCOWL English word list (own license); Moby hyphenation list
@@ -315,6 +334,44 @@ added without its own governed rights record:
     before any redistribution
   - crates/vendor/tauri-plugin-http/ and vendor/windows-link/ (own
     license texts)
+
+--------------------------------------------------------------------------------
+7a. Third-party font asset BUNDLED in this candidate
+--------------------------------------------------------------------------------
+One third-party font asset is distributed in this candidate. It is listed
+here, not in §7, because §7 is the quarantine list of assets that are
+never distributed.
+
+  - Inter Tight 600 (SIL Open Font License 1.1)
+    - Upstream: https://github.com/google/fonts (Inter Tight,
+      "Copyright 2022 The Inter Project Authors")
+    - Pinned commit: fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69
+    - Upstream source SHA-256: recorded in
+      docs/brand/wordmark-inter-tight-600.json (upstreamTtfSha256)
+    - License: SIL Open Font License 1.1. The upstream copyright notice
+      specifies NO Reserved Font Name, so OFL clause 3 does not restrict
+      naming; the bundled webfont is still distributed under the distinct
+      family name "Inter Tight Skilit" so a modified subset is not
+      presented as the upstream family.
+    - Bundled paths:
+        apps/web/public/brand/inter-tight-latin-600.woff2  (reduced basic
+          Latin WOFF2 subset; SHA-256 in the same JSON, subsetSha256)
+        docs/brand/wordmark-inter-tight-600.json  (wordmark outline
+          geometry converted from the font; an OFL Modified Version)
+        docs/brand/licenses/Inter-Tight-OFL.txt  (the OFL 1.1 text and
+          the upstream copyright notice)
+    - Why it is compliant: OFL 1.1 condition 2 permits bundling a
+      Modified Version provided each copy contains the copyright notice
+      and the license; condition 5 requires the Modified Version to stay
+      under this license. The OFL text and the copyright notice are
+      distributed in this tree, the subset and the outlines are recorded
+      as OFL-governed derivatives, and no upstream file is modified in
+      place.
+    - Rights scope: source and assets are license-governed; trademarks
+      are restricted (§10) and the font name is used descriptively only.
+      No endorsement is claimed or implied.
+    - Provenance record: UPSTREAMS.lock.yml, id
+      inter-tight-google-fonts (status: imported).
 
 --------------------------------------------------------------------------------
 8. Models and weights — NOT distributed
@@ -359,14 +416,19 @@ the Apache License 2.0 §4(d) placement rules. The §2 carve-out travels
 with the two listed files: do not represent them as Apache-2.0-licensed
 Skilit originals. Upstream LICENSE-MIT / LICENSE-APACHE / NOTICE /
 ATTRIBUTION / OFL / third-party license texts must be added for any
-future vendored file before that file ships.
+future vendored file before that file ships. The bundled Inter Tight
+600 font (§7a) is a SIL OFL 1.1 Modified Version: its OFL text and
+upstream copyright notice must travel with any redistribution that
+includes the subset or the outline geometry, and the derivative must
+remain under this license.
 
 --------------------------------------------------------------------------------
 12. Pointers
 --------------------------------------------------------------------------------
   - Root license: LICENSE (Apache-2.0, Skilit original code)
   - Provenance policy: CODE_PROVENANCE.md, DATA_PROVENANCE.md
-  - Source lock: UPSTREAMS.lock.yml (38 sources: 14 ready, 24 planned)
+  - Source lock: UPSTREAMS.lock.yml (39 sources: 14 ready, 24 planned,
+    1 imported)
   - Donor pins: imports/craft-suite/donor-pins.json
   - Authorizations: docs/provenance/authorizations/
       monet-registry-2026-10-04.json,
@@ -378,5 +440,9 @@ future vendored file before that file ships.
     owner ceremony OD-02)
   - Acceptance contract: docs/qualification/V1_LOCAL_ACCEPTANCE_CONTRACT.md
   - Cloud backlog: docs/qualification/CLOUD_COMMERCIAL_BACKLOG.md
+  - Bundled font (SIL OFL 1.1, §7a):
+      docs/brand/licenses/Inter-Tight-OFL.txt
+      docs/brand/wordmark-inter-tight-600.json
+      apps/web/public/brand/inter-tight-latin-600.woff2
 
 END OF NOTICE

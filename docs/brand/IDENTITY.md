@@ -10,7 +10,7 @@ is used in the active UI.
 | Artifact | Use |
 | --- | --- |
 | `apps/web/public/brand/skilit-mark-orange.svg` | Orange mark on warm off-white or dark surfaces |
-| `apps/web/public/brand/skilit-mark-black.svg` | Black mark on the soft orange brand field |
+| `apps/web/public/brand/skilit-mark-black.svg` | Black mark on the warm orange brand field |
 | `apps/web/public/brand/skilit-lockup-light.svg` | Lowercase `skilit` wordmark on cream |
 | `apps/web/public/brand/skilit-lockup-orange.svg` | Lowercase `skilit` wordmark on warm orange |
 | `apps/web/app/icon.svg` | Standalone orange S on cream app/favicon canvas |

@@ -9,6 +9,7 @@ the builder manifest license state, and the updated RC procedure doc.
 
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -100,6 +101,31 @@ class LicenseNoticeTests(unittest.TestCase):
             self.assertIn(token, self.doc, msg=f"RC doc missing: {token}")
         self.assertNotIn("no root `LICENSE` file and no consolidated `NOTICE` file exist",
                          self.doc, msg="RC doc still claims the gap")
+
+    def test_notice_source_tally_matches_the_lock(self) -> None:
+        """The NOTICE pointer must not drift from the inventory it describes."""
+        lock = json.loads((ROOT / "UPSTREAMS.lock.yml").read_text(encoding="utf-8"))
+        sources = lock["sources"]
+        counts: dict[str, int] = {}
+        for source in sources:
+            status = source["status"]
+            counts[status] = counts.get(status, 0) + 1
+        tally = ", ".join(
+            f"{counts[status]} {status}"
+            for status in ("ready", "planned", "imported")
+            if status in counts
+        )
+        normalized = " ".join(self.notice.split())
+        self.assertIn(
+            f"UPSTREAMS.lock.yml ({len(sources)} sources: {tally})",
+            normalized,
+            msg="NOTICE source tally must match UPSTREAMS.lock.yml",
+        )
+        self.assertNotRegex(
+            self.builder,
+            r"UPSTREAMS\.lock\.yml \(\d+ sources\)",
+            msg="the release builder must derive the source count, not hardcode it",
+        )
 
     def test_no_signed_final_claim(self) -> None:
         self.assertNotRegex(self.notice, r"(?i)officially signed")
