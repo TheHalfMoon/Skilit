@@ -1003,7 +1003,7 @@
       "license": "MIT",
       "pin_policy": "git_commit_required",
       "exact_commit_or_release": "faa4e9fb22e5cd19ac85ca094f6056ba89eaa701",
-      "verification_date": "2026-10-21",
+      "verification_date": "2026-10-20",
       "rights_scope": {
         "code": "license-governed",
         "data": "not-applicable",
