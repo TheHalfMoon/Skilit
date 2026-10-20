@@ -19,7 +19,7 @@ Search existing issues and pull requests before proposing a change. Scope your w
 
 Use a clean worktree or branch from the **current** canonical `main`. Preserve existing untracked files, including `.ignore`. The [governance rules](GOVERNANCE.md) prescribe `skilit/pXX-gYY-short-name` branches for adopted implementation grains, with a recorded base SHA.
 
-The root [package.json](package.json) pins pnpm **9.12.0**, supports Node.js **>=20.9.0**, and CI uses a pinned Node 22 toolchain. For Python and database prerequisites follow the [clean-install procedure](docs/operations/CLEAN_INSTALL.md); apply database migrations as described in the [runbook](docs/operations/RUNBOOK.md).
+The root [package.json](package.json) pins pnpm **9.12.0**, supports Node.js **>=20.9.0**, and CI uses a pinned Node 22 toolchain. CI also pins Python **3.12.14**; the repository declares no Python floor, so use that version. For database and storage prerequisites follow the [clean-install procedure](docs/operations/CLEAN_INSTALL.md); apply database migrations as described in the [runbook](docs/operations/RUNBOOK.md).
 
 ```sh
 corepack enable
@@ -47,7 +47,7 @@ python scripts/validate_agent_contract.py
 python scripts/validate_registry.py
 ```
 
-The [CI contract](docs/operations/CI.md) is the authoritative list of required checks.
+The required hosted checks are defined by [docs/operations/CI.md](docs/operations/CI.md) together with the [CI workflow](.github/workflows/ci.yml).
 
 Some tests need services or fixtures. Clearly label skipped or blocked checks; never infer PASS from a command that was not executed. UI changes should use Chromium-based desktop/mobile interaction tests and accessibility checks. API/MCP changes should test denied requests, stable typed errors, secret handling, and cross-workspace boundaries.
 
