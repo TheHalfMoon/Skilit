@@ -228,6 +228,12 @@ jobs:
       - name: Production startup smoke
         run: node scripts/smoke-web.mjs 3103
 
+      - name: Install pinned Playwright Chromium headless shell
+        run: node packages/lens/node_modules/playwright-core/cli.js install chromium-headless-shell
+
+      - name: Authenticated browser journey smoke
+        run: node scripts/smoke-auth-journey.mjs 3105
+
       - name: Clean-consumer registry install proof
         run: node scripts/prove_registry_install.mjs
 

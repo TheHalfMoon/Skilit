@@ -39,7 +39,8 @@ The web job runs on the explicit `ubuntu-24.04` image with a 15-minute timeout. 
 - strict `tsc --noEmit`;
 - the Node.js test suites (`tests/node/`, `apps/web/tests/`);
 - the Next.js production build;
-- the production startup smoke (`scripts/smoke-web.mjs`), which boots `next start`, asserts the `/api/health` contract and the landing page, then shuts down.
+- the production startup smoke (`scripts/smoke-web.mjs`), which boots `next start`, asserts the `/api/health` contract and the landing page, then shuts down;
+- the authenticated browser journey smoke (`scripts/smoke-auth-journey.mjs`), which drives the pinned headless Chromium against two disposable local PGlite databases: an empty installation where the owner bootstraps the first account through the real form, receives a HttpOnly session cookie with no token in browser storage, discovers the authorized workspace, creates a board in it, is refused a forged workspace id, cannot distinguish an unknown email from a wrong password, and is signed out; and a two-actor installation where one actor is refused every read and write against the other actor's real workspace. The databases live in a temporary directory and are removed on exit, so the job touches no shared or production data.
 
 A passing bootstrap compile or planning validator is never reported as this application gate.
 
