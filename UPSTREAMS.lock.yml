@@ -988,6 +988,44 @@
       },
       "imported_paths": [],
       "modifications": []
+    },
+    {
+      "id": "pstack",
+      "source_url": "https://github.com/phthomas/pstack",
+      "source_kind": "git",
+      "role": "dev_gate",
+      "status": "ready",
+      "capability": "Markdown-only agent workflow skills providing the ps-review panel (fresh-context judges over a diff) used as the mandatory Skilit review gate.",
+      "permission_basis": {
+        "type": "upstream_license",
+        "note": "Upstream project is MIT licensed; skills are markdown-only and are installed at review time from the pinned commit, never vendored into the tree."
+      },
+      "license": "MIT",
+      "pin_policy": "git_commit_required",
+      "exact_commit_or_release": "faa4e9fb22e5cd19ac85ca094f6056ba89eaa701",
+      "verification_date": "2026-10-21",
+      "rights_scope": {
+        "code": "license-governed",
+        "data": "not-applicable",
+        "assets": "not-applicable",
+        "models": "not-applicable",
+        "services": "not-applicable",
+        "trademarks": "not-applicable"
+      },
+      "imported_paths": [
+        ".claude/skills/ps-adr",
+        ".claude/skills/ps-build",
+        ".claude/skills/ps-checkpoint",
+        ".claude/skills/ps-close",
+        ".claude/skills/ps-doctor",
+        ".claude/skills/ps-dormammu",
+        ".claude/skills/ps-init",
+        ".claude/skills/ps-resume",
+        ".claude/skills/ps-review",
+        ".claude/skills/ps-spec",
+        ".claude/skills/ps-start"
+      ],
+      "modifications": []
     }
   ]
 }

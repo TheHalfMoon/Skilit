@@ -6,6 +6,10 @@ Status: canonical repository governance
 
 The canonical implementation program is `docs/IMPLEMENTATION_PLAN.md`.
 
+Founder decisions that change this file are recorded as durable decision documents under
+`docs/governance/`. The current review-stack decision is
+[`docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md`](docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md).
+
 This file defines how implementation work is executed, reviewed, merged, and closed. If a local instruction conflicts with this governance, stop and resolve the conflict before changing canonical code.
 
 ## Language
@@ -63,19 +67,38 @@ A stale or failed Graft graph is a blocking review condition when the repository
 
 For documentation-only bootstrap grains where Graft has no indexable implementation code, record that fact explicitly rather than fabricating a graph result.
 
-## Mandatory TypeSafe Jev Gate
+## Mandatory Review Stack
 
-TypeSafe Jev is mandatory for every governed diff.
+Every governed grain must satisfy four classes of review evidence. A green CI run alone is
+never sufficient, and no single tool's verdict substitutes for the others.
 
-Jev review must:
+The rules that govern this stack — the four review bars, the panel composition, the
+fresh-context requirement, the degraded-review taxonomy, and the evidence convention — are
+owned by the founder decision of 2026-10-21:
+[`docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md`](docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md).
+That document is the single normative source for them; this file names the gates and does
+not restate them.
 
-- bind to the exact base SHA and exact candidate HEAD;
-- cover every changed hunk or the complete changed artifact as appropriate;
-- evaluate correctness, security/privacy, reliability, compatibility, test/evidence gaps, and grain/scope integrity;
-- produce machine-readable evidence;
-- contain zero unresolved blocking findings before merge.
+The four classes are:
 
-If Jev cannot run, the grain is blocked. Do not substitute an invented or historical result.
+1. the **PStack review panel** — mandatory for every governed grain, covering all four
+   bars (correctness, parsimony, product completeness and specification alignment, and
+   security and privacy);
+2. **Alibaba Open Code Review** — mandatory for code and configuration diffs;
+3. **Graft** — mandatory for implementation grains;
+4. **exact-head GitHub CI and the mechanical suites** — mandatory for every grain.
+
+That decision **waives** the former mandatory TypeSafe Jev gate. Jev is not a merge gate,
+not a release gate, and not a blocker for any grain. Do not reactivate it, and do not
+substitute an invented or historical Jev result for a live one. Historical Jev records in
+`docs/reviews/` and in `docs/qualification/` remain valid evidence of what ran at that
+time and must not be rewritten or deleted.
+
+Fresh context is the load-bearing requirement of the panel: a judge must run in a context
+that did not author or debug the diff. Where that cannot be obtained, the grain records
+the review at the applicable degraded level defined in the decision document, satisfies the
+obligations that level carries, and never describes it as independent. Degraded is allowed;
+invisible is not.
 
 ## Mandatory Alibaba Open Code Review Gate
 
@@ -102,7 +125,7 @@ Default qualification order:
 
 1. implementation-local tests and static checks;
 2. Graft freshness and blast-radius review;
-3. TypeSafe Jev exact-diff review;
+3. PStack review panel over the exact diff, independent fresh-context judges;
 4. Alibaba Open Code Review applicability check and, for reviewable code/configuration, exact-diff review or valid delegated review;
 5. GitHub CI on the exact PR HEAD when CI workflows are canonical; before G00-03, record CI as not yet configured and rely on the grain's required local qualification;
 6. mergeability and dependency revalidation;
@@ -139,7 +162,7 @@ Every implementation PR must include:
 - changed contracts;
 - local qualification results;
 - Graft status/blast summary;
-- Jev status and evidence location;
+- PStack panel status (independent or explicitly degraded) and evidence location;
 - Alibaba OCR status and evidence location;
 - CI status;
 - known limitations or deferred work.
@@ -167,6 +190,13 @@ Use donors to delete work, not to import unnecessary complexity.
 
 Do not make a paid API, managed AI provider, paid crawler, paid search service, paid vector database, mandatory GPU, or mandatory cloud-specific service a launch requirement without an explicit architecture decision supported by measured value.
 
+Skilit must remain completable at **zero out-of-pocket cost** to the founder. The review
+stack in this file is deliberately built from open-source, locally executable, or
+already-entitled tools. Reinstating a paid or metered review gate requires explicit
+written founder authorisation and may not be introduced by an agent, a reviewer, or a
+convenience argument. See
+[`docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md`](docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md).
+
 ## Stop Conditions
 
 Stop the current grain before merge if any of the following is true:
@@ -174,7 +204,8 @@ Stop the current grain before merge if any of the following is true:
 - dependency or base SHA assumptions are stale;
 - scope expanded beyond the grain contract;
 - Graft freshness/blast evidence is invalid or required but missing;
-- Jev has an unresolved blocking finding or cannot run;
+- the PStack panel has an unresolved must-fix finding, or the panel could not run and the
+  degraded-review obligations of the founder decision are unmet;
 - Alibaba OCR applicability evidence is missing, or an OCR-reviewable diff has an unresolved blocking finding or cannot be validly reviewed;
 - required tests or CI are failing;
 - provenance/rights are ambiguous for material imported content;

@@ -37,7 +37,7 @@ npx --yes --package=typescript@5.9.3 tsc --noEmit --strict --target ES2022 --mod
 ```
 
 GitHub Actions runs these Python and isolated Node/TypeScript checks against
-an exact PR HEAD, alongside the Graft graph/freshness job and normal Jev/OCR
+an exact PR HEAD, alongside the Graft graph/freshness job and normal PStack/OCR
 review gates.
 
 ## Deliberate Limitations

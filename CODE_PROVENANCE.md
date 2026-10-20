@@ -112,7 +112,7 @@ Before merge, evidence must bind to the exact candidate HEAD and include:
 - preserved notices/license evidence;
 - transformations performed;
 - Graft status and blast radius;
-- TypeSafe Jev exact-diff result;
+- PStack review-panel result (independent fresh-context review, or an explicitly recorded degraded review);
 - Alibaba Open Code Review result for reviewable code/configuration;
 - tests/CI required by the grain.
 
