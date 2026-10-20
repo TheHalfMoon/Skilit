@@ -1,26 +1,33 @@
 /** Authenticated browser journey smoke.
  *
- * `node scripts/smoke-auth-journey.mjs [--port N]`
+ * `node scripts/smoke-auth-journey.mjs [port]`
  *
  * Proves real, isolated, authenticated human UI journeys on a clean install.
  * Two scenarios run against two disposable databases:
  *
  *   bootstrap — an empty installation: the owner creates the first account
  *     through the real form, receives a HttpOnly session cookie with no
- *     token in browser storage, discovers the authorized workspace, creates
- *     a board inside it, is refused a forged workspace id, cannot
- *     distinguish an unknown email from a wrong password, and is signed
- *     out at the end.
+ *     token anywhere the page can read, discovers the authorized
+ *     workspace, creates a board inside it, is refused a workspace it
+ *     cannot see, cannot distinguish an unknown email from a wrong
+ *     password, and is signed out at the end.
  *
  *   isolation — two pre-seeded actors, each owning a real workspace: the
  *     first actor signs in through the real form, sees only its own
  *     workspace, and is refused every read and write against the other
- *     actor's real workspace.
+ *     actor's real workspace — with the same answer it gets for a
+ *     workspace that does not exist at all, so the API never reveals
+ *     which workspace ids are real.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
- * server. No production database, no hosted service, no user data, no
- * network egress. The directories are removed on exit.
+ * server. The directories are removed on exit.
+ *
+ * The web server is started with the database URL variables REMOVED from
+ * the environment, so this smoke can only ever reach its own disposable
+ * database even when the caller's shell points at a real PostgreSQL
+ * server. No production database, hosted service, user data, or network
+ * egress is involved, and the run costs nothing.
  *
  * Requires the built web application (CI runs this after the production
  * build) and the pinned Playwright Chromium headless shell.
@@ -38,12 +45,26 @@ const selfPath = fileURLToPath(import.meta.url);
 const requireLens = createRequire(path.join(root, "packages/lens/package.json"));
 const { chromium } = requireLens("playwright-core");
 
+const ROUTES = {
+  signup: "/signup",
+  login: "/login",
+  boards: "/boards",
+  session: "/api/v1/auth/session",
+  signin: "/api/v1/auth/signin",
+  signout: "/api/v1/auth/signout",
+  boardsApi: "/api/v1/boards",
+};
 const OWNER_EMAIL = "owner@skilit.example";
 const OWNER_PASSWORD = "journey-password-01";
 const ALICE_EMAIL = "alice@skilit.example";
 const BOB_EMAIL = "bob@skilit.example";
 const ACTOR_PASSWORD = "journey-password-01";
-const FORGED_WORKSPACE_ID = "skilit://workspace/00000000-0000-4000-8000-000000000000";
+// A well-formed workspace id that belongs to nobody.
+const UNKNOWN_WORKSPACE_ID = "00000000-0000-4000-8000-000000000000";
+// The API answers a workspace the actor cannot see and a workspace that does
+// not exist identically, so a caller cannot probe which ids are real.
+const DENIED_CODE = "FORBIDDEN_OR_NOT_FOUND";
+const DENIED_STATUS = 404;
 
 // ---------------------------------------------------------------- prepare
 // Child phase: migrate a fresh PGlite data directory, optionally seed it,
@@ -65,8 +86,8 @@ if (process.argv[2] === "--prepare") {
     pathToFileURL(path.join(root, "packages/db/src/workspaces.ts")).href
   );
   const db = await openDatabase({ dataDir });
-  const applied = await migrateUp(db);
-  const prepared = { migrations: applied.length, scenario };
+  await migrateUp(db);
+  const prepared = { scenario };
   if (scenario === "isolation") {
     const alice = await signUp(db, { email: ALICE_EMAIL, password: ACTOR_PASSWORD });
     const bob = await signUp(db, { email: BOB_EMAIL, password: ACTOR_PASSWORD });
@@ -80,7 +101,12 @@ if (process.argv[2] === "--prepare") {
 }
 
 const basePort = Number(process.env.SMOKE_PORT ?? process.argv[2] ?? 3105);
-if (!Number.isInteger(basePort) || basePort < 1 || basePort > 65535) {
+const isolationPort = basePort + 1;
+if (
+  !Number.isInteger(basePort) ||
+  basePort < 1 ||
+  isolationPort > 65535
+) {
   console.error(`SMOKE_FAIL invalid port: ${process.argv[2] ?? ""}`);
   process.exit(2);
 }
@@ -88,6 +114,29 @@ if (!Number.isInteger(basePort) || basePort < 1 || basePort > 65535) {
 const failures = [];
 function check(condition, message) {
   if (!condition) failures.push(message);
+}
+
+/** The environment the web server is allowed to see. */
+function serverEnv(dataDir) {
+  const {
+    SKILIT_MCP_DATABASE_URL: _url,
+    SKELET_MCP_DATABASE_URL: _legacyUrl,
+    DATABASE_URL: _plainUrl,
+    ...rest
+  } = process.env;
+  return { ...rest, SKILIT_MCP_PGLITE_DATA_DIR: dataDir };
+}
+
+/** One in-page request, returning the status and the parsed body. */
+async function apiCall(page, url, init) {
+  return page.evaluate(
+    async ({ target, options }) => {
+      const response = await fetch(target, options);
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    },
+    { target: url, options: init ?? {} },
+  );
 }
 
 async function prepareDatabase(scenario) {
@@ -106,47 +155,57 @@ async function prepareDatabase(scenario) {
   return { dataDir, prepared: JSON.parse(prepare.stdout) };
 }
 
-async function startServer(port, dataDir) {
-  const server = spawn(
-    process.execPath,
-    ["node_modules/next/dist/bin/next", "start", "-p", String(port)],
-    {
-      cwd: path.join(root, "apps/web"),
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, SKILIT_MCP_PGLITE_DATA_DIR: dataDir },
-    },
-  );
-  server.stdout.on("data", (chunk) => process.stdout.write(`[web] ${chunk}`));
-  server.stderr.on("data", (chunk) => process.stdout.write(`[web] ${chunk}`));
-  let exited = false;
-  server.on("exit", (code) => {
-    exited = true;
-    if (code !== 0 && code !== null) console.error(`[web] server exited early with code ${code}`);
-  });
-  const deadline = Date.now() + 120_000;
-  for (;;) {
-    if (exited) throw new Error("server exited before it became ready");
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/health`);
-      if (response.ok) return server;
-    } catch {
-      /* keep polling */
-    }
-    if (Date.now() > deadline) throw new Error("timed out waiting for the web server");
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-}
-
 async function runScenario(name, port, journey) {
   const { dataDir, prepared } = await prepareDatabase(name);
-  let server;
-  let browser;
+  let server = null;
+  let browser = null;
+  let output = "";
   try {
-    server = await startServer(port, dataDir);
+    server = spawn(
+      process.execPath,
+      ["node_modules/next/dist/bin/next", "start", "-p", String(port)],
+      {
+        cwd: path.join(root, "apps/web"),
+        stdio: ["ignore", "pipe", "pipe"],
+        env: serverEnv(dataDir),
+      },
+    );
+    const capture = (chunk) => {
+      output += chunk.toString();
+      process.stdout.write(`[web] ${chunk}`);
+    };
+    server.stdout.on("data", capture);
+    server.stderr.on("data", capture);
+    let exited = false;
+    server.on("exit", () => {
+      exited = true;
+    });
+    const deadline = Date.now() + 120_000;
+    for (;;) {
+      if (exited) throw new Error("server exited before it became ready");
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/api/health`);
+        if (response.ok) break;
+      } catch {
+        /* keep polling */
+      }
+      if (Date.now() > deadline) throw new Error("timed out waiting for the web server");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     const page = await context.newPage();
     await journey({ page, context, base: `http://127.0.0.1:${port}`, prepared });
+    // The server output is mirrored into CI logs, so it must not carry a
+    // session cookie or a session token.
+    check(
+      !output.includes("skilit_session="),
+      "the web server output must not contain a session cookie",
+    );
+    check(
+      !output.includes(OWNER_PASSWORD) && !output.includes(ACTOR_PASSWORD),
+      "the web server output must not contain a session password",
+    );
   } finally {
     if (browser) await browser.close();
     if (server) {
@@ -160,7 +219,7 @@ async function runScenario(name, port, journey) {
 // ---------------------------------------------------------------- bootstrap
 async function bootstrapJourney({ page, context, base }) {
   // --- A. owner bootstrap through the real form -------------------------
-  await page.goto(base + "/signup", { waitUntil: "load" });
+  await page.goto(base + ROUTES.signup, { waitUntil: "load" });
   await page.fill("#signup-email", OWNER_EMAIL);
   await page.fill("#signup-password", OWNER_PASSWORD);
   await page.click("form button[type=submit]");
@@ -183,23 +242,36 @@ async function bootstrapJourney({ page, context, base }) {
     (session?.sameSite ?? "").toLowerCase() === "lax",
     `the session cookie must be SameSite=Lax, saw ${session?.sameSite}`,
   );
-  const browserVisibleCookie = await page.evaluate(() => document.cookie);
+
+  // The session token must not be readable anywhere the page can reach:
+  // not in document.cookie under any name, and not under any storage key.
+  const token = session?.value ?? "";
+  const readable = await page.evaluate((value) => {
+    const storageValues = [
+      ...Object.entries(window.localStorage),
+      ...Object.entries(window.sessionStorage),
+    ];
+    return {
+      inCookieJar: window.document.cookie.includes(value),
+      inStorage: storageValues.some(([, stored]) => stored.includes(value)),
+      storageKeys: [
+        ...Object.keys(window.localStorage),
+        ...Object.keys(window.sessionStorage),
+      ],
+    };
+  }, token);
+  check(token.length > 0, "the session cookie must carry a value");
   check(
-    !browserVisibleCookie.includes("skilit_session"),
-    "the session cookie must not be readable from document.cookie",
+    !readable.inCookieJar,
+    "the session token must not be readable from document.cookie",
   );
-  const storage = await page.evaluate(() => ({
-    local: Object.keys(window.localStorage).length,
-    session: Object.keys(window.sessionStorage).length,
-  }));
-  check(storage.local === 0, "the session must not be persisted in localStorage");
-  check(storage.session === 0, "the session must not be persisted in sessionStorage");
+  check(
+    !readable.inStorage,
+    `the session token must not be persisted in browser storage, found it in ${readable.storageKeys.join(", ")}`,
+  );
 
   // --- B. authorized session -------------------------------------------
-  const sessionResponse = await page.evaluate(async () => {
-    const response = await fetch("/api/v1/auth/session");
-    return { status: response.status, body: await response.json() };
-  });
+  const sessionResponse = await apiCall(page, ROUTES.session);
   check(sessionResponse.status === 200, `session status must be 200, saw ${sessionResponse.status}`);
   const sessionResult = sessionResponse.body?.result ?? {};
   check(
@@ -212,8 +284,16 @@ async function bootstrapJourney({ page, context, base }) {
   check(workspaceId.length > 0, "the authorized workspace must expose an id");
 
   // --- C. authorized workspace use --------------------------------------
-  await page.goto(base + "/boards", { waitUntil: "load" });
-  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+  await page.goto(base + ROUTES.boards, { waitUntil: "load" });
+  // The selector fills from a client-side session fetch, so wait for the
+  // value instead of racing it.
+  await page
+    .waitForFunction(
+      () => (document.querySelector("select")?.value ?? "") !== "",
+      undefined,
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
   const selected = await page.evaluate(() => {
     const select = document.querySelector("select");
     return select ? select.value : "";
@@ -223,41 +303,36 @@ async function bootstrapJourney({ page, context, base }) {
     `the workspace selector must auto-select the authorized workspace, saw "${selected}"`,
   );
 
-  const created = await page.evaluate(
-    async ({ id }) => {
-      const response = await fetch("/api/v1/boards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: id, title: "Journey board", visibility: "workspace" }),
-      });
-      return { status: response.status, body: await response.json().catch(() => null) };
-    },
-    { id: workspaceId },
-  );
+  const created = await apiCall(page, ROUTES.boardsApi, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workspaceId, title: "Journey board", visibility: "workspace" }),
+  });
   check(
-    created.status === 201 || created.status === 200,
-    `board creation in the authorized workspace must succeed, saw ${created.status}`,
+    created.status === 201,
+    `board creation in the authorized workspace must answer 201, saw ${created.status}`,
   );
 
-  // --- D. a forged workspace id is denied ---------------------------------
-  const forged = await page.evaluate(async (id) => {
-    const response = await fetch("/api/v1/boards", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId: id, title: "Forged board", visibility: "workspace" }),
-    });
-    return { status: response.status, body: await response.json().catch(() => null) };
-  }, FORGED_WORKSPACE_ID);
+  // --- D. a workspace the actor cannot see is refused --------------------
+  const denied = await apiCall(page, ROUTES.boardsApi, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId: UNKNOWN_WORKSPACE_ID,
+      title: "Unknown workspace board",
+      visibility: "workspace",
+    }),
+  });
   check(
-    forged.status < 200 || forged.status >= 300,
-    `a forged workspace id must be denied, saw ${forged.status}`,
+    denied.status === DENIED_STATUS && denied.body?.error?.code === DENIED_CODE,
+    `an unseen workspace must answer ${DENIED_STATUS} ${DENIED_CODE}, saw ${denied.status} ${denied.body?.error?.code}`,
   );
 
   // --- E. an invalid sign-in does not enumerate users ---------------------
   const signin = await page.evaluate(
-    async ({ email, password, wrongEmail }) => {
+    async ({ path, email, password, wrongEmail }) => {
       const post = async (address, secret) => {
-        const response = await fetch("/api/v1/auth/signin", {
+        const response = await fetch(path, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: address, password: secret }),
@@ -274,7 +349,16 @@ async function bootstrapJourney({ page, context, base }) {
         unknownEmail: await post(wrongEmail, password),
       };
     },
-    { email: OWNER_EMAIL, password: OWNER_PASSWORD, wrongEmail: "nobody@skilit.example" },
+    {
+      path: ROUTES.signin,
+      email: OWNER_EMAIL,
+      password: OWNER_PASSWORD,
+      wrongEmail: "nobody@skilit.example",
+    },
+  );
+  check(
+    signin.wrongPassword.status === 400 && signin.wrongPassword.code === "INVALID_INPUT",
+    `a wrong password must answer 400 INVALID_INPUT, saw ${signin.wrongPassword.status} ${signin.wrongPassword.code}`,
   );
   check(
     signin.wrongPassword.status === signin.unknownEmail.status,
@@ -290,15 +374,9 @@ async function bootstrapJourney({ page, context, base }) {
   );
 
   // --- F. sign-out ends the session --------------------------------------
-  const signedOut = await page.evaluate(async () => {
-    const response = await fetch("/api/v1/auth/signout", { method: "POST" });
-    return { status: response.status };
-  });
+  const signedOut = await apiCall(page, ROUTES.signout, { method: "POST" });
   check(signedOut.status === 200, `sign-out must succeed, saw ${signedOut.status}`);
-  const afterSignOut = await page.evaluate(async () => {
-    const response = await fetch("/api/v1/auth/session");
-    return { status: response.status };
-  });
+  const afterSignOut = await apiCall(page, ROUTES.session);
   check(
     afterSignOut.status === 401,
     `the session must be gone after sign-out, saw ${afterSignOut.status}`,
@@ -307,6 +385,15 @@ async function bootstrapJourney({ page, context, base }) {
     (cookie) => cookie.name === "skilit_session" && cookie.value !== "",
   );
   check(cleared === undefined, "sign-out must clear the session cookie");
+  // The revoked token must not work again, even if it is presented
+  // directly.
+  const revoked = await apiCall(page, ROUTES.session, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  check(
+    revoked.status === 401,
+    `a revoked session token must be refused, saw ${revoked.status}`,
+  );
 }
 
 // ---------------------------------------------------------------- isolation
@@ -322,7 +409,7 @@ async function isolationJourney({ page, context, base, prepared }) {
   );
 
   // --- A. sign in as the first actor through the real form ---------------
-  await page.goto(base + "/login", { waitUntil: "load" });
+  await page.goto(base + ROUTES.login, { waitUntil: "load" });
   await page.fill("#login-email", ALICE_EMAIL);
   await page.fill("#login-password", ACTOR_PASSWORD);
   await page.click("form button[type=submit]");
@@ -336,10 +423,7 @@ async function isolationJourney({ page, context, base, prepared }) {
   check(sessionCookie?.httpOnly === true, "the session cookie must be HttpOnly");
 
   // --- B. the session exposes only the actor's own workspace --------------
-  const sessionResponse = await page.evaluate(async () => {
-    const response = await fetch("/api/v1/auth/session");
-    return { status: response.status, body: await response.json() };
-  });
+  const sessionResponse = await apiCall(page, ROUTES.session);
   check(sessionResponse.status === 200, `session status must be 200, saw ${sessionResponse.status}`);
   const workspaces = sessionResponse.body?.result?.workspaces ?? [];
   check(workspaces.length === 1, `the actor must see exactly one workspace, saw ${workspaces.length}`);
@@ -355,65 +439,68 @@ async function isolationJourney({ page, context, base, prepared }) {
   // --- C. every access to the other actor's real workspace is denied -----
   // The request shape is identical to the own-workspace request that
   // succeeds below, so the only difference is the workspace id: the denial
-  // is a workspace-authorization decision, not input validation. The API
-  // deliberately answers "not found" for a workspace the actor cannot see,
-  // so a caller cannot probe which workspace ids exist.
-  const crossWrite = await page.evaluate(
-    async (id) => {
-      const response = await fetch("/api/v1/boards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: id, title: "Cross workspace", visibility: "workspace" }),
-      });
-      return { status: response.status, body: await response.json().catch(() => null) };
-    },
-    bobWorkspaceId,
-  );
+  // is a workspace-authorization decision, not input validation.
+  const crossWrite = await apiCall(page, ROUTES.boardsApi, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId: bobWorkspaceId,
+      title: "Cross workspace",
+      visibility: "workspace",
+    }),
+  });
   check(
-    crossWrite.status >= 400 && crossWrite.status < 500,
-    `writing into the other actor's workspace must be denied with a client error, saw ${crossWrite.status}`,
-  );
-  check(
-    typeof crossWrite.body?.error?.code === "string" &&
-      crossWrite.body.error.code !== "INVALID_INPUT",
-    `the denial must come from workspace authorization, not input validation, saw ${crossWrite.body?.error?.code}`,
+    crossWrite.status === DENIED_STATUS && crossWrite.body?.error?.code === DENIED_CODE,
+    `writing into the other actor's workspace must answer ${DENIED_STATUS} ${DENIED_CODE}, saw ${crossWrite.status} ${crossWrite.body?.error?.code}`,
   );
 
-  const crossRead = await page.evaluate(async (id) => {
-    const response = await fetch(`/api/v1/boards?workspaceId=${encodeURIComponent(id)}`);
-    return { status: response.status, body: await response.json().catch(() => null) };
-  }, bobWorkspaceId);
+  const crossRead = await apiCall(
+    page,
+    `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(bobWorkspaceId)}`,
+  );
   check(
-    crossRead.status >= 400 && crossRead.status < 500,
-    `reading the other actor's workspace must be denied with a client error, saw ${crossRead.status}`,
+    crossRead.status === DENIED_STATUS,
+    `reading the other actor's workspace must answer ${DENIED_STATUS}, saw ${crossRead.status}`,
+  );
+
+  // A workspace that does not exist at all must be answered identically, so
+  // the API never reveals which workspace ids are real.
+  const unknownWrite = await apiCall(page, ROUTES.boardsApi, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId: UNKNOWN_WORKSPACE_ID,
+      title: "Unknown workspace",
+      visibility: "workspace",
+    }),
+  });
+  check(
+    unknownWrite.status === crossWrite.status &&
+      unknownWrite.body?.error?.code === crossWrite.body?.error?.code &&
+      unknownWrite.body?.error?.message === crossWrite.body?.error?.message,
+    `a workspace that does not exist must be answered exactly like one the actor cannot see, saw ${JSON.stringify(unknownWrite.body?.error)} against ${JSON.stringify(crossWrite.body?.error)}`,
   );
 
   // --- D. the actor's own workspace still works ---------------------------
-  const ownWrite = await page.evaluate(
-    async (id) => {
-      const response = await fetch("/api/v1/boards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: id, title: "Own workspace", visibility: "workspace" }),
-      });
-      return { status: response.status };
-    },
-    aliceWorkspaceId,
-  );
+  const ownWrite = await apiCall(page, ROUTES.boardsApi, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspaceId: aliceWorkspaceId,
+      title: "Own workspace",
+      visibility: "workspace",
+    }),
+  });
   check(
-    ownWrite.status === 201 || ownWrite.status === 200,
-    `writing into the actor's own workspace must succeed, saw ${ownWrite.status}`,
-  );
-  check(
-    ownWrite.status < 400,
-    `the own-workspace request must not be refused the way the cross-workspace one is, saw ${ownWrite.status}`,
+    ownWrite.status === 201,
+    `writing into the actor's own workspace must answer 201, saw ${ownWrite.status}`,
   );
 }
 
 // ------------------------------------------------------------------- main
 try {
   await runScenario("bootstrap", basePort, bootstrapJourney);
-  await runScenario("isolation", basePort + 1, isolationJourney);
+  await runScenario("isolation", isolationPort, isolationJourney);
 } catch (error) {
   failures.push(`smoke error: ${error?.message ?? error}`);
 }
