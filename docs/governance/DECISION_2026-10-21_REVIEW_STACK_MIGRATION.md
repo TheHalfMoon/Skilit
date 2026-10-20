@@ -11,13 +11,6 @@ Supersedes: the "Mandatory TypeSafe Jev Gate" section of `GOVERNANCE.md` as it e
 base `3156969ab52d801258af616f1556023572c2990c`.
 Applies: prospectively, from the merge of the pull request carrying this record.
 
-Date basis: the decision is dated **2026-10-21** in the founder's local timezone
-(UTC+03:00). The upstream-pin verification and the GitHub CI evidence for this change are
-dated **2026-10-20** in UTC, because the CI runner's clock is UTC and
-`scripts/validate_upstreams.py` rejects a verification date later than the runner's
-current date. Both dates describe the same working session; the lock file records the
-UTC date, which is the one a CI runner can verify.
-
 This document is the normative source for the **review stack**: the bars, the panel
 composition, the degraded-review taxonomy, and the evidence convention. `GOVERNANCE.md`
 states which gates exist and links here; it does not restate these rules, so there is one
