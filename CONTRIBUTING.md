@@ -4,7 +4,7 @@ Thanks for helping build Skilit, a **local-first design intelligence workspace f
 
 ## Start with the project contracts
 
-Read the [product contract](PRODUCT.md), [architecture charter](ARCHITECTURE.md), [security charter](SECURITY.md), [governance policy](GOVERNANCE.md), [code provenance rules](CODE_PROVENANCE.md), and [CI contract](docs/operations/CI.md). They are authoritative if this quick-start differs.
+Read the [product contract](PRODUCT.md), [architecture charter](ARCHITECTURE.md), [security charter](SECURITY.md), [governance policy](GOVERNANCE.md), [code provenance rules](CODE_PROVENANCE.md), [data provenance policy](DATA_PROVENANCE.md), [implementation plan](docs/IMPLEMENTATION_PLAN.md), and [CI contract](docs/operations/CI.md). They are authoritative if this quick-start differs.
 
 Search existing issues and pull requests before proposing a change. Scope your work to a testable problem; do not duplicate an active grain or overwrite a concurrent agent's branch.
 
@@ -19,7 +19,7 @@ Search existing issues and pull requests before proposing a change. Scope your w
 
 Use a clean worktree or branch from the **current** canonical `main`. Preserve existing untracked files, including `.ignore`. The [governance rules](GOVERNANCE.md) prescribe `skilit/pXX-gYY-short-name` branches for adopted implementation grains, with a recorded base SHA.
 
-The root [package.json](package.json) pins pnpm **9.12.0**, supports Node.js **>=20.9.0**, and CI uses a pinned Node 22 toolchain. Follow the repository's operational instructions for Python and database requirements.
+The root [package.json](package.json) pins pnpm **9.12.0**, supports Node.js **>=20.9.0**, and CI uses a pinned Node 22 toolchain. For Python and database prerequisites follow the [clean-install procedure](docs/operations/CLEAN_INSTALL.md); apply database migrations as described in the [runbook](docs/operations/RUNBOOK.md).
 
 ```sh
 corepack enable
@@ -41,8 +41,13 @@ pnpm --dir apps/web build
 pnpm test
 python -m unittest discover -s tests -v
 python scripts/validate_upstreams.py
+python scripts/validate_build_kit.py
+python scripts/validate_skills.py
 python scripts/validate_agent_contract.py
+python scripts/validate_registry.py
 ```
+
+The [CI contract](docs/operations/CI.md) is the authoritative list of required checks.
 
 Some tests need services or fixtures. Clearly label skipped or blocked checks; never infer PASS from a command that was not executed. UI changes should use Chromium-based desktop/mobile interaction tests and accessibility checks. API/MCP changes should test denied requests, stable typed errors, secret handling, and cross-workspace boundaries.
 

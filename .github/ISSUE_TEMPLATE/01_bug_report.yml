@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for helping Skilit. Do not post vulnerabilities, real API tokens, session cookies, private URLs or workspace data. Follow the private reporting instructions in SECURITY.md for security issues.
+        Thank you for helping Skilit. Do not post vulnerabilities, real API tokens, session cookies, private URLs or workspace data. Do not use this form for security issues: if GitHub private vulnerability reporting is enabled, use it; otherwise arrange a private channel with the repository maintainers before sharing vulnerability details.
   - type: dropdown
     id: surface
     attributes:
@@ -52,7 +52,7 @@ body:
     id: revision
     attributes:
       label: Exact version, commit SHA or PR number
-      placeholder: abc1234 or PR #123
+      placeholder: "abc1234 or PR #123"
     validations:
       required: true
   - type: dropdown
