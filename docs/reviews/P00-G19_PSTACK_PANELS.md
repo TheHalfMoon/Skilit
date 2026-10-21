@@ -49,20 +49,26 @@ ed8f5f3 · merge candidate: the commit carrying this record
 ```
 
 The merge candidate differs from the reviewed candidate `ed8f5f3` by the
-changes the final-candidate judge's findings required, and by nothing else:
-the three failure answers the invitation route module had copied instead of
-importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
-mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
-comment that the roster type's move to `packages/db/src/workspaces.ts` left
-dangling in `packages/db/src/invites.ts`, the claim in that module's header
-that the final judge found overstated, and the two review records' own corrections.
-Three of those changes are reviewable code, and one of them —
-`apps/web/lib/rest.ts` — enters the reviewable set rather than already being
-in it, so the merge candidate's OCR preview shows **one** more reviewable
-file than the reviewed candidate's (47 against 46) and the same six excluded
-documents. The record's numbers below say which candidate each number was
-measured on. Every change is either the evidence this record carries or a
-direct consequence of a finding the final-candidate judge made.
+changes the final-candidate judge's findings required, by the correction this
+branch made to the acceptance matrix's P04 row after the delta was first
+enumerated, and by nothing else: the three failure answers the invitation
+route module had copied instead of importing (`apps/web/lib/invites.ts`,
+`apps/web/lib/rest.ts`), the two view mappers that only copied their input's
+fields (`apps/web/lib/invites.ts`), the comment that the roster type's move to
+`packages/db/src/workspaces.ts` left dangling in `packages/db/src/invites.ts`,
+the claim in that module's header that the final judge found overstated, the
+two review records' own corrections, and the P04 row's pointer to this
+grain's Post-Audit Delta entry. Three of those changes are reviewable code,
+and one of them — `apps/web/lib/rest.ts` — enters the reviewable set rather
+than already being in it, so the merge candidate's OCR preview shows **one**
+more reviewable file than the reviewed candidate's (47 against 46) and the
+same six excluded documents: the acceptance matrix was already in the diff at
+the reviewed candidate, so its later edit changes the content of a file that
+was already excluded rather than the size of the set. The record's numbers
+below say which candidate each number was measured on. Every change is either
+the evidence this record carries, a direct consequence of a finding the
+final-candidate judge made, or the correction of a forward reference the
+record itself carried.
 
 ## Installed upstream skill files
 
@@ -85,8 +91,11 @@ b4d0737cb3cf244a843dbca14cfa4b0b9fdc9449a34761f13d863f95eaaa02e9  ps-review/SKIL
 
 ## Findings and disposition — first round
 
-Thirteen must-fix findings came out of three judges. Every one is fixed in
-`ef3b168`.
+Thirteen must-fix findings came out of three judges. Twelve are fixed in
+`ef3b168`; the thirteenth — the acceptance matrix's missing Post-Audit Delta
+entry — is not fixed by a commit in this branch, because the repository's own
+convention puts that entry in the post-merge closeout, and the disposition
+below says so.
 
 ### Security — two must-fix
 
@@ -147,8 +156,11 @@ Thirteen must-fix findings came out of three judges. Every one is fixed in
   installation's only workspace made the two indistinguishable. **Fixed**: the
   personal workspace carries its owner's address.
 - **MUST-FIX — the acceptance matrix had no Post-Audit Delta entry for this
-  grain.** **Fixed**: the entry is a post-merge closeout commit, on the
-  repository's own convention, with the pull request and its exact-head CI run.
+  grain.** **Not fixed in this branch**: the entry is a post-merge closeout
+  commit, on the repository's own convention, with the pull request and its
+  exact-head CI run. What this branch does is make the matrix's P04 row point
+  at that entry by name rather than at a place in the file, so the row is
+  honest about the entry not being there yet.
 
 The worth-considering findings of the first round are recorded with their
 disposition in the sections below; the panel merged the three judges' reports
@@ -450,7 +462,7 @@ findings against the code, which are listed below.
 | `5d9e3ab` | two unused bindings removed from the invitation suite, caught by the first exact-head CI run | the final-candidate judge |
 | `b92ac3e` | the dot-segment way out of the sign-in destination, the refusal that no longer hints, and the one-time link shown only under the workspace it was issued for | the final-candidate judge |
 | `ed8f5f3` | the two review records, and the four changes the delta re-review asked for | the final-candidate judge |
-| the merge candidate | the three failure answers the invitation route module had copied, the two identity view mappers, the dangling comment left in `packages/db/src/invites.ts` by the roster type's move, the overstated claim in that module's header, and this record's corrections | the final-candidate judge's findings |
+| the merge candidate | the three failure answers the invitation route module had copied, the two identity view mappers, the dangling comment left in `packages/db/src/invites.ts` by the roster type's move, the overstated claim in that module's header, the two review records' corrections, and the acceptance matrix's P04-row pointer | the final-candidate judge's findings |
 
 ## The panel proved the new assertions are not vacuous
 
