@@ -60,11 +60,11 @@ timezone (UTC+03:00). The upstream-pin verification and the GitHub CI evidence f
 change are dated **2026-10-20** in UTC, because the CI runner's clock is UTC and
 `scripts/validate_upstreams.py` rejects a verification date later than the runner's
 current date — the first exact-head run failed on exactly that check. Both dates
-describe the same working session (the grain's commits span 2026-10-20T23:32Z –
-2026-10-21T00:10Z, which is 2026-10-21 in UTC+03:00). The lock file records the UTC
-date, which is the one a CI runner can verify. This note lives here rather than in the
-decision document so that the normative document stays byte-identical to the candidate the
-panel reviewed.
+describe the same working session (the grain's commits start at 2026-10-20T23:32Z and
+cross midnight UTC, so they are 2026-10-21 throughout in UTC+03:00). The lock file
+records the UTC date, which is the one a CI runner can verify. This note lives here
+rather than in the decision document so that the normative document stays byte-identical
+to the candidate the panel reviewed.
 
 ## Correctness — PASS (after fixes)
 

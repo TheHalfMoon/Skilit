@@ -121,7 +121,8 @@ diff, so the applicability evidence is recorded here for the merge candidate as 
 - `total_insertions`: 776, `total_deletions`: 36
 
 These totals are bound to candidate `8c08246`. The merge candidate that follows it adds
-only these two evidence-record files, so its `total_insertions`/`total_deletions` move
+only **excluded** files — the two evidence-record files and the AF-12 matrix amendment
+(all Markdown, therefore excluded) — so its `total_insertions`/`total_deletions` move
 while its **applicability does not**: re-running the preview against the merge candidate
 yields the same three reviewable files with the same per-file changes, the same
 `reviewable_count = 3`, the same `excluded_count = 22` with the same 21
