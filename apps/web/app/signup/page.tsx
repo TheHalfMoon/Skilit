@@ -78,7 +78,7 @@ export default function SignupPage() {
         <span className="sk-auth-identity-icon" aria-hidden="true">
           <Image src="/brand/skilit-mark-orange.svg" alt="" width={29} height={40} />
         </span>
-        <span className="sk-auth-identity-copy">SKILIT / FIRST OWNER SETUP</span>
+        <span className="sk-auth-identity-copy">skilit / FIRST OWNER SETUP</span>
       </div>
       <h1>Create the first owner account</h1>
       <p>

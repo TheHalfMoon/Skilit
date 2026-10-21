@@ -990,6 +990,44 @@
       "modifications": []
     },
     {
+      "id": "inter-tight-google-fonts",
+      "source_url": "https://github.com/google/fonts",
+      "source_kind": "git",
+      "role": "dataset",
+      "status": "imported",
+      "capability": "Redistributable offline Inter Tight Latin brand wordmark font, converted outline geometry and social identity assets.",
+      "permission_basis": {
+        "type": "upstream_license",
+        "note": "Verified SIL OFL 1.1 in google/fonts at immutable git commit; preserve upstream copyright, OFL and attribution. Derivative brand paths are also governed by OFL. The upstream copyright notice specifies no Reserved Font Name, so the OFL rename restriction does not apply; the webfont is nevertheless served under the distinct CSS family name 'Inter Tight Skilit' so a modified subset is not presented as the upstream family. The served copy of the licence must travel with the font."
+      },
+      "license": "SIL Open Font License 1.1",
+      "pin_policy": "git_commit_required",
+      "exact_commit_or_release": "fac60545cc0de9d4eff6eb5b1ab88bcdfc9ecc69",
+      "verification_date": "2026-10-17",
+      "rights_scope": {
+        "code": "license-governed",
+        "data": "restricted",
+        "assets": "license-governed",
+        "models": "not-applicable",
+        "services": "not-applicable",
+        "trademarks": "restricted"
+      },
+      "imported_paths": [
+        "apps/web/public/brand/inter-tight-latin-600.woff2",
+        "apps/web/public/brand/Inter-Tight-OFL.txt",
+        "docs/brand/wordmark-inter-tight-600.json",
+        "docs/brand/licenses/Inter-Tight-OFL.txt"
+      ],
+      "modifications": [
+        "Upstream source file ofl/intertight/InterTight[wght].ttf at the pinned commit; upstream TTF SHA-256 b81b73dcb64df3c230cabade7df6c5773bf863233f24c9ee51087519f1f88b6f (upstreamTtfSha256), independently re-verified against the pinned path.",
+        "Upstream licence file ofl/intertight/OFL.txt at the pinned commit; upstream OFL SHA-256 50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58 (upstreamOflSha256). The in-tree licence text is a whitespace-normalised copy of that file and is not byte-identical to it; its own SHA-256 is sourceLicenseSha256.",
+        "Instanced InterTight[wght].ttf at weight 600, reduced to basic Latin WOFF2; converted lowercase skilit letter outlines to immutable SVG path geometry, tracked in brand JSON; logo S shape unchanged.",
+        "The WOFF2 subset and the outline geometry are OFL Modified Versions. The subsetting tool and its version are NOT recorded, so the upstream-TTF-to-WOFF2 derivation is asserted by digest, not reproducible offline.",
+        "Only the CSS alias is renamed. The WOFF2 binary retains the upstream name identifiers and carries the copyright notice but no embedded licence description or URL; the licence text is served beside it at /brand/Inter-Tight-OFL.txt and linked from the legal terms surface.",
+        "The font name is used descriptively only. Trademarks remain restricted and no endorsement is claimed."
+      ]
+    },
+    {
       "id": "pstack",
       "source_url": "https://github.com/phthomas/pstack",
       "source_kind": "git",
