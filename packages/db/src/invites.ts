@@ -35,8 +35,10 @@
  * invitation is disclosed together with that invitation's state, so the
  * holder can be told that it is no longer spendable; an unknown token is
  * an absence. And a registration that is refused is refused without
- * naming the address, so the refusal does not say whether that address
- * holds an account — the answer is the way forward, not the reason.
+ * naming the address and without hinting at one; the status code still
+ * tells a refused registration from a successful one, which is
+ * structural — an invitation is the only authority that may create an
+ * account — and is recorded as a known limitation.
  */
 
 import { randomBytes } from "node:crypto";
@@ -92,15 +94,6 @@ export interface InvitePreview {
   expiresAt: string;
   state: InviteState;
 }
-
-/**
- * One roster line: a membership with the address behind it. The address
- * is what an operator manages a workspace by, so the roster has to carry
- * it; a bare user id is not a person.
- *
- * The roster query itself lives with the other roster query, in
- * `workspaces.ts`.
- */
 
 export const INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const INVITE_MAX_TTL_SECONDS = 30 * 24 * 60 * 60;

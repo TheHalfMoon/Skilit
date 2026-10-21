@@ -52,12 +52,15 @@ The merge candidate differs from the reviewed candidate `ed8f5f3` by the
 changes the final-candidate judge's findings required, and by nothing else:
 the three failure answers the invitation route module had copied instead of
 importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
-mappers that only copied their input's fields (`apps/web/lib/invites.ts`), and
-this record's own corrections. Two of those changes are reviewable code, so
-the merge candidate's OCR preview shows two more reviewable files than the
-reviewed candidate's, and the record's numbers below say which candidate each
-number was measured on. Every change is either the evidence this record
-carries or a direct consequence of a finding the final-candidate judge made.
+mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
+comment that was left dangling when the roster type moved to
+`packages/db/src/workspaces.ts`, the claim in the invitation module's header
+that the final judge found overstated, and this record's own corrections. Two
+of those changes are reviewable code, so the merge candidate's OCR preview
+shows two more reviewable files than the reviewed candidate's, and the
+record's numbers below say which candidate each number was measured on. Every
+change is either the evidence this record carries or a direct consequence of
+a finding the final-candidate judge made.
 
 ## Installed upstream skill files
 
@@ -444,7 +447,7 @@ four worth-considering findings against the code.
 | `5d9e3ab` | two unused bindings removed from the invitation suite, caught by the first exact-head CI run | the final-candidate judge |
 | `b92ac3e` | the dot-segment way out of the sign-in destination, and the refusal that no longer hints | the final-candidate judge |
 | `ed8f5f3` | the two review records, and the four changes the delta re-review asked for | the final-candidate judge |
-| the merge candidate | the three failure answers the invitation module had copied, the two identity view mappers, and this record's corrections | the final-candidate judge's findings |
+| the merge candidate | the three failure answers the invitation module had copied, the two identity view mappers, the dangling comment left by the roster type's move, the overstated claim in the invitation module's header, and this record's corrections | the final-candidate judge's findings |
 
 ## The panel proved the new assertions are not vacuous
 
