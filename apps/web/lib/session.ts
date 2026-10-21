@@ -1,5 +1,8 @@
 import {
   AUTH_SESSION_TTL_SECONDS,
+  listAccountSessions,
+  revokeAccountSession,
+  revokeOtherAccountSessions,
   signIn,
   signOut,
   signUp,
@@ -222,6 +225,11 @@ function unauthenticated(requestId: string): SessionRouteResult {
   return { status: err.httpStatus, body: err.toFailureEnvelope() };
 }
 
+function notFound(requestId: string): SessionRouteResult {
+  const err = new AgentContractError("FORBIDDEN_OR_NOT_FOUND", { requestId });
+  return { status: err.httpStatus, body: err.toFailureEnvelope() };
+}
+
 async function hasAnyUser(db: { query: DbTransaction["query"] }): Promise<boolean> {
   const result = await db.query("select exists (select 1 from users) as present");
   return (result.rows[0] as Record<string, unknown> | undefined)?.present === true;
@@ -406,6 +414,116 @@ export async function sessionStatusRoute(
   } catch {
     return unauthenticated(requestId);
   }
+}
+
+/**
+ * GET /api/v1/auth/sessions — the caller's own sessions.
+ *
+ * The list is derived from the server-side user id of the presented
+ * credential, never from a caller-supplied identity, so it can only ever
+ * contain the caller's own sessions. A session that is neither live nor
+ * still listed is still listed, so a holder can see what they have
+ * signed in with. The token and its hash are never part of the answer.
+ */
+export async function listSessionsRoute(
+  db: DbClient,
+  request: Request,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const presented = requestToken(request);
+  if (presented.token === null) return unauthenticated(requestId);
+  try {
+    const session = await validateSession(db, presented.token);
+    const sessions = await db.transaction((tx) =>
+      listAccountSessions(tx, session.user.id),
+    );
+    return {
+      status: 200,
+      body: successEnvelope(requestId, {
+        currentSessionId: session.session.id,
+        sessions,
+      }),
+    };
+  } catch {
+    return unauthenticated(requestId);
+  }
+}
+
+/**
+ * DELETE /api/v1/auth/sessions/{id} — revoke one of the caller's own
+ * sessions.
+ *
+ * A session that belongs to somebody else and a session that does not
+ * exist are the same absence, so the answer cannot be used to probe
+ * which session ids are real. Revoking the caller's own current session
+ * is allowed and signs that browser out.
+ */
+export async function revokeSessionRoute(
+  db: DbClient,
+  request: Request,
+  sessionId: string,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const presented = requestToken(request);
+  if (presented.token === null) return unauthenticated(requestId);
+  if (presented.viaCookie && isUnsafeMethod(request.method) && !isOriginAllowed(request)) {
+    return invalidInput(requestId, "Request origin is not allowed.");
+  }
+  let current: { id: string; userId: string };
+  try {
+    const session = await validateSession(db, presented.token);
+    current = { id: session.session.id, userId: session.user.id };
+  } catch {
+    return unauthenticated(requestId);
+  }
+  const revoked = await db.transaction((tx) =>
+    revokeAccountSession(tx, current.userId, sessionId),
+  );
+  if (!revoked) return notFound(requestId);
+  const signedOut = current.id === sessionId;
+  return {
+    status: 200,
+    body: successEnvelope(requestId, { revoked: true, signedOut }),
+    ...(signedOut ? { setCookie: clearSessionCookieHeader(request) } : {}),
+  };
+}
+
+/**
+ * DELETE /api/v1/auth/sessions — revoke every other session of the
+ * caller ("sign out everywhere else").
+ *
+ * The session making the request survives, so the browser that asked
+ * stays signed in while every other browser or agent holding one of the
+ * account's session tokens is locked out. The answer carries how many
+ * sessions were revoked.
+ */
+export async function revokeOtherSessionsRoute(
+  db: DbClient,
+  request: Request,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const presented = requestToken(request);
+  if (presented.token === null) return unauthenticated(requestId);
+  if (presented.viaCookie && isUnsafeMethod(request.method) && !isOriginAllowed(request)) {
+    return invalidInput(requestId, "Request origin is not allowed.");
+  }
+  let current: { id: string; userId: string };
+  try {
+    const session = await validateSession(db, presented.token);
+    current = { id: session.session.id, userId: session.user.id };
+  } catch {
+    return unauthenticated(requestId);
+  }
+  const revoked = await db.transaction((tx) =>
+    revokeOtherAccountSessions(tx, current.userId, current.id),
+  );
+  return {
+    status: 200,
+    body: successEnvelope(requestId, { revoked, signedOut: false }),
+  };
 }
 
 /**

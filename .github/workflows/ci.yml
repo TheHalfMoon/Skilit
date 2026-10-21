@@ -659,6 +659,7 @@ jobs:
           packages/db/tests/patterns.test.mjs
           packages/db/tests/replay.test.mjs
           packages/db/tests/auth.test.mjs
+          packages/db/tests/account-sessions.test.mjs
           packages/db/tests/workspaces.test.mjs
           packages/db/tests/collections.test.mjs
           packages/db/tests/billing.test.mjs

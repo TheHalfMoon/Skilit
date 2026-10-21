@@ -3,7 +3,7 @@
  * `node scripts/smoke-auth-journey.mjs [port]`
  *
  * Proves real, isolated, authenticated browser journeys on a clean install.
- * Three scenarios run against three disposable databases:
+ * Four scenarios run against four disposable databases:
  *
  *   bootstrap — an empty installation: the owner creates the first account
  *     through the real form, receives a HttpOnly session cookie with no
@@ -24,6 +24,12 @@
  *     board item reads that target the other actor's real workspace —
  *     with the same answer it gets for a workspace that does not exist
  *     at all, so the API never reveals which workspace ids are real.
+ *
+ *   sessions — one account holding two genuine sessions: the browser lists
+ *     only its own sessions, cannot revoke another account's session (and
+ *     gets the same answer for a session id that does not exist), signs out
+ *     every other session while staying signed in itself, and the revoked
+ *     token is refused in both Bearer and Cookie mode.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
@@ -62,6 +68,7 @@ const ROUTES = {
   signin: "/api/v1/auth/signin",
   signout: "/api/v1/auth/signout",
   boardsApi: "/api/v1/boards",
+  sessions: "/api/v1/auth/sessions",
 };
 const OWNER_EMAIL = "owner@skilit.example";
 // One credential for every fixture identity: the journeys never need two
@@ -80,8 +87,19 @@ const EXPIRY_EMAIL = "expiry@skilit.example";
 const EXPIRY_SESSION_TTL_SECONDS = 600;
 const EXPIRY_BACKDATE_MS = 510_000;
 const BOB_EMAIL = "bob@skilit.example";
+const SESSIONS_EMAIL = "sessions@skilit.example";
+// A second, unrelated account with a real session of its own. The journey
+// tries to revoke that session from the first account's browser: the answer
+// must be indistinguishable from revoking a session id that never existed,
+// so the API cannot be used to discover which session ids are real.
+const SESSIONS_FOREIGN_EMAIL = "sessions-foreign@skilit.example";
+// The sessions journey needs no timing trick: it only revokes and inspects
+// sessions that are all still live, so an ordinary lifetime is enough.
+const SESSIONS_SESSION_TTL_SECONDS = 3600;
 // A well-formed workspace id that belongs to nobody.
 const UNKNOWN_WORKSPACE_ID = "00000000-0000-4000-8000-000000000000";
+// A well-formed session id that belongs to nobody.
+const UNKNOWN_SESSION_ID = "00000000-0000-4000-8000-000000000000";
 // The API answers a workspace the actor cannot see and a workspace that does
 // not exist identically, so a caller cannot probe which ids are real.
 const DENIED_CODE = "FORBIDDEN_OR_NOT_FOUND";
@@ -123,6 +141,26 @@ if (process.argv[2] === "--prepare") {
     prepared.expiresAt = session.expiresAt;
     prepared.ownerWorkspaceId = space.workspace.id;
   }
+  if (scenario === "sessions") {
+    const owner = await signUp(db, { email: SESSIONS_EMAIL, password: PASSWORD });
+    const space = await createWorkspace(db, { name: "Sessions owner workspace", ownerId: owner.id });
+    // Two genuine sessions for one account: the one the browser will hold
+    // and a second "other device" session the journey revokes.
+    const browser = await createSession(db, owner.id, { ttlSeconds: SESSIONS_SESSION_TTL_SECONDS });
+    const other = await createSession(db, owner.id, { ttlSeconds: SESSIONS_SESSION_TTL_SECONDS });
+    // A real session that belongs to somebody else.
+    const foreign = await signUp(db, { email: SESSIONS_FOREIGN_EMAIL, password: PASSWORD });
+    const foreignSession = await createSession(db, foreign.id, {
+      ttlSeconds: SESSIONS_SESSION_TTL_SECONDS,
+    });
+    writeFileSync(path.join(dataDir, ".sessions-browser-token"), browser.token, { mode: 0o600 });
+    writeFileSync(path.join(dataDir, ".sessions-other-token"), other.token, { mode: 0o600 });
+    writeFileSync(path.join(dataDir, ".sessions-foreign-token"), foreignSession.token, { mode: 0o600 });
+    prepared.ownerWorkspaceId = space.workspace.id;
+    prepared.browserSessionId = browser.session.id;
+    prepared.otherSessionId = other.session.id;
+    prepared.foreignSessionId = foreignSession.session.id;
+  }
   if (scenario === "isolation") {
     const alice = await signUp(db, { email: ALICE_EMAIL, password: PASSWORD });
     const bob = await signUp(db, { email: BOB_EMAIL, password: PASSWORD });
@@ -149,10 +187,11 @@ if (process.argv[2] === "--prepare") {
 const basePort = Number(process.env.SMOKE_PORT ?? process.argv[2] ?? 3105);
 const isolationPort = basePort + 1;
 const expiryPort = basePort + 2;
+const sessionsPort = basePort + 3;
 if (
   !Number.isInteger(basePort) ||
   basePort < 1 ||
-  expiryPort > 65535
+  sessionsPort > 65535
 ) {
   console.error(`SMOKE_FAIL invalid port: ${process.argv[2] ?? ""}`);
   process.exit(2);
@@ -295,6 +334,14 @@ async function prepareDatabase(scenario) {
     // The live session token must never reach a log, even if the server
     // ever echoed it.
     redactor.add(prepared.privateFixtureToken);
+  }
+  if (scenario === "sessions") {
+    prepared.browserToken = readFileSync(path.join(dataDir, ".sessions-browser-token"), "utf8");
+    prepared.otherToken = readFileSync(path.join(dataDir, ".sessions-other-token"), "utf8");
+    prepared.foreignToken = readFileSync(path.join(dataDir, ".sessions-foreign-token"), "utf8");
+    redactor.add(prepared.browserToken);
+    redactor.add(prepared.otherToken);
+    redactor.add(prepared.foreignToken);
   }
   return { dataDir, prepared };
 }
@@ -827,11 +874,188 @@ async function expiryJourney({ page, context, base, prepared }) {
   );
 }
 
+// ------------------------------------------------------------------ sessions
+async function sessionsJourney({ page, context, base, prepared }) {
+  const {
+    browserToken,
+    otherToken,
+    foreignToken,
+    browserSessionId,
+    otherSessionId,
+    foreignSessionId,
+    ownerWorkspaceId,
+  } = prepared;
+  check(
+    typeof browserToken === "string" && browserToken.length > 32,
+    "sessions fixture must provide a genuine opaque browser token",
+  );
+  check(
+    typeof otherToken === "string" && otherToken.length > 32,
+    "sessions fixture must provide a genuine opaque second token",
+  );
+  check(
+    typeof foreignToken === "string" && foreignToken.length > 32,
+    "sessions fixture must provide a genuine opaque foreign token",
+  );
+  check(
+    browserSessionId !== otherSessionId,
+    "the fixture must create two distinct sessions for one account",
+  );
+
+  // Put the browser's own session into the HttpOnly cookie, exactly as the
+  // real sign-in flow would.
+  await context.addCookies([{
+    name: "skilit_session",
+    value: browserToken,
+    url: base,
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+  await page.goto(base + ROUTES.login, { waitUntil: "load" });
+
+  // --- A. the account lists its own sessions ---------------------------
+  const listed = await apiCall(page, ROUTES.sessions);
+  check(listed.status === 200, `listing sessions must answer 200, saw ${listed.status}`);
+  const result = listed.body?.result ?? {};
+  const sessions = result.sessions ?? [];
+  check(sessions.length === 2, `the account must list exactly two sessions, saw ${sessions.length}`);
+  check(
+    result.currentSessionId === browserSessionId,
+    `the list must name the presenting session as current, saw ${result.currentSessionId}`,
+  );
+  const ids = sessions.map((session) => session.id);
+  check(ids.includes(browserSessionId), "the list must contain the browser's own session");
+  check(ids.includes(otherSessionId), "the list must contain the second session");
+  check(
+    !ids.includes(foreignSessionId),
+    "the list must never contain another account's session",
+  );
+  check(
+    sessions.every((session) => typeof session.live === "boolean"),
+    "every listed session must carry a liveness flag",
+  );
+  check(
+    sessions.every((session) => session.token === undefined && session.tokenHash === undefined),
+    "the list must never expose a session token or its hash",
+  );
+
+  // --- B. another account's session cannot be revoked -------------------
+  const foreignRevoke = await apiCall(
+    page,
+    `${ROUTES.sessions}/${encodeURIComponent(foreignSessionId)}`,
+    { method: "DELETE" },
+  );
+  check(
+    foreignRevoke.status === DENIED_STATUS && foreignRevoke.body?.error?.code === DENIED_CODE,
+    `revoking another account's session must answer ${DENIED_STATUS} ${DENIED_CODE}, saw ${foreignRevoke.status} ${foreignRevoke.body?.error?.code}`,
+  );
+  // An invented session id must be answered exactly the same way, so the
+  // API never reveals which session ids are real.
+  const unknownRevoke = await apiCall(
+    page,
+    `${ROUTES.sessions}/${encodeURIComponent(UNKNOWN_SESSION_ID)}`,
+    { method: "DELETE" },
+  );
+  check(
+    unknownRevoke.status === foreignRevoke.status &&
+      unknownRevoke.body?.error?.code === foreignRevoke.body?.error?.code &&
+      unknownRevoke.body?.error?.message === foreignRevoke.body?.error?.message,
+    `an invented session id must be answered exactly like another account's session, saw ${JSON.stringify(unknownRevoke.body?.error)} against ${JSON.stringify(foreignRevoke.body?.error)}`,
+  );
+  // The foreign session must still be usable: the refusal did not revoke it.
+  const foreignBearer = await apiCall(page, ROUTES.session, {
+    headers: { Authorization: `Bearer ${foreignToken}` },
+  });
+  check(
+    foreignBearer.status === 200,
+    `the second account's session must still be live, saw ${foreignBearer.status}`,
+  );
+
+  // --- C. "sign out everywhere else" keeps this browser signed in ------
+  const revokedOthers = await apiCall(page, ROUTES.sessions, { method: "DELETE" });
+  check(
+    revokedOthers.status === 200,
+    `signing out of the other sessions must answer 200, saw ${revokedOthers.status}`,
+  );
+  check(
+    revokedOthers.body?.result?.revoked === 1,
+    `exactly one other session must be revoked, saw ${revokedOthers.body?.result?.revoked}`,
+  );
+  check(
+    revokedOthers.body?.result?.signedOut === false,
+    "signing out of the other sessions must not sign the caller out",
+  );
+
+  const stillLive = await apiCall(page, ROUTES.session);
+  check(
+    stillLive.status === 200 && stillLive.body?.result?.user?.email === SESSIONS_EMAIL,
+    `the calling browser must stay signed in, saw ${stillLive.status}`,
+  );
+  const boards = await apiCall(
+    page,
+    `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(ownerWorkspaceId)}`,
+  );
+  check(
+    boards.status === 200,
+    `the calling browser must keep its workspace access, saw ${boards.status}`,
+  );
+
+  // --- D. the revoked session is refused everywhere ---------------------
+  const revokedBearer = await apiCall(page, ROUTES.session, {
+    headers: { Authorization: `Bearer ${otherToken}` },
+  });
+  check(
+    revokedBearer.status === 401,
+    `a revoked session token must be refused in Bearer mode, saw ${revokedBearer.status}`,
+  );
+  // Cookie mode is checked in a separate browser context: a page cannot
+  // overwrite its own `Cookie` header from fetch, so the revoked token has
+  // to be carried by a context that never held the live one.
+  const browser = context.browser();
+  check(browser !== null, "the browser context must expose its browser");
+  if (browser !== null) {
+    const revokedContext = await browser.newContext();
+    try {
+      await revokedContext.addCookies([{
+        name: "skilit_session",
+        value: otherToken,
+        url: base,
+        httpOnly: true,
+        sameSite: "Lax",
+      }]);
+      const revokedPage = await revokedContext.newPage();
+      await revokedPage.goto(base + ROUTES.login, { waitUntil: "load" });
+      const revokedCookie = await apiCall(revokedPage, ROUTES.session);
+      check(
+        revokedCookie.status === 401,
+        `a revoked session token must be refused in Cookie mode, saw ${revokedCookie.status}`,
+      );
+    } finally {
+      await revokedContext.close();
+    }
+  }
+
+  // --- E. the revoked session is still visible, marked revoked -----------
+  const relisted = await apiCall(page, ROUTES.sessions);
+  check(relisted.status === 200, `re-listing sessions must answer 200, saw ${relisted.status}`);
+  const relistedSessions = relisted.body?.result?.sessions ?? [];
+  const revokedEntry = relistedSessions.find((session) => session.id === otherSessionId);
+  check(revokedEntry !== undefined, "the revoked session must still be listed");
+  check(
+    revokedEntry?.revokedAt !== null && revokedEntry?.revokedAt !== undefined,
+    "the revoked session must carry a revocation timestamp",
+  );
+  check(revokedEntry?.live === false, "the revoked session must not be reported as live");
+  const liveEntry = relistedSessions.find((session) => session.id === browserSessionId);
+  check(liveEntry?.live === true, "the calling browser's session must still be live");
+}
+
 // ------------------------------------------------------------------- main
 try {
   await runScenario("bootstrap", basePort, bootstrapJourney);
   await runScenario("isolation", isolationPort, isolationJourney);
   await runScenario("expiry", expiryPort, expiryJourney);
+  await runScenario("sessions", sessionsPort, sessionsJourney);
 } catch (error) {
   failures.push(`smoke error: ${error?.message ?? error}`);
 }
@@ -841,5 +1065,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  "SMOKE_PASSED authenticated browser journeys (bootstrap status, signup, workspace, isolation, enumeration, sign-out, expiry, session recovery)",
+  "SMOKE_PASSED authenticated browser journeys (bootstrap status, signup, workspace, isolation, enumeration, sign-out, expiry, session recovery, session revocation)",
 );

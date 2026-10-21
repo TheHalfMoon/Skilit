@@ -12,6 +12,7 @@ const items: { label: string; href: string; icon: SkilitIconName }[] = [
   { label: "Patterns", href: "/patterns", icon: "patterns" },
   { label: "Flows", href: "/flows", icon: "flows" },
   { label: "Boards", href: "/boards", icon: "boards" },
+  { label: "Account", href: "/account", icon: "shield" },
 ];
 
 function NavigationLinks({ current }: { current: string }) {
