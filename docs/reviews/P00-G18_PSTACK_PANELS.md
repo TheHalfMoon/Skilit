@@ -22,12 +22,15 @@
 - **This is a security-trigger grain**: the diff is about authentication, sessions and
   authorization denials. Decision §3.4 forbids a degraded self-review for such a grain,
   so the security bar was judged by a dedicated independent fresh-context security judge
-  in every round, and the split panel was used rather than the default combined one.
-- Judges: **eleven independent fresh-context judge sessions** — five in the first round
+  in every round. The split panel runs *in addition to* the combined one under decision
+  §3.2, not instead of it, and the final-candidate combined judge answered all four
+  bars — including security and privacy — in a single read, as §3.3.1 requires.
+- Judges: **twelve independent fresh-context judge sessions** — five in the first round
   (a dedicated security judge, two correctness judges over the data/REST and UI/test
-  surfaces, a parsimony judge, a product judge), then two in each of three fix cycles (a
+  surfaces, a parsimony judge, a product judge), two in each of three fix cycles (a
   dedicated security delta re-review and a combined correctness/parsimony/product delta
-  re-review). No judge authored the diff.
+  re-review), and one **final-candidate all-bars judge** that answered all four bars
+  together in a single read over the merge candidate. No judge authored the diff.
 - Degraded level: **none**.
 
 ## Panel manifest
@@ -37,17 +40,21 @@ panel: full — correctness ✓ (fresh-context judge, data/REST surface) · corr
 (fresh-context judge, UI/test surface) · parsimony ✓ (fresh-context judge) · product ✓
 (fresh-context judge) · security ✓ (dedicated fresh-context security judge) ·
 deltas: six independent fresh-context delta re-reviews ✓ ·
+final-candidate combined judge ✓ (all four bars in one read) ·
 base 2b053d351385e5100f69494247d8aa42fe8a84be · reviewed candidate
 8ec23c435b742d1404276497cdea768322f6f6a9 · merge candidate: the commit carrying this
 record
 ```
 
-The merge candidate differs from the reviewed candidate `8ec23c4` only by the two
-review-record files under `docs/reviews/` — this file and
-`docs/reviews/P00-G18_OCR_DELEGATION.md`. Both are Markdown, so both are excluded from
-Alibaba OCR's reviewable set and neither is indexed by Graft: the reviewable set, the
-resolved rule groups and every mechanical number quoted in this record are the same for
-the merge candidate as for the reviewed candidate.
+The merge candidate differs from the reviewed candidate `8ec23c4` only by three
+Markdown files: the two review records under `docs/reviews/` — this file and
+`docs/reviews/P00-G18_OCR_DELEGATION.md` — and the superseding note in
+`docs/qualification/DEV_READINESS_2026-10-17.md`, which the final-candidate judge
+required. All three are excluded from Alibaba OCR's reviewable set and none is indexed
+by Graft, so the reviewable set, the resolved rule groups and every mechanical number
+quoted in this record are the same for the merge candidate as for the reviewed
+candidate. Every one of those three changes is either this record's own evidence or a
+direct consequence of a finding the final-candidate judge made.
 
 One further note on the history: the commit that carries the round-3 code fixes is
 titled `docs(reviews): record the P00-G18 panel and OCR delegation evidence`, which
@@ -390,6 +397,39 @@ matrix at `a86565f`: the record said the historical bullet "was intact but the n
 splice split the bullet in two. **Fixed**: the record now says the bullet was split in
 two by the splice.
 
+### Final-candidate all-bars judge
+
+One further independent fresh-context judge read the merge candidate and answered
+**all four bars in a single read**, as decision §3.3.1 requires: "CORRECTNESS BAR: PASS ·
+PARSIMONY BAR: PASS · PRODUCT BAR: PASS · SECURITY BAR: PASS". It reproduced the
+merge candidate's own claims rather than taking them on trust: the merge delta is
+Markdown-only, the diff shape is 20 files / 2482 insertions / 14 deletions, all
+fourteen per-file figures match `git diff --numstat`, the OCR preview reproduces from a
+live run at `8ec23c4`, every excluded file's exclude reason is exact, the three resolved
+rule groups reproduce, the Node, Python, database, lint, typecheck, hygiene and validator
+numbers reproduce, and the Graft figures are exact from the tree's own graph artifact.
+It confirmed the matrix's historical bullet is byte-for-byte identical to the base's, that
+no CI run identifier is claimed anywhere, that the force-push prohibition the record cites
+is real, and that every security property holds on the shipped code.
+
+It raised two must-fix findings, both in this record and both now fixed:
+
+- **MUST-FIX — the mutation-control table quoted a message against an assertion that no
+  longer existed.** The first row quoted `SMOKE_FAIL exactly one other session must be
+  revoked, saw 1`, which is the message from `efabf73`; that assertion was replaced at
+  `a86565f` and the bulk-revoke count at the reviewed candidate is `revoked === 0`.
+  **Fixed**: every control was re-run against the reviewed candidate, and the table now
+  carries the messages that candidate produces.
+- **MUST-FIX — the panel recorded no all-bars combined judge.** The rounds split the
+  bars, and the split panel runs *in addition to* the combined one under decision §3.2
+  rather than instead of it. **Fixed**: the final-candidate judge is recorded as the
+  all-bars judge, its four-bar verdict is quoted, and the judge count and the manifest
+  name it.
+
+It also raised a worth-considering finding against a readiness document, now fixed, and
+one optional note against the frozen v1 Local release decision record, which is skipped
+and recorded below.
+
 #### Coverage of the commits between the base and the reviewed candidate
 
 | Commit | Contents | Round that covered it |
@@ -405,22 +445,31 @@ two by the splice.
 ## The panel proved the new assertions are not vacuous
 
 Nine mutation controls were run against the product in scratch copies. Six make the
-smoke fail where it previously passed; three make the new UI contract test fail:
+smoke fail where it previously passed; three make the new UI contract test fail. Every
+one of them was **re-run against the reviewed candidate `8ec23c4`**, and the messages
+below are the ones that candidate produces:
 
 | Control | Result |
 | --- | --- |
-| the bulk-revoke count assertion changed from 1 to 99 | `SMOKE_FAIL exactly one other session must be revoked, saw 1` |
+| the bulk-revoke count assertion changed from 0 to 99 | `SMOKE_FAIL nothing is left to revoke, saw 0` |
 | the rendered-row count assertion changed from 3 to 9 | `SMOKE_FAIL the account page must render three sessions, saw 3` |
 | the account page's failure banner rendered unconditionally | `SMOKE_FAIL revoking a session from the account page must not report an error: ["CONTROL: control error"]` |
-| the notice text changed to "Signed out 9 other session(s)." | the journey times out waiting for the exact notice the page renders |
+| the notice text changed to "Signed out 9 other session(s)." | `SMOKE_FAIL smoke error: page.waitForFunction: Timeout 20000ms exceeded.` |
 | the State-column assertion changed to a word the page never renders | `SMOKE_FAIL the revoked row must say Revoked, saw "…Revoked…"` |
-| the server-output token assertion pointed at a token the fixture mints | the assertion fires |
-| the bulk button's guard no longer matched its `aria-disabled` | the new UI contract test fails |
-| the catch branch stopped calling the failure hook | the new UI contract test fails |
-| the catch branch called the failure hook with `404` instead of no status | the new UI contract test fails |
+| the captured server output made to carry a session token | `SMOKE_FAIL the web server output must not contain a session token` |
+| the bulk button's guard no longer matched its `aria-disabled` | `✖ a control that is announced as unavailable never acts` |
+| the catch branch stopped calling the failure hook | `✖ a control that is announced as unavailable never acts` |
+| the catch branch called the failure hook with `404` instead of no status | `✖ a control that is announced as unavailable never acts` |
 
-The sixth control was described in the record before it had actually been run; it was
-then run, and it fires with exactly the documented message.
+Two of these needed a second run before the table could say what it now says. The
+sixth control was described in this record before it had actually been run; it was then
+run, and it fires with exactly the message quoted. And the first control's message
+changed with the code: the bulk-revoke assertion was `revoked === 1` when it was first
+run and is `revoked === 0` at the reviewed candidate, because the browser journey now
+drives the bulk revoke from the page and the endpoint is then called again to show it
+is idempotent. The final-candidate judge caught that the table was quoting a message
+against an assertion that no longer existed, and every control was re-run so that each
+row describes the shipped code.
 
 The first control also caught a vacuous assertion of the author's own: the smoke's error
 check looked for `p[role=alert]`, but the account page renders a `div`, so it could never
@@ -493,6 +542,12 @@ rather than paid for in this grain.
 - **Expired sessions are never purged.** The `sessions` table has never had a purge
   job, so its growth predates this grain; what this grain adds is that the account
   can now see those rows, marked "Expired".
+- **The v1 Local release decision record is not extended.** The final-candidate judge
+  noted that `docs/qualification/V1_LOCAL_RELEASE_DECISION.md` §5 still lists the
+  supported features without the account surface, while the v1 Local acceptance
+  contract now names it. **SKIP**, with the reason: that file is a dated decision
+  record, explicitly not a publication, and a frozen record is evidence of what was
+  decided then. The acceptance contract is the living document, and it is updated.
 
 ## Aligned review findings and the resolution rule
 

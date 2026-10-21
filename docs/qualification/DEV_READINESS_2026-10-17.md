@@ -6,7 +6,7 @@ local development plan only — the long-term commercial/cloud vision in
 only where explicit measurable acceptance criteria exist; everything else is
 stated as gates with evidence.
 
-Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mention below is a historical observation of 2026-10-17 and is preserved verbatim.
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mention below is a historical observation of 2026-10-17 and is preserved verbatim. The same note covers the PStack and Alibaba mentions in item 4 of §10: they too were true on 2026-10-17 and were superseded on 2026-10-21, when the zero-cost review stack replaced the metered gate. Both now run — the PStack review panel and the Alibaba Open Code Review delegation — and their evidence is under `docs/reviews/`. For the account-session grain (`P00-G18`) the panel record is `docs/reviews/P00-G18_PSTACK_PANELS.md` and the delegation record is `docs/reviews/P00-G18_OCR_DELEGATION.md`.
 
 No release, no tags, no deployment were performed. All browser/database proof
 used isolated scratch resources, destroyed afterwards.

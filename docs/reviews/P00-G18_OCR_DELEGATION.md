@@ -60,9 +60,11 @@ fourteen files and the same resolved rule groups:
 
 Between those candidates the reviewable files that changed were
 `apps/web/app/account/page.tsx` and `apps/web/tests/account-ui.test.mjs`, and both are
-re-reviewed below at their final content. The merge candidate adds only the two
-excluded Markdown records, so its reviewable count, its excluded set and its resolved
-rule groups are the same as the ones quoted here; only the excluded insertions move.
+re-reviewed below at their final content. The merge candidate adds only excluded
+Markdown — the two review records and the superseding note in the readiness record that
+the final-candidate judge required — so its reviewable count, its excluded set and its
+resolved rule groups are the same as the ones quoted here; only the excluded insertions
+move.
 
 
 ## Resolved rules
