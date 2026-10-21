@@ -93,7 +93,7 @@ Metadata-only, link-only, serve, private-workspace-only and restricted are indep
 
 ## 10. Governance and stop rules
 
-Every grain includes exact canonical base, scoped files/rights, dependency closure, local tests, Graft, TypeSafe Jev, Alibaba OCR review/applicability (no invented LLM review), exact-head CI, normal merge and post-merge `main` verification. If a donor has only README or planned architecture, classify it as **reference** until implementation evidence exists.
+Every grain includes exact canonical base, scoped files/rights, dependency closure, local tests, Graft, the PStack review panel, Alibaba OCR review/applicability (no invented LLM review), exact-head CI, normal merge and post-merge `main` verification. If a donor has only README or planned architecture, classify it as **reference** until implementation evidence exists.
 
 No phase or R gate may be declared done solely from a passing planning validator, an AI review, a donor README or an isolated copied file. Use actual working user journeys as exit criteria.
 
