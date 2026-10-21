@@ -2,7 +2,7 @@
  *
  * `node scripts/smoke-auth-journey.mjs [port]`
  *
- * Proves real, isolated, authenticated human UI journeys on a clean install.
+ * Proves real, isolated, authenticated browser journeys on a clean install.
  * Three scenarios run against three disposable databases:
  *
  *   bootstrap — an empty installation: the owner creates the first account
@@ -70,13 +70,15 @@ const PASSWORD = "journey-password-01";
 const ALICE_EMAIL = "alice@skilit.example";
 const EXPIRY_EMAIL = "expiry@skilit.example";
 // Production TTL is unchanged. The fixture creates a legitimate ten-minute
-// session with a backdated trusted server clock, so ~45 seconds remain for
-// the browser to hold it and for a real expiry transition to happen. The
-// long backdate means unrelated startup latency — a cold first run, a
-// slow Chromium download — cannot consume the expiry budget and turn a
+// session with a backdated trusted server clock, so about 90 seconds of
+// real lifetime remain. The margin, not the backdate, is what absorbs
+// unrelated startup latency: the session is created before the server
+// boots, so booting, launching Chromium and opening the database all
+// come out of the remaining lifetime. Ninety seconds is roughly fifty
+// times the observed startup cost, so a slow cold run cannot turn a
 // timing detail into a flake.
 const EXPIRY_SESSION_TTL_SECONDS = 600;
-const EXPIRY_BACKDATE_MS = 555_000;
+const EXPIRY_BACKDATE_MS = 510_000;
 const BOB_EMAIL = "bob@skilit.example";
 // A well-formed workspace id that belongs to nobody.
 const UNKNOWN_WORKSPACE_ID = "00000000-0000-4000-8000-000000000000";
