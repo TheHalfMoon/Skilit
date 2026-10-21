@@ -210,10 +210,6 @@ test("a malformed identifier is a denial, not a database error", async () => {
   const db = await fixtureDb();
   try {
     const { owner, workspace } = await ownerWithWorkspace(db);
-    const guest = await signUp(db, {
-      email: "guest@skilit.example",
-      password: "correct-horse-01",
-    });
     await assert.rejects(
       () =>
         createInvite(db, {
@@ -649,7 +645,7 @@ test("an expired invitation cannot be redeemed", async () => {
 test("an invitation stops working when the inviter loses the authority to grant it", async () => {
   const db = await fixtureDb();
   try {
-    const { owner, workspace } = await ownerWithWorkspace(db);
+    const { workspace } = await ownerWithWorkspace(db);
     const admin = await signUp(db, {
       email: "admin@skilit.example",
       password: "correct-horse-01",
