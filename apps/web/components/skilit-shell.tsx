@@ -49,7 +49,7 @@ export function SkilitShell({ children }: { children: React.ReactNode }) {
             <span className="sk-brand-symbol">
               <Image src="/brand/skilit-mark-orange.svg" alt="" width={25} height={34} priority />
             </span>
-            <span>Skilit</span>
+            <span>skilit</span>
           </Link>
           <span className="sk-brand-caption">DESIGN INTELLIGENCE</span>
         </div>

@@ -234,6 +234,9 @@ jobs:
       - name: Install pinned Playwright Chromium headless shell
         run: node packages/lens/node_modules/playwright-core/cli.js install chromium-headless-shell
 
+      - name: Brand chrome responsive and keyboard smoke
+        run: node scripts/smoke-brand-chrome.mjs 3104
+
       - name: Authenticated browser journey smoke
         run: node scripts/smoke-auth-journey.mjs 3105
 

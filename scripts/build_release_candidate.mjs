@@ -40,6 +40,21 @@ function fail(code, message) {
   process.exit(code);
 }
 
+// The source count is derived from the lock file so the manifest can never
+// drift from the inventory it claims to describe.
+function upstreamSourceCount() {
+  const lockPath = join(REPO_ROOT, "UPSTREAMS.lock.yml");
+  let lock;
+  try {
+    lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  } catch (error) {
+    fail(2, `UPSTREAMS.lock.yml is unreadable: ${error?.message ?? error}`);
+  }
+  const count = Array.isArray(lock?.sources) ? lock.sources.length : 0;
+  if (count === 0) fail(2, "UPSTREAMS.lock.yml lists no sources");
+  return count;
+}
+
 function run(cmd, args, opts = {}) {
   const proc = spawnSync(cmd, args, { encoding: "buffer", ...opts });
   if (proc.status !== 0) {
@@ -143,7 +158,7 @@ const manifest = {
     tarball_bytes: statSync(tarballPath).size,
   },
   sbom: { file: "sbom.json", sha256: sha256File(sbomPath) },
-  provenance: "UPSTREAMS.lock.yml (38 sources) + CODE_PROVENANCE.md + DATA_PROVENANCE.md",
+  provenance: `UPSTREAMS.lock.yml (${upstreamSourceCount()} sources) + CODE_PROVENANCE.md + DATA_PROVENANCE.md`,
   verification: "docs/operations/RELEASE_CANDIDATE.md",
 };
 writeFileSync(join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

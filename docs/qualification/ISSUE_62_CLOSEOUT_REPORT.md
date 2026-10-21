@@ -3,6 +3,8 @@
 Status: CLOSEOUT EVIDENCE RECORD. Base: `22f8dfb` (PR #145 merge, exact-head CI SUCCESS 15/15, post-merge CI SUCCESS).
 Scope: reconcile every Issue #62 acceptance condition (AC-00–AC-04), global gate (1–7), and journey (a–c) against committed evidence; list explicitly deferred optionals, remaining limitations, rights/legal decisions, and the single recommended disposition. **This record does not close Issue #62.** Closing requires the explicit owner authorization OD-03; no close action is taken here. Machine-checked by `tests/test_issue_62_closeout.py` (offline).
 
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): global gate (5) now names the PStack review panel in place of Jev; no other Jev reference remains in this record.
+
 ## 1. Acceptance conditions vs evidence
 
 ### AC-00 — Qualified inventory and import design: SUBSTANTIALLY COMPLETE (conditional remainder)
@@ -34,7 +36,7 @@ All five candidates (DesignCraft layouts, EffectCraft Lottie, film/video timelin
 2. Rights fail closed: HOLDS for implemented paths, incl. the AF-14c similarity-gate fix (PR #117) that closed a real cross-tenant leak class; source-code permission never implies dataset/asset/model/trademark rights; per-item classification + pins + hashes enforced.
 3. Agent parity: HOLDS for implemented objects via stable `skelet://` URIs (30 tools + REST parity); single-shot analysis and Apps views remain parity gaps with authorized dispositions, not passes.
 4. Performance: HOLDS for baselines (search + board/changes/import benches, bundle budgets enforced); rollback criterion measurable; production-scale proof is Cloud scope (CB-13).
-5. Tests/reviews: HOLDS per grain (genuine Jev, delegate-only OCR labeled non-LLM, PStack manual fallback labeled, Graft, exact-head CI, normal merge, post-merge CI).
+5. Tests/reviews: HOLDS per grain (PStack panel with independent fresh-context judges or an explicitly labelled degraded review, delegate-only OCR labeled non-LLM, Graft, exact-head CI, normal merge, post-merge CI).
 6. No launch disruption: HOLDS (no giant PR, no force-push/rebase, no change to uncommitted owner work; `.ignore` preserved untracked throughout).
 7. Identity: HOLDS (user-facing brand is Skelet; upstream copyrights + required attribution preserved in provenance). Root `NOTICE` consolidation + Skelet license choice remain OD-05 (see `RELEASE_CANDIDATE.md` §6); this is a release-packaging remainder, not an AC-03/AC-04 gap.
 

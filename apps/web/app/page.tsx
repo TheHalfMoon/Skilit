@@ -90,13 +90,13 @@ export default function Home() {
       <section className="sk-intro-grid" aria-label="Skilit design system overview">
         <div className="sk-brand-panel">
           <div className="sk-brand-panel-top">
-            <span>THE SKILIT SYSTEM</span>
+            <span>THE skilit SYSTEM</span>
             <SkilitIcon name="sparkles" size={20} />
           </div>
           <Image
             className="sk-hero-lockup"
             src="/brand/skilit-lockup-orange.svg"
-            alt="Skilit logo, featuring the curved black S mark"
+            alt="skilit logo, featuring the curved black S mark"
             width={1024}
             height={384}
             priority

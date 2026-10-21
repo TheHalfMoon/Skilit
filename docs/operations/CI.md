@@ -29,7 +29,7 @@ Formal application lint/typecheck/build commands replace the bootstrap compile s
 
 The Graft job runs on the explicit `ubuntu-24.04` image with a 15-minute timeout. It uses pinned `@nanonets/graft@0.21.1` and must pass graph build and freshness checks on the exact candidate revision.
 
-Graft output is architecture/change-impact evidence. It does not replace unit, integration, Jev, or Alibaba Open Code Review evidence.
+Graft output is architecture/change-impact evidence. It does not replace unit, integration, PStack review-panel, or Alibaba Open Code Review evidence.
 
 ### `web`
 
@@ -71,7 +71,9 @@ remain open until their bounded implementation grains are qualified.
 
 ## Review evidence
 
-TypeSafe Jev and Alibaba Open Code Review remain governed pre-merge review gates under `GOVERNANCE.md`. They are not replaced by unrelated external reviewer statuses.
+The PStack review panel and Alibaba Open Code Review remain governed pre-merge review gates under `GOVERNANCE.md`. They are not replaced by unrelated external reviewer statuses.
+
+The mandatory TypeSafe Jev gate was waived by founder decision `GD-2026-10-21-REVIEW-STACK`; see [`docs/governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md`](../governance/DECISION_2026-10-21_REVIEW_STACK_MIGRATION.md). Jev is no longer a merge or release gate, and historical Jev records are preserved as-is.
 
 CodeRabbit, Cubic, Qodo, and similar reviewer statuses are not accepted as Skilit governance evidence even if GitHub displays them on a pull request.
 

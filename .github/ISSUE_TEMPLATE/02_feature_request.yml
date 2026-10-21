@@ -1,0 +1,65 @@
+name: "Feature proposal"
+description: "Propose a scoped improvement for Skilit's human or agent workflows."
+title: "feat: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Skilit is under development and qualification. A proposal is not authorization to publish a release, add paid services, or bypass the adopted implementation plan. Please check PRODUCT.md and existing issues first.
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary audience
+      options:
+        - AI agents / MCP / SDK
+        - Designers / design engineers
+        - Web users / workspace owners
+        - Maintainers / contributors
+        - Multiple audiences
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Explain the real workflow and why the current experience falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe observable behavior before suggesting architecture or dependencies.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Testable acceptance criteria
+      placeholder: |
+        - [ ] A workspace member can ...
+        - [ ] An unauthorized actor cannot ...
+        - [ ] MCP and REST keep matching semantics ...
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and trade-offs
+      description: Consider security, privacy, provenance, compatibility, accessibility, performance, and zero-paid-service requirements.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked overlapping issues and excluded credentials and private user data.
+          required: true

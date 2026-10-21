@@ -158,7 +158,7 @@ Check exact DB schema/migrations first. Enforce foreign keys, tenant rules and o
 
 ## 8. Implementation grains / precise order and exit evidence
 
-Every grain: exact current-main preflight, bounded contracts and fixtures BEFORE code changes, branch with exact base, independent diff, tests, Graft/PStack/Jev/Alibaba OCR checks as truly available, exact-head CI, ordinary merge, post-merge checks and closeout. If OCR ran in delegate/no-model mode, record that fact; do NOT pretend a full LLM review occurred.
+Every grain: exact current-main preflight, bounded contracts and fixtures BEFORE code changes, branch with exact base, independent diff, tests, Graft/PStack/Alibaba OCR checks as truly available, exact-head CI, ordinary merge, post-merge checks and closeout. If OCR ran in delegate/no-model mode, record that fact; do NOT pretend a full LLM review occurred.
 
 | Grain | Dependency | Implementation | Proof / exit |
 | --- | --- | --- | --- |
@@ -234,7 +234,7 @@ Rollback by module: feature flag off, block new jobs, expire/revoke its old reso
 - [ ] Define performance bundle cap and local memory budget using a measured baseline on project hardware.
 - [ ] Add negative contract fixtures for cloud/model egress, tenant privacy, media rights and an idempotent import.
 - [ ] Update provenance locks as PLANNED only until import qualification; no model API, service credentials or bundled game/meme resources.
-- [ ] Run real build/security/contract checks and Jev, Alibaba OCR (classify genuine scan vs delegation), PStack and Graft, then exact-head CI/normal merge/post-merge closeout.
+- [ ] Run real build/security/contract checks and the PStack review panel, Alibaba OCR (classify genuine scan vs delegation), and Graft, then exact-head CI/normal merge/post-merge closeout.
 - [ ] Post next-grain execution readiness to #62 and #34 with exact SHAs and remaining open blockers.
 
 Planning completion definition: a developer can choose a named grain, start from verified main, see dependencies + files + risk + tests, run gates and confidently say PASS / BLOCKED / DEFERRED. **No amount of planning alone makes the project or an integration complete.**

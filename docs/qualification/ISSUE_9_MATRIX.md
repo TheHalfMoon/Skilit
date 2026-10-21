@@ -6,6 +6,8 @@ Residual R1 (below) is closed by the automated consumer smoke; Issue #9
 is eligible for closure on this matrix. No narrative-only claims: every
 VERIFIED row names implementation, test, and evidence locations.
 
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mentions below are historical statements of the reviews that ran for the cited grains; they are preserved verbatim and are not a current gate.
+
 ## Criterion 1 — Three-page fixture kit — VERIFIED
 
 Requirement: fixture site with 3 pages and mobile/desktop captures;

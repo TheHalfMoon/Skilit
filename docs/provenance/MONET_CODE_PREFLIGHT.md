@@ -60,6 +60,6 @@ dependency-bounded code grains. No source files are activated in this change.
 G01-02 implementation requires: inspecting dependencies on excluded source
 paths, retaining source attribution, adapting required donor code into
 English, discarding old product configuration/branding, qualifying clean
-install/build/tests/CI, and passing Graft, exact-HEAD TypeSafe Jev, Alibaba OCR,
+install/build/tests/CI, and passing Graft, the exact-HEAD PStack review panel, Alibaba OCR,
 and post-merge verification before advancing to P02. Never silently import a
 quarantined blob.

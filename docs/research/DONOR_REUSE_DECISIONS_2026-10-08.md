@@ -56,7 +56,7 @@ GitHub repository presence/readme verified in the connected TheHalfMoon account 
 | [Inercative](https://github.com/TheHalfMoon/Inercative) | Agent-driven app generation | **CONSUMER PARTNER**, no duplicate builder in Skilit |
 | [SpecGrain](https://github.com/TheHalfMoon/SpecGrain) | Small implementation grains/contracts | **GOVERNANCE REUSE**, no forced runtime coupling |
 | [Diffcipline](https://github.com/TheHalfMoon/Diffcipline) | Exact-diff proof/closeout discipline | **GOVERNANCE REUSE**, no product endpoint |
-| [Ascout](https://github.com/TheHalfMoon/Ascout) | QA/security/test integration patterns | **REVIEW ADAPTER CANDIDATE**, do not substitute for required Alibaba OCR/Jev |
+| [Ascout](https://github.com/TheHalfMoon/Ascout) | QA/security/test integration patterns | **REVIEW ADAPTER CANDIDATE**, do not substitute for required Alibaba OCR / PStack review panel (superseded: the former TypeSafe Jev gate was waived by `GD-2026-10-21-REVIEW-STACK`) |
 | [Olax](https://github.com/TheHalfMoon/Olax) | Company/agent decision workflows | **OUT OF CORE**, no reason to import for design discovery |
 
 Private repos (when accessible) require the **same** exact source, right-to-disclose, per-path manifest, and no-secret checks. No automatic import from private code into this **public** Skilit repository.

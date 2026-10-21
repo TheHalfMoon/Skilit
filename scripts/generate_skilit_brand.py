@@ -6,8 +6,11 @@ reference on 2026-10-17. The points below are editable vector source data,
 not a reference to an external branding library.
 """
 from pathlib import Path
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
+WORDMARK = json.loads((ROOT / "docs/brand/wordmark-inter-tight-600.json").read_text())
+WORDMARK_PATH = WORDMARK["path"]
 PUBLIC = ROOT / "apps/web/public/brand"
 PUBLIC.mkdir(parents=True, exist_ok=True)
 
@@ -24,10 +27,10 @@ POINTS = [
     (132, 110), (265, 60), (280, 38), (279, 20),
 ]
 
-ORANGE = "#F8793D"
-ORANGE_FIELD = "#F3A07C"
-CREAM = "#FAF9F6"
-INK = "#14161A"
+ORANGE = "#FF6A1F"
+ORANGE_FIELD = "#FF782D"
+CREAM = "#FAF8F5"
+INK = "#0F0F0F"
 
 def outline():
     coords = POINTS
@@ -58,14 +61,14 @@ for name, background, mark, text_color in [
     children = (
         f'<rect width="1024" height="384" fill="{background}"/>\n'
         f'<path d="{PATH}" transform="translate(126 78) scale(.60)" fill="{mark}"/>\n'
-        f'<text x="364" y="226" font-family="Arial, Helvetica, sans-serif" '
-        f'font-size="116" font-weight="500" letter-spacing="-3.5" fill="{text_color}">Skilit</text>'
+        f'<path d="{WORDMARK_PATH}" transform="translate(364 241)" '
+        f'data-wordmark="skilit" fill="{text_color}"/>'
     )
     (PUBLIC / name).write_text(svg("0 0 1024 384", children, "Skilit logo"))
 
 icon = (
-    f'<rect x="0" y="0" width="64" height="64" rx="14" fill="{ORANGE_FIELD}"/>'
-    f'<path d="{PATH}" transform="translate(17 7) scale(.13)" fill="{INK}"/>'
+    f'<rect x="0" y="0" width="64" height="64" rx="14" fill="{CREAM}"/>'
+    f'<path d="{PATH}" transform="translate(17 7) scale(.13)" fill="{ORANGE}"/>'
 )
 (ROOT / "apps/web/app/icon.svg").write_text(svg("0 0 64 64", icon, "Skilit app icon"))
 
@@ -79,8 +82,8 @@ for name, background, mark, foreground, secondary in [
     children = (
         f'<rect width="1200" height="630" fill="{background}"/>\n'
         f'<path d="{PATH}" transform="translate(146 106) scale(1.08)" fill="{mark}"/>\n'
-        f'<text x="540" y="283" font-family="Arial, Helvetica, sans-serif" '
-        f'font-size="114" font-weight="500" letter-spacing="-3" fill="{foreground}">Skilit</text>\n'
+        f'<path d="{WORDMARK_PATH}" transform="translate(540 295)" '
+        f'data-wordmark="skilit" fill="{foreground}"/>\n'
         f'<rect x="546" y="322" width="522" height="2" fill="{foreground}" opacity=".16"/>\n'
         f'<text x="547" y="377" font-family="Arial, Helvetica, sans-serif" '
         f'font-size="22" font-weight="700" letter-spacing="4" fill="{foreground}">DESIGN INTELLIGENCE</text>\n'
