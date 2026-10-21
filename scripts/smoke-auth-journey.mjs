@@ -154,19 +154,44 @@ function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
-/** Secrets that must never reach a CI log. */
+/**
+ * Secrets that must never reach a CI log. The literals are matched
+ * globally, because a string pattern would only redact the first
+ * occurrence in a chunk.
+ */
 const REDACTIONS = [
-  [OWNER_PASSWORD, "<redacted-password>"],
-  [ACTOR_PASSWORD, "<redacted-password>"],
+  [new RegExp(escapeRegExp(OWNER_PASSWORD), "g"), "<redacted-password>"],
+  [new RegExp(escapeRegExp(ACTOR_PASSWORD), "g"), "<redacted-password>"],
   [/skilit_session=[^\s;"']+/g, "skilit_session=<redacted>"],
 ];
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The longest secret that must be redacted, minus one character: a secret
+ * split across two stdout chunks is carried over so it is still recognised
+ * when the rest of it arrives.
+ */
+const REDACTION_CARRY = Math.max(OWNER_PASSWORD.length, ACTOR_PASSWORD.length) - 1;
+let redactionCarry = "";
+/** Secrets that are only known at run time, such as the expiry session token. */
+const runtimeSecrets = [];
+
 function redact(text) {
-  let output = text;
+  const combined = redactionCarry + text;
+  let output = combined;
   for (const [pattern, replacement] of REDACTIONS) {
     output = output.replace(pattern, replacement);
   }
-  return output;
+  for (const secret of runtimeSecrets) {
+    output = output.replace(new RegExp(escapeRegExp(secret), "g"), "<redacted-token>");
+  }
+  // Hold back the tail that could still be the start of a secret.
+  const tail = output.slice(-REDACTION_CARRY);
+  redactionCarry = /[A-Za-z0-9_-]+$/.test(tail) ? tail : "";
+  return output.slice(0, output.length - redactionCarry.length);
 }
 
 // The running server and its disposable data directory, so an interrupt
@@ -177,8 +202,11 @@ let activeDataDir = null;
 
 function teardown() {
   if (activeServer) {
-    activeServer.kill("SIGTERM");
-    setTimeout(() => activeServer?.kill("SIGKILL"), 5000).unref();
+    const child = activeServer;
+    child.kill("SIGTERM");
+    // The escalation must hold the child itself, not the module slot that
+    // is cleared immediately afterwards.
+    setTimeout(() => child.kill("SIGKILL"), 5000).unref();
     activeServer = null;
   }
   if (activeDataDir) {
@@ -277,6 +305,9 @@ async function prepareDatabase(scenario) {
     prepared.privateFixtureToken = readFileSync(
       path.join(dataDir, ".expiry-session-token"), "utf8",
     );
+    // The live session token must never reach a log, even if the server
+    // ever echoed it.
+    runtimeSecrets.push(prepared.privateFixtureToken);
   }
   return { dataDir, prepared };
 }
@@ -290,7 +321,9 @@ async function runScenario(name, port, journey) {
   try {
     server = spawn(
       process.execPath,
-      ["node_modules/next/dist/bin/next", "start", "-p", String(port)],
+      // The throwaway server is bound to loopback only: nothing on the
+      // local network can reach it while it holds a published password.
+      ["node_modules/next/dist/bin/next", "start", "-p", String(port), "-H", "127.0.0.1"],
       {
         cwd: path.join(root, "apps/web"),
         stdio: ["ignore", "pipe", "pipe"],
@@ -616,8 +649,8 @@ async function isolationJourney({ page, context, base, prepared }) {
     `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(bobWorkspaceId)}`,
   );
   check(
-    crossRead.status === DENIED_STATUS,
-    `reading the other actor's workspace must answer ${DENIED_STATUS}, saw ${crossRead.status}`,
+    crossRead.status === DENIED_STATUS && crossRead.body?.error?.code === DENIED_CODE,
+    `reading the other actor's workspace must answer ${DENIED_STATUS} ${DENIED_CODE}, saw ${crossRead.status} ${crossRead.body?.error?.code}`,
   );
 
   // The read path must not reveal which workspace ids are real either, so
@@ -659,8 +692,8 @@ async function isolationJourney({ page, context, base, prepared }) {
     `${ROUTES.boardsApi}/${encodeURIComponent(bobBoardId)}?workspaceId=${encodeURIComponent(bobWorkspaceId)}`,
   );
   check(
-    crossItemRead.status === DENIED_STATUS,
-    `reading a board in the other actor's workspace must answer ${DENIED_STATUS}, saw ${crossItemRead.status}`,
+    crossItemRead.status === DENIED_STATUS && crossItemRead.body?.error?.code === DENIED_CODE,
+    `reading a board in the other actor's workspace must answer ${DENIED_STATUS} ${DENIED_CODE}, saw ${crossItemRead.status} ${crossItemRead.body?.error?.code}`,
   );
 
   // --- D. the actor's own workspace still works ---------------------------
@@ -676,6 +709,23 @@ async function isolationJourney({ page, context, base, prepared }) {
   check(
     ownWrite.status === 201,
     `writing into the actor's own workspace must answer 201, saw ${ownWrite.status}`,
+  );
+
+  // Positive control: the same item route answers 200 for a board the actor
+  // may read, so the denials above are authorization decisions and not a
+  // route that answers 404 for everyone.
+  const ownBoardId = ownWrite.body?.result?.board?.id;
+  check(
+    typeof ownBoardId === "string" && ownBoardId.length > 0,
+    `the created board must expose its id, saw ${JSON.stringify(ownWrite.body?.result?.board?.id)}`,
+  );
+  const ownItemRead = await apiCall(
+    page,
+    `${ROUTES.boardsApi}/${encodeURIComponent(ownBoardId)}?workspaceId=${encodeURIComponent(aliceWorkspaceId)}`,
+  );
+  check(
+    ownItemRead.status === 200,
+    `reading a board in the actor's own workspace must answer 200, saw ${ownItemRead.status}`,
   );
 }
 

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { chmodSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
 import { openDatabase, type DbClient } from "../../../packages/db/src/db.ts";
@@ -27,6 +27,11 @@ function prepareDataDir(dataDir: string): string {
     throw new Error("SKILIT_MCP_PGLITE_DATA_DIR must be an absolute path");
   }
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  // `mode` only applies when the directory is created, so an existing
+  // directory keeps whatever permissions it had. The directory holds
+  // password verifiers and session-token hashes, so the owner-only
+  // permission is enforced rather than requested.
+  chmodSync(dataDir, 0o700);
   return dataDir;
 }
 
