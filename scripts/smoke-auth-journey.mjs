@@ -25,11 +25,12 @@
  *     with the same answer it gets for a workspace that does not exist
  *     at all, so the API never reveals which workspace ids are real.
  *
- *   sessions — one account holding two genuine sessions: the browser lists
+ *   sessions — one account holding three genuine sessions: the browser lists
  *     only its own sessions, cannot revoke another account's session (and
- *     gets the same answer for a session id that does not exist), signs out
- *     every other session while staying signed in itself, and the revoked
- *     token is refused in both Bearer and Cookie mode.
+ *     gets the same answer for a session id that does not exist), drives the
+ *     real account page to revoke one of its own sessions, signs out every
+ *     other session while staying signed in itself, and the revoked token is
+ *     refused in both Bearer and Cookie mode.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
@@ -69,6 +70,7 @@ const ROUTES = {
   signout: "/api/v1/auth/signout",
   boardsApi: "/api/v1/boards",
   sessions: "/api/v1/auth/sessions",
+  account: "/account",
 };
 const OWNER_EMAIL = "owner@skilit.example";
 // One credential for every fixture identity: the journeys never need two
@@ -148,6 +150,9 @@ if (process.argv[2] === "--prepare") {
     // and a second "other device" session the journey revokes.
     const browser = await createSession(db, owner.id, { ttlSeconds: SESSIONS_SESSION_TTL_SECONDS });
     const other = await createSession(db, owner.id, { ttlSeconds: SESSIONS_SESSION_TTL_SECONDS });
+    // A third session, so the journey can drive the account page's own
+    // "Revoke" button against a real row instead of only calling the API.
+    const other2 = await createSession(db, owner.id, { ttlSeconds: SESSIONS_SESSION_TTL_SECONDS });
     // A real session that belongs to somebody else.
     const foreign = await signUp(db, { email: SESSIONS_FOREIGN_EMAIL, password: PASSWORD });
     const foreignSession = await createSession(db, foreign.id, {
@@ -155,10 +160,12 @@ if (process.argv[2] === "--prepare") {
     });
     writeFileSync(path.join(dataDir, ".sessions-browser-token"), browser.token, { mode: 0o600 });
     writeFileSync(path.join(dataDir, ".sessions-other-token"), other.token, { mode: 0o600 });
+    writeFileSync(path.join(dataDir, ".sessions-other2-token"), other2.token, { mode: 0o600 });
     writeFileSync(path.join(dataDir, ".sessions-foreign-token"), foreignSession.token, { mode: 0o600 });
     prepared.ownerWorkspaceId = space.workspace.id;
     prepared.browserSessionId = browser.session.id;
     prepared.otherSessionId = other.session.id;
+    prepared.other2SessionId = other2.session.id;
     prepared.foreignSessionId = foreignSession.session.id;
   }
   if (scenario === "isolation") {
@@ -338,9 +345,11 @@ async function prepareDatabase(scenario) {
   if (scenario === "sessions") {
     prepared.browserToken = readFileSync(path.join(dataDir, ".sessions-browser-token"), "utf8");
     prepared.otherToken = readFileSync(path.join(dataDir, ".sessions-other-token"), "utf8");
+    prepared.other2Token = readFileSync(path.join(dataDir, ".sessions-other2-token"), "utf8");
     prepared.foreignToken = readFileSync(path.join(dataDir, ".sessions-foreign-token"), "utf8");
     redactor.add(prepared.browserToken);
     redactor.add(prepared.otherToken);
+    redactor.add(prepared.other2Token);
     redactor.add(prepared.foreignToken);
   }
   return { dataDir, prepared };
@@ -879,9 +888,11 @@ async function sessionsJourney({ page, context, base, prepared }) {
   const {
     browserToken,
     otherToken,
+    other2Token,
     foreignToken,
     browserSessionId,
     otherSessionId,
+    other2SessionId,
     foreignSessionId,
     ownerWorkspaceId,
   } = prepared;
@@ -894,12 +905,16 @@ async function sessionsJourney({ page, context, base, prepared }) {
     "sessions fixture must provide a genuine opaque second token",
   );
   check(
+    typeof other2Token === "string" && other2Token.length > 32,
+    "sessions fixture must provide a genuine opaque third token",
+  );
+  check(
     typeof foreignToken === "string" && foreignToken.length > 32,
     "sessions fixture must provide a genuine opaque foreign token",
   );
   check(
-    browserSessionId !== otherSessionId,
-    "the fixture must create two distinct sessions for one account",
+    browserSessionId !== otherSessionId && browserSessionId !== other2SessionId,
+    "the fixture must create distinct sessions for one account",
   );
 
   // Put the browser's own session into the HttpOnly cookie, exactly as the
@@ -918,7 +933,7 @@ async function sessionsJourney({ page, context, base, prepared }) {
   check(listed.status === 200, `listing sessions must answer 200, saw ${listed.status}`);
   const result = listed.body?.result ?? {};
   const sessions = result.sessions ?? [];
-  check(sessions.length === 2, `the account must list exactly two sessions, saw ${sessions.length}`);
+  check(sessions.length === 3, `the account must list exactly three sessions, saw ${sessions.length}`);
   check(
     result.currentSessionId === browserSessionId,
     `the list must name the presenting session as current, saw ${result.currentSessionId}`,
@@ -926,6 +941,7 @@ async function sessionsJourney({ page, context, base, prepared }) {
   const ids = sessions.map((session) => session.id);
   check(ids.includes(browserSessionId), "the list must contain the browser's own session");
   check(ids.includes(otherSessionId), "the list must contain the second session");
+  check(ids.includes(other2SessionId), "the list must contain the third session");
   check(
     !ids.includes(foreignSessionId),
     "the list must never contain another account's session",
@@ -971,7 +987,57 @@ async function sessionsJourney({ page, context, base, prepared }) {
     `the second account's session must still be live, saw ${foreignBearer.status}`,
   );
 
-  // --- C. "sign out everywhere else" keeps this browser signed in ------
+  // --- C. the account page renders the sessions and revokes one --------
+  // The page is driven for real, not only through the API: the row the
+  // browser acts on is the row the page rendered.
+  await page.goto(base + ROUTES.account, { waitUntil: "load" });
+  await page.waitForSelector("table tbody tr", { timeout: 20_000 });
+  const rowCount = await page.locator("table tbody tr").count();
+  check(rowCount === 3, `the account page must render three sessions, saw ${rowCount}`);
+  const pageText = (await page.textContent("table")) ?? "";
+  check(pageText.includes(browserSessionId), "the account page must show the browser's own session");
+  check(pageText.includes(otherSessionId), "the account page must show the second session");
+  check(pageText.includes(other2SessionId), "the account page must show the third session");
+  check(pageText.includes("this browser"), "the account page must mark the current session");
+  check(
+    !pageText.includes(browserToken) && !pageText.includes(otherToken) && !pageText.includes(other2Token),
+    "the account page must never render a session token",
+  );
+
+  const thirdRow = page.locator("table tbody tr", {
+    has: page.locator(`code:text-is("${other2SessionId}")`),
+  });
+  check((await thirdRow.count()) === 1, "the account page must render a row for the third session");
+  await thirdRow.locator("button").click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector("div[aria-live='polite']")?.textContent ?? "").includes("Session revoked."),
+    undefined,
+    { timeout: 20_000 },
+  );
+  check(
+    (await page.locator("p[role='alert']").count()) === 0,
+    "revoking a session from the account page must not report an error",
+  );
+
+  // The API must agree with what the page just did.
+  const afterUiRevoke = await apiCall(page, ROUTES.sessions);
+  const afterUiSessions = afterUiRevoke.body?.result?.sessions ?? [];
+  const uiRevoked = afterUiSessions.find((session) => session.id === other2SessionId);
+  check(
+    uiRevoked?.revokedAt !== null && uiRevoked?.revokedAt !== undefined,
+    "the session the page revoked must be revoked in the API too",
+  );
+  check(uiRevoked?.live === false, "the session the page revoked must not be live");
+  const uiRevokedBearer = await apiCall(page, ROUTES.session, {
+    headers: { Authorization: `Bearer ${other2Token}` },
+  });
+  check(
+    uiRevokedBearer.status === 401,
+    `the token of the session the page revoked must be refused, saw ${uiRevokedBearer.status}`,
+  );
+
+  // --- D. "sign out everywhere else" keeps this browser signed in ------
   const revokedOthers = await apiCall(page, ROUTES.sessions, { method: "DELETE" });
   check(
     revokedOthers.status === 200,
@@ -1000,7 +1066,7 @@ async function sessionsJourney({ page, context, base, prepared }) {
     `the calling browser must keep its workspace access, saw ${boards.status}`,
   );
 
-  // --- D. the revoked session is refused everywhere ---------------------
+  // --- E. the revoked session is refused everywhere ---------------------
   const revokedBearer = await apiCall(page, ROUTES.session, {
     headers: { Authorization: `Bearer ${otherToken}` },
   });
@@ -1035,17 +1101,23 @@ async function sessionsJourney({ page, context, base, prepared }) {
     }
   }
 
-  // --- E. the revoked session is still visible, marked revoked -----------
+  // --- F. the revoked sessions are still visible, marked revoked ---------
   const relisted = await apiCall(page, ROUTES.sessions);
   check(relisted.status === 200, `re-listing sessions must answer 200, saw ${relisted.status}`);
   const relistedSessions = relisted.body?.result?.sessions ?? [];
-  const revokedEntry = relistedSessions.find((session) => session.id === otherSessionId);
-  check(revokedEntry !== undefined, "the revoked session must still be listed");
   check(
-    revokedEntry?.revokedAt !== null && revokedEntry?.revokedAt !== undefined,
-    "the revoked session must carry a revocation timestamp",
+    relistedSessions.length === 3,
+    `a revoked session must stay listed, saw ${relistedSessions.length}`,
   );
-  check(revokedEntry?.live === false, "the revoked session must not be reported as live");
+  for (const revokedId of [otherSessionId, other2SessionId]) {
+    const revokedEntry = relistedSessions.find((session) => session.id === revokedId);
+    check(revokedEntry !== undefined, "the revoked session must still be listed");
+    check(
+      revokedEntry?.revokedAt !== null && revokedEntry?.revokedAt !== undefined,
+      "the revoked session must carry a revocation timestamp",
+    );
+    check(revokedEntry?.live === false, "the revoked session must not be reported as live");
+  }
   const liveEntry = relistedSessions.find((session) => session.id === browserSessionId);
   check(liveEntry?.live === true, "the calling browser's session must still be live");
 }
