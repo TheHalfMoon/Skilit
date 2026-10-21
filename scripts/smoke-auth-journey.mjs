@@ -8,8 +8,8 @@
  *   bootstrap — an empty installation: the owner creates the first account
  *     through the real form, receives a HttpOnly session cookie with no
  *     token anywhere the page can read, discovers the authorized
- *     workspace, creates a board inside it, is refused a workspace it
- *     cannot see, cannot distinguish an unknown email from a wrong
+ *     workspace, creates a board inside it, is refused a forged
+ *     workspace id, cannot distinguish an unknown email from a wrong
  *     password, and is signed out at the end.
  *
  *   expiry — an already initialized installation with a real short-remaining-
@@ -20,10 +20,10 @@
  *
  *   isolation — two pre-seeded actors, each owning a real workspace: the
  *     first actor signs in through the real form, sees only its own
- *     workspace, and is refused every read and write against the other
- *     actor's real workspace — with the same answer it gets for a
- *     workspace that does not exist at all, so the API never reveals
- *     which workspace ids are real.
+ *     workspace, and is refused the board collection, board creation and
+ *     board item reads that target the other actor's real workspace —
+ *     with the same answer it gets for a workspace that does not exist
+ *     at all, so the API never reveals which workspace ids are real.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
@@ -64,15 +64,20 @@ const ROUTES = {
   boardsApi: "/api/v1/boards",
 };
 const OWNER_EMAIL = "owner@skilit.example";
-const OWNER_PASSWORD = "journey-password-01";
+// One credential for every fixture identity: the journeys never need two
+// distinct passwords, and one value keeps the redaction assertions honest.
+const PASSWORD = "journey-password-01";
 const ALICE_EMAIL = "alice@skilit.example";
 const EXPIRY_EMAIL = "expiry@skilit.example";
-// Production TTL is unchanged: this fixture creates a legitimate 60-second
-// session with a backdated trusted server clock, leaving ~45 seconds for
-// startup, browser possession and an actual expiry transition.
-const EXPIRY_BACKDATE_MS = 15_000;
+// Production TTL is unchanged. The fixture creates a legitimate ten-minute
+// session with a backdated trusted server clock, so ~45 seconds remain for
+// the browser to hold it and for a real expiry transition to happen. The
+// long backdate means unrelated startup latency — a cold first run, a
+// slow Chromium download — cannot consume the expiry budget and turn a
+// timing detail into a flake.
+const EXPIRY_SESSION_TTL_SECONDS = 600;
+const EXPIRY_BACKDATE_MS = 555_000;
 const BOB_EMAIL = "bob@skilit.example";
-const ACTOR_PASSWORD = "journey-password-01";
 // A well-formed workspace id that belongs to nobody.
 const UNKNOWN_WORKSPACE_ID = "00000000-0000-4000-8000-000000000000";
 // The API answers a workspace the actor cannot see and a workspace that does
@@ -103,10 +108,10 @@ if (process.argv[2] === "--prepare") {
   await migrateUp(db);
   const prepared = { scenario };
   if (scenario === "expiry") {
-    const owner = await signUp(db, { email: EXPIRY_EMAIL, password: ACTOR_PASSWORD });
+    const owner = await signUp(db, { email: EXPIRY_EMAIL, password: PASSWORD });
     const space = await createWorkspace(db, { name: "Expiry owner workspace", ownerId: owner.id });
     const { token, session } = await createSession(db, owner.id, {
-      ttlSeconds: 60,
+      ttlSeconds: EXPIRY_SESSION_TTL_SECONDS,
       now: new Date(Date.now() - EXPIRY_BACKDATE_MS),
     });
     // Never print a live bearer token to stdout, CI logs, or a GitHub artifact.
@@ -117,8 +122,8 @@ if (process.argv[2] === "--prepare") {
     prepared.ownerWorkspaceId = space.workspace.id;
   }
   if (scenario === "isolation") {
-    const alice = await signUp(db, { email: ALICE_EMAIL, password: ACTOR_PASSWORD });
-    const bob = await signUp(db, { email: BOB_EMAIL, password: ACTOR_PASSWORD });
+    const alice = await signUp(db, { email: ALICE_EMAIL, password: PASSWORD });
+    const bob = await signUp(db, { email: BOB_EMAIL, password: PASSWORD });
     const aliceSpace = await createWorkspace(db, { name: "Alice space", ownerId: alice.id });
     const bobSpace = await createWorkspace(db, { name: "Bob space", ownerId: bob.id });
     // A real board inside the other actor's real workspace, so the item read
@@ -160,7 +165,7 @@ function check(condition, message) {
  * Secrets that must never reach a CI log. The session token is only known
  * once the fixture is prepared, so the redactor is rebuilt with it.
  */
-const redactor = createRedactor([OWNER_PASSWORD, ACTOR_PASSWORD]);
+const redactor = createRedactor([PASSWORD]);
 
 function redact(text) {
   return redactor.redact(text);
@@ -243,7 +248,7 @@ function assertNoDotenvDatabaseUrl() {
         .split("\n")
         .some((line) => {
           const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
-          return match?.[1] === key && !line.trimStart().startsWith("#");
+          return match?.[1] === key;
         });
       if (declared) offenders.push(`apps/web/${name} sets ${key}`);
     }
@@ -351,7 +356,7 @@ async function runScenario(name, port, journey) {
       "the web server output must not contain a session cookie",
     );
     check(
-      !output.includes(OWNER_PASSWORD) && !output.includes(ACTOR_PASSWORD),
+      !output.includes(PASSWORD),
       "the web server output must not contain a session password",
     );
     if (typeof prepared.privateFixtureToken === "string") {
@@ -383,7 +388,7 @@ async function bootstrapJourney({ page, context, base }) {
   );
   // --- B. owner bootstrap through the real form -------------------------
   await page.fill("#signup-email", OWNER_EMAIL);
-  await page.fill("#signup-password", OWNER_PASSWORD);
+  await page.fill("#signup-password", PASSWORD);
   await page.click("form button[type=submit]");
   await page.waitForSelector("div[aria-live='polite'] p", { timeout: 20_000 });
   const notice = (await page.textContent("div[aria-live='polite'] p")) ?? "";
@@ -520,7 +525,7 @@ async function bootstrapJourney({ page, context, base }) {
     {
       path: ROUTES.signin,
       email: OWNER_EMAIL,
-      password: OWNER_PASSWORD,
+      password: PASSWORD,
       wrongEmail: "nobody@skilit.example",
     },
   );
@@ -589,7 +594,7 @@ async function isolationJourney({ page, context, base, prepared }) {
   // --- A. sign in as the first actor through the real form ---------------
   await page.goto(base + ROUTES.login, { waitUntil: "load" });
   await page.fill("#login-email", ALICE_EMAIL);
-  await page.fill("#login-password", ACTOR_PASSWORD);
+  await page.fill("#login-password", PASSWORD);
   await page.click("form button[type=submit]");
   await page.waitForSelector("div[aria-live='polite'] p", { timeout: 20_000 });
   const notice = (await page.textContent("div[aria-live='polite'] p")) ?? "";
@@ -796,7 +801,7 @@ async function expiryJourney({ page, context, base, prepared }) {
   await page.reload({ waitUntil: "load" });
   await page.getByText("No active session in this browser.").waitFor({ timeout: 20_000 });
   await page.fill("#login-email", EXPIRY_EMAIL);
-  await page.fill("#login-password", ACTOR_PASSWORD);
+  await page.fill("#login-password", PASSWORD);
   await page.click("form button[type=submit]");
   await page.getByText(/Signed in as/).waitFor({ timeout: 20_000 });
   const recovered = await apiCall(page, ROUTES.session);

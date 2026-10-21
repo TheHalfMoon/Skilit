@@ -33,7 +33,7 @@ Graft output is architecture/change-impact evidence. It does not replace unit, i
 
 ### `web`
 
-The web job runs on the explicit `ubuntu-24.04` image with a 15-minute timeout. It installs pnpm `9.12.0`, performs a frozen-lockfile install, and must pass the Skilit web application gate on the exact candidate revision:
+The web job runs on the explicit `ubuntu-24.04` image with a 30-minute timeout, because it also downloads the pinned Chromium headless shell and boots the production server for the browser smokes. It installs pnpm `9.12.0`, performs a frozen-lockfile install, and must pass the Skilit web application gate on the exact candidate revision:
 
 - `eslint` over `apps/web`;
 - strict `tsc --noEmit`;
