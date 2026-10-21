@@ -158,10 +158,16 @@ if (process.argv[2] === "--prepare") {
     const foreignSession = await createSession(db, foreign.id, {
       ttlSeconds: SESSIONS_SESSION_TTL_SECONDS,
     });
-    writeFileSync(path.join(dataDir, ".sessions-browser-token"), browser.token, { mode: 0o600 });
-    writeFileSync(path.join(dataDir, ".sessions-other-token"), other.token, { mode: 0o600 });
-    writeFileSync(path.join(dataDir, ".sessions-other2-token"), other2.token, { mode: 0o600 });
-    writeFileSync(path.join(dataDir, ".sessions-foreign-token"), foreignSession.token, { mode: 0o600 });
+    writeFileSync(
+      path.join(dataDir, ".sessions-tokens.json"),
+      JSON.stringify({
+        browser: browser.token,
+        other: other.token,
+        other2: other2.token,
+        foreign: foreignSession.token,
+      }),
+      { mode: 0o600 },
+    );
     prepared.ownerWorkspaceId = space.workspace.id;
     prepared.browserSessionId = browser.session.id;
     prepared.otherSessionId = other.session.id;
@@ -343,14 +349,16 @@ async function prepareDatabase(scenario) {
     redactor.add(prepared.privateFixtureToken);
   }
   if (scenario === "sessions") {
-    prepared.browserToken = readFileSync(path.join(dataDir, ".sessions-browser-token"), "utf8");
-    prepared.otherToken = readFileSync(path.join(dataDir, ".sessions-other-token"), "utf8");
-    prepared.other2Token = readFileSync(path.join(dataDir, ".sessions-other2-token"), "utf8");
-    prepared.foreignToken = readFileSync(path.join(dataDir, ".sessions-foreign-token"), "utf8");
-    redactor.add(prepared.browserToken);
-    redactor.add(prepared.otherToken);
-    redactor.add(prepared.other2Token);
-    redactor.add(prepared.foreignToken);
+    // One private fixture file holds every token, so nothing can be
+    // forgotten when the set changes.
+    const tokens = JSON.parse(
+      readFileSync(path.join(dataDir, ".sessions-tokens.json"), "utf8"),
+    );
+    prepared.browserToken = tokens.browser;
+    prepared.otherToken = tokens.other;
+    prepared.other2Token = tokens.other2;
+    prepared.foreignToken = tokens.foreign;
+    for (const token of Object.values(tokens)) redactor.add(token);
   }
   return { dataDir, prepared };
 }
@@ -417,10 +425,20 @@ async function runScenario(name, port, journey) {
       !output.includes(PASSWORD),
       "the web server output must not contain a session password",
     );
-    if (typeof prepared.privateFixtureToken === "string") {
+    // Every token the fixture minted must not have reached the log. The
+    // expiry scenario keeps its token in a private field; the sessions
+    // scenario mints four.
+    const fixtureTokens = [
+      prepared.privateFixtureToken,
+      prepared.browserToken,
+      prepared.otherToken,
+      prepared.other2Token,
+      prepared.foreignToken,
+    ].filter((token) => typeof token === "string" && token.length > 0);
+    for (const token of fixtureTokens) {
       check(
-        !output.includes(prepared.privateFixtureToken),
-        "the web server output must not contain the session token",
+        !output.includes(token),
+        "the web server output must not contain a session token",
       );
     }
   } finally {
@@ -900,18 +918,16 @@ async function sessionsJourney({ page, context, base, prepared }) {
     typeof browserToken === "string" && browserToken.length > 32,
     "sessions fixture must provide a genuine opaque browser token",
   );
-  check(
-    typeof otherToken === "string" && otherToken.length > 32,
-    "sessions fixture must provide a genuine opaque second token",
-  );
-  check(
-    typeof other2Token === "string" && other2Token.length > 32,
-    "sessions fixture must provide a genuine opaque third token",
-  );
-  check(
-    typeof foreignToken === "string" && foreignToken.length > 32,
-    "sessions fixture must provide a genuine opaque foreign token",
-  );
+  for (const [name, token] of [
+    ["second", otherToken],
+    ["third", other2Token],
+    ["foreign", foreignToken],
+  ]) {
+    check(
+      typeof token === "string" && token.length > 32,
+      `sessions fixture must provide a genuine opaque ${name} token`,
+    );
+  }
   check(
     browserSessionId !== otherSessionId && browserSessionId !== other2SessionId,
     "the fixture must create distinct sessions for one account",
@@ -999,10 +1015,20 @@ async function sessionsJourney({ page, context, base, prepared }) {
   check(pageText.includes(otherSessionId), "the account page must show the second session");
   check(pageText.includes(other2SessionId), "the account page must show the third session");
   check(pageText.includes("this browser"), "the account page must mark the current session");
-  check(
-    !pageText.includes(browserToken) && !pageText.includes(otherToken) && !pageText.includes(other2Token),
-    "the account page must never render a session token",
-  );
+  // The whole rendered page, not only the table: a token must not reach
+  // any part of the document.
+  const rendered = (await page.content()) ?? "";
+  for (const [name, token] of [
+    ["browser", browserToken],
+    ["second", otherToken],
+    ["third", other2Token],
+    ["foreign", foreignToken],
+  ]) {
+    check(
+      !rendered.includes(token),
+      `the account page must never render the ${name} session token`,
+    );
+  }
 
   const thirdRow = page.locator("table tbody tr", {
     has: page.locator(`code:text-is("${other2SessionId}")`),
@@ -1023,6 +1049,23 @@ async function sessionsJourney({ page, context, base, prepared }) {
     "revoking a session from the account page must not report an error: " +
       JSON.stringify(pageAlerts),
   );
+  // The State column must describe the row the browser just acted on.
+  const revokedRowText =
+    (await page
+      .locator("table tbody tr", { has: page.locator(`code:text-is("${other2SessionId}")`) })
+      .textContent()) ?? "";
+  check(
+    revokedRowText.includes("Revoked"),
+    `the revoked row must say Revoked, saw "${revokedRowText.trim()}"`,
+  );
+  const liveRowText =
+    (await page
+      .locator("table tbody tr", { has: page.locator(`code:text-is("${otherSessionId}")`) })
+      .textContent()) ?? "";
+  check(
+    liveRowText.includes("Signed in"),
+    `a session that is still live must say Signed in, saw "${liveRowText.trim()}"`,
+  );
 
   // The API must agree with what the page just did.
   const afterUiRevoke = await apiCall(page, ROUTES.sessions);
@@ -1041,20 +1084,33 @@ async function sessionsJourney({ page, context, base, prepared }) {
     `the token of the session the page revoked must be refused, saw ${uiRevokedBearer.status}`,
   );
 
-  // --- D. "sign out everywhere else" keeps this browser signed in ------
-  const revokedOthers = await apiCall(page, ROUTES.sessions, { method: "DELETE" });
-  check(
-    revokedOthers.status === 200,
-    `signing out of the other sessions must answer 200, saw ${revokedOthers.status}`,
+  // --- D. the page's "sign out everywhere else" keeps this browser in --
+  // The button is clicked, not only the endpoint behind it.
+  await page.getByRole("button", { name: "Sign out of all other sessions" }).click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector("div[aria-live='polite']")?.textContent ?? "").includes(
+        "Signed out 1 other session(s).",
+      ),
+    undefined,
+    { timeout: 20_000 },
   );
+  const bulkAlerts = await page.locator("main [role='alert']").allTextContents();
   check(
-    revokedOthers.body?.result?.revoked === 1,
-    `exactly one other session must be revoked, saw ${revokedOthers.body?.result?.revoked}`,
+    bulkAlerts.length === 0,
+    "signing out of the other sessions must not report an error: " + JSON.stringify(bulkAlerts),
   );
+
+  const afterBulk = await apiCall(page, ROUTES.sessions);
+  const afterBulkSessions = afterBulk.body?.result?.sessions ?? [];
+  const bulkRevoked = afterBulkSessions.find((session) => session.id === otherSessionId);
   check(
-    revokedOthers.body?.result?.signedOut === false,
-    "signing out of the other sessions must not sign the caller out",
+    bulkRevoked?.revokedAt !== null && bulkRevoked?.revokedAt !== undefined,
+    "the session the page signed out must be revoked in the API too",
   );
+  check(bulkRevoked?.live === false, "the session the page signed out must not be live");
+  const bulkLive = afterBulkSessions.find((session) => session.id === browserSessionId);
+  check(bulkLive?.live === true, "the calling browser's session must survive the bulk revoke");
 
   const stillLive = await apiCall(page, ROUTES.session);
   check(
@@ -1070,7 +1126,22 @@ async function sessionsJourney({ page, context, base, prepared }) {
     `the calling browser must keep its workspace access, saw ${boards.status}`,
   );
 
-  // --- E. the revoked session is refused everywhere ---------------------
+  // --- E. the endpoint behind that button is idempotent ----------------
+  const revokedOthers = await apiCall(page, ROUTES.sessions, { method: "DELETE" });
+  check(
+    revokedOthers.status === 200,
+    `signing out of the other sessions must answer 200, saw ${revokedOthers.status}`,
+  );
+  check(
+    revokedOthers.body?.result?.revoked === 0,
+    `nothing is left to revoke, saw ${revokedOthers.body?.result?.revoked}`,
+  );
+  check(
+    revokedOthers.body?.result?.signedOut === false,
+    "signing out of the other sessions must not sign the caller out",
+  );
+
+  // --- F. the revoked session is refused everywhere ---------------------
   const revokedBearer = await apiCall(page, ROUTES.session, {
     headers: { Authorization: `Bearer ${otherToken}` },
   });
@@ -1105,7 +1176,7 @@ async function sessionsJourney({ page, context, base, prepared }) {
     }
   }
 
-  // --- F. the revoked sessions are still visible, marked revoked ---------
+  // --- G. the revoked sessions are still visible, marked revoked ---------
   const relisted = await apiCall(page, ROUTES.sessions);
   check(relisted.status === 200, `re-listing sessions must answer 200, saw ${relisted.status}`);
   const relistedSessions = relisted.body?.result?.sessions ?? [];

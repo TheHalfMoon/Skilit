@@ -158,6 +158,11 @@ button, input, select, textarea { font: inherit; }
 }
 .sk-page-content > main:not(.sk-dashboard) button:hover:not(:disabled) { border-color: #ee9b73; }
 .sk-page-content > main:not(.sk-dashboard) button:disabled { cursor: not-allowed; opacity: .6; }
+/* An unavailable button is marked rather than disabled, so a keyboard
+   user who is on it when it becomes unavailable keeps their place. */
+.sk-page-content > main:not(.sk-dashboard) button[aria-disabled='true'] {
+  cursor: not-allowed; opacity: .6;
+}
 
 
 /* Native workflow UI: deliberate, low-friction forms and results, without

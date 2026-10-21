@@ -57,7 +57,10 @@ export function SessionAccessBanner() {
         {session.status === "unauthenticated" && "Sign in to access workspace data. No bearer token needs to be pasted."}
         {session.status === "unavailable" && "Unable to verify your session right now. Check your local service."}
       </span>
-      <Link href="/login" className="sk-session-banner-link">
+      <Link
+        href={session.status === "authenticated" ? "/account" : "/login"}
+        className="sk-session-banner-link"
+      >
         {session.status === "authenticated" ? "Account" : "Sign in"}
         <SkilitIcon name="arrow-up-right" size={16} />
       </Link>

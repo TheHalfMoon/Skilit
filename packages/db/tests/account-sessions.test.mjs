@@ -126,15 +126,115 @@ test("revoking every other session keeps the caller's own session live", async (
   }
 });
 
-test("revoking every session without a keeper signs the caller out too", async () => {
+test("revoking the same session twice keeps the first revocation time", async () => {
   const db = await fixtureDb();
   try {
-    const { user, token } = await account(db, "owner@skilit.example");
-    await db.transaction((tx) => createSession(tx, user.id));
+    const { user, session } = await account(db, "owner@skilit.example");
+    const other = await db.transaction((tx) => createSession(tx, user.id));
 
-    const revoked = await db.transaction((tx) => revokeOtherAccountSessions(tx, user.id));
-    assert.equal(revoked, 2, "the caller's own session is revoked too");
-    await assert.rejects(() => validateSession(db, token), isInvalidSession);
+    assert.equal(
+      await db.transaction((tx) => revokeAccountSession(tx, user.id, other.session.id)),
+      true,
+    );
+    const listed = await db.transaction((tx) => listAccountSessions(tx, user.id));
+    const firstRevokedAt = listed.find((row) => row.id === other.session.id).revokedAt;
+    assert.notEqual(firstRevokedAt, null);
+
+    // A second revoke is a no-op that still reports the session as revoked,
+    // so a retry after a timeout does not read as "not found".
+    assert.equal(
+      await db.transaction((tx) => revokeAccountSession(tx, user.id, other.session.id)),
+      true,
+    );
+    const relisted = await db.transaction((tx) => listAccountSessions(tx, user.id));
+    const entry = relisted.find((row) => row.id === other.session.id);
+    assert.equal(entry.revokedAt, firstRevokedAt, "the first revocation time is kept");
+    assert.equal(entry.live, false);
+    assert.ok(session.id);
+  } finally {
+    await db.close();
+  }
+});
+
+test("a malformed keeper id leaves the other sessions untouched", async () => {
+  const db = await fixtureDb();
+  try {
+    const { user, session, token } = await account(db, "owner@skilit.example");
+    const other = await db.transaction((tx) => createSession(tx, user.id));
+
+    const revoked = await db.transaction((tx) =>
+      revokeOtherAccountSessions(tx, user.id, "not-a-uuid"),
+    );
+    assert.equal(revoked, 0, "a malformed keeper id fails closed");
+
+    // Nothing was revoked: both sessions still work.
+    assert.equal((await validateSession(db, token)).user.id, user.id);
+    assert.equal((await validateSession(db, other.token)).user.id, user.id);
+    assert.ok(session.id);
+  } finally {
+    await db.close();
+  }
+});
+
+test("a session that has expired is not live but is not revoked", async () => {
+  const db = await fixtureDb();
+  try {
+    const { user } = await account(db, "owner@skilit.example");
+    // A session created with a backdated clock, so it is genuinely past
+    // its expiry while still present in the table.
+    const expired = await db.transaction((tx) =>
+      createSession(tx, user.id, {
+        ttlSeconds: 60,
+        now: new Date(Date.now() - 120_000),
+      }),
+    );
+
+    const listed = await db.transaction((tx) => listAccountSessions(tx, user.id));
+    const entry = listed.find((row) => row.id === expired.session.id);
+    assert.ok(entry, "an expired session is still listed");
+    assert.equal(entry.live, false, "an expired session is not live");
+    assert.equal(entry.revokedAt, null, "an expired session is not revoked");
+
+    // The boundary: exactly at the expiry the session is no longer live.
+    const expiry = Date.parse(entry.expiresAt);
+    const atExpiry = await db.transaction((tx) =>
+      listAccountSessions(tx, user.id, new Date(expiry)),
+    );
+    assert.equal(
+      atExpiry.find((row) => row.id === expired.session.id).live,
+      false,
+      "a session is not live at the instant it expires",
+    );
+    const justBefore = await db.transaction((tx) =>
+      listAccountSessions(tx, user.id, new Date(expiry - 1)),
+    );
+    assert.equal(
+      justBefore.find((row) => row.id === expired.session.id).live,
+      true,
+      "a session is live one millisecond before it expires",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("the bulk revoke counts only sessions that could still sign in", async () => {
+  const db = await fixtureDb();
+  try {
+    const { user, session, token } = await account(db, "owner@skilit.example");
+    const live = await db.transaction((tx) => createSession(tx, user.id));
+    const expired = await db.transaction((tx) =>
+      createSession(tx, user.id, {
+        ttlSeconds: 60,
+        now: new Date(Date.now() - 120_000),
+      }),
+    );
+
+    const revoked = await db.transaction((tx) => revokeOtherAccountSessions(tx, user.id, session.id));
+    assert.equal(revoked, 1, "an expired session is not counted as a locked-out browser");
+    assert.equal((await validateSession(db, token)).user.id, user.id);
+    await assert.rejects(() => validateSession(db, live.token), isInvalidSession);
+    assert.ok(expired.session.id);
   } finally {
     await db.close();
   }

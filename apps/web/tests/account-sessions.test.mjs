@@ -139,12 +139,25 @@ test("an unknown session id is answered like a foreign one", async () => {
   const fx = await fixture();
   try {
     const mine = await account(fx.db, "mine@skilit.example");
+    const theirs = await account(fx.db, "theirs@skilit.example");
+
+    const foreign = await revokeSessionRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", mine.token, { method: "DELETE" }),
+      theirs.session.id,
+      "rid-revoke-5",
+    );
     const unknown = await revokeSessionRoute(
       fx.db,
       cookieRequest("/api/v1/auth/sessions", mine.token, { method: "DELETE" }),
       "00000000-0000-4000-8000-000000000000",
-      "rid-revoke-5",
+      "rid-revoke-6",
     );
+    // The two absences must be indistinguishable in every field, so the
+    // answer cannot be used to probe which session ids are real.
+    assert.equal(foreign.status, unknown.status);
+    assert.equal(foreign.body.error.code, unknown.body.error.code);
+    assert.equal(foreign.body.error.message, unknown.body.error.message);
     assert.equal(unknown.status, 404);
     assert.equal(unknown.body.error.code, "FORBIDDEN_OR_NOT_FOUND");
   } finally {
@@ -215,6 +228,115 @@ test("a cookie-authenticated session change without a matching origin is refused
     );
     assert.equal(refused.status, 400);
     assert.equal(refused.body.error.code, "INVALID_INPUT");
+
+    // The bulk route carries the same ambient authority, so it must
+    // refuse a mismatched origin in exactly the same way.
+    const refusedBulk = await revokeOtherSessionsRoute(
+      fx.db,
+      httpRequest("/api/v1/auth/sessions", {
+        method: "DELETE",
+        headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: "http://evil.example" },
+      }),
+      "rid-revoke-10",
+    );
+    assert.equal(refusedBulk.status, 400);
+    assert.equal(refusedBulk.body.error.code, "INVALID_INPUT");
+
+    // Neither refusal revoked anything.
+    const listed = await listSessionsRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", token),
+      "rid-revoke-11",
+    );
+    assert.equal(listed.body.result.sessions.find((entry) => entry.id === other.session.id).live, true);
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("a database failure answers an opaque failure envelope, not a signed-out caller", async () => {
+  const fx = await fixture();
+  try {
+    const { token } = await account(fx.db, "owner@skilit.example");
+    const broken = {
+      query: async () => {
+        throw new Error("database is unavailable");
+      },
+      transaction: async () => {
+        throw new Error("database is unavailable");
+      },
+    };
+
+    const listed = await listSessionsRoute(
+      broken,
+      cookieRequest("/api/v1/auth/sessions", token),
+      "rid-fail-1",
+    );
+    assert.equal(listed.status, 500);
+    assert.equal(listed.body.error.code, "INTERNAL_OPAQUE");
+    assert.equal(typeof listed.body.request_id, "string");
+
+    const revoked = await revokeSessionRoute(
+      broken,
+      cookieRequest("/api/v1/auth/sessions", token, { method: "DELETE" }),
+      "00000000-0000-4000-8000-000000000000",
+      "rid-fail-2",
+    );
+    assert.equal(revoked.status, 500);
+    assert.equal(revoked.body.error.code, "INTERNAL_OPAQUE");
+    assert.equal(typeof revoked.body.request_id, "string");
+
+    const revokedOthers = await revokeOtherSessionsRoute(
+      broken,
+      cookieRequest("/api/v1/auth/sessions", token, { method: "DELETE" }),
+      "rid-fail-3",
+    );
+    assert.equal(revokedOthers.status, 500);
+    assert.equal(revokedOthers.body.error.code, "INTERNAL_OPAQUE");
+    assert.equal(typeof revokedOthers.body.request_id, "string");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("revoking a session twice keeps the first revocation and still answers 200", async () => {
+  const fx = await fixture();
+  try {
+    const { user, token } = await account(fx.db, "owner@skilit.example");
+    const other = await fx.db.transaction((tx) => createSession(tx, user.id));
+
+    const first = await revokeSessionRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", token, { method: "DELETE" }),
+      other.session.id,
+      "rid-retry-1",
+    );
+    assert.equal(first.status, 200);
+    const listed = await listSessionsRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", token),
+      "rid-retry-2",
+    );
+    const revokedAt = listed.body.result.sessions.find((entry) => entry.id === other.session.id)
+      .revokedAt;
+
+    // A retry after a timeout must not read as "not found".
+    const second = await revokeSessionRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", token, { method: "DELETE" }),
+      other.session.id,
+      "rid-retry-3",
+    );
+    assert.equal(second.status, 200);
+    assert.equal(second.body.result.revoked, true);
+    const relisted = await listSessionsRoute(
+      fx.db,
+      cookieRequest("/api/v1/auth/sessions", token),
+      "rid-retry-4",
+    );
+    const entry = relisted.body.result.sessions.find((item) => item.id === other.session.id);
+    assert.equal(entry.revokedAt, revokedAt, "the first revocation time is kept");
+    assert.equal(entry.live, false);
   } finally {
     await fx.db.close();
   }
