@@ -29,7 +29,7 @@
 ```
 panel: full — correctness ✓ (fresh-context judge) · parsimony ✓ (fresh-context judge) ·
 product ✓ (fresh-context judge) · security ✓ (fresh-context judge) ·
-deltas: two independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
+deltas: four independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
 base 3156969ab52d801258af616f1556023572c2990c · reviewed candidate 419796bee74992d99864ebf022520499c7bbcd1e ·
 merge candidate: the commit carrying this record
 ```
@@ -43,11 +43,17 @@ The merge candidate differs from the reviewed policy candidate `419796b` only by
    — after the exact-head CI run failed three validator tests on a future-dated value;
 3. `scripts/ci_hygiene.py`: `.claude` added to `FORBIDDEN_TRACKED_PARTS`, with a
    regression test in `tests/test_ci_hygiene.py`, so the review-tool skill install stays
-   out of the tracked tree mechanically instead of by convention.
+   out of the tracked tree mechanically instead of by convention;
+4. `docs/qualification/AF-12_ACCEPTANCE_MATRIX.md`: the R7 "Tests:" evidence inventory
+   and the matrix's superseding note, both of which the final-candidate judge required to
+   be made forward-looking, and the Post-Audit Delta entry this grain added.
 
-Items 1–3 are covered by the two delta re-reviews and the final-candidate combined judge
-recorded under §Delta history. No governance rule, panel bar, degraded level, or historical
-record differs between `419796b` and the merge candidate.
+Items 1–4 are covered by the four delta re-reviews and the final-candidate combined judge
+recorded under §Delta history. No governance rule, panel bar, degraded level, or
+historical record differs between `419796b` and the merge candidate: the only
+non-evidence change to the AF-12 matrix is the R7 inventory field, which the final-candidate
+judge itself required to move forward-looking, and the matrix's own delta-log entry that
+describes it.
 
 **Date basis.** The decision document is dated **2026-10-21** in the founder's local
 timezone (UTC+03:00). The upstream-pin verification and the GitHub CI evidence for this
@@ -118,6 +124,7 @@ normative document stays byte-identical to the candidate the panel reviewed.
 
 ## Product — PASS (after fixes)
 
+- The initial pass raised three must-fix findings. All three were fixed.
 - Checked against the founder's directive point by point.
 - The directive requires: inspect the current governance and all Jev references (done —
   every non-historical reference enumerated); prepare a dedicated, narrow
@@ -195,9 +202,24 @@ normative document stays byte-identical to the candidate the panel reviewed.
   merge-candidate relationship explicitly.
 - **Delta 2 — `8c08246` (the merge candidate)** — reviewed by an independent
   fresh-context combined judge over the complete final diff, covering all four bars. Its
-  findings and verdict are recorded verbatim below. Three must-fix findings were raised
+  findings and disposition are recorded below. Three must-fix findings were raised
   against this record and the OCR record, and all three were fixed in the merge candidate
   that follows `8c08246`.
+- **Delta 3 — `dfcdb58..3173d75`** — reviewed by an independent fresh-context delta
+  judge. It confirmed the three Delta-2 fixes and raised three further must-fix findings
+  against this record and the OCR record: the OCR exclusion breakdown was wrong (21
+  `unsupported_ext` plus one `default_path`, not 22 `unsupported_ext`); the AF-12
+  Post-Audit Delta entry still described the old R7 inventory text; and this record's
+  finding table omitted one worth-considering item from the judge's summary count while
+  mislabelling another item's severity. All three were fixed, and the judge confirmed
+  the decision document still byte-identical and the historical evidence still untouched.
+- **Delta 4 — the merge candidate that follows `3173d75`** — reviewed by an independent
+  fresh-context delta judge. It confirmed the three Delta-3 fixes and raised three
+  further must-fix findings against this record: the top-level verdict under-counted the
+  panel's must-fix findings; the "merge candidate differs only by" list omitted the
+  AF-12 matrix amendment; and the Graft coverage limitation paragraph counted 24
+  non-graph files where 23 are correct, because `tests/test_ci_hygiene.py` is Python and
+  was parsed. All three were fixed.
 
 ## Final-candidate review (all four bars, independent fresh-context judge)
 
@@ -231,7 +253,7 @@ Findings raised by the final-candidate judge and their disposition:
 | --- | --- | --- |
 | The quoted Graft output was stale (`0 areas changed`); at the merge candidate it is `1 area changed` (`ci_hygiene.py`) | must-fix | fixed: the graft evidence below now quotes the merge-candidate output, including the affected area and the updated not-in-the-graph count |
 | The record asserted a "zero must-fix" verdict for a final-candidate judge whose report did not yet exist | must-fix | fixed: this section now reports the judge's actual verdict, including its two FAIL bars and the findings it raised |
-| The OCR record bound to the superseded candidate `419796b`, whose exact diff has `reviewable_count = 3`; `scripts/ci_hygiene.py` had no OCR applicability evidence | must-fix | fixed: `docs/reviews/P00-G17_OCR_DELEGATION.md` now carries a final-candidate section with the merge-candidate preview, the resolved Python rule group, and the delegated review of `scripts/ci_hygiene.py` |
+| The OCR record bound to the superseded candidate `419796b`, whose exact diff has `reviewable_count = 3` (the judge's wording; the live count for `419796b` is 2, and 3 is the merge candidate's count — the substance of the finding is that the merge candidate adds `scripts/ci_hygiene.py` as a third reviewable file); `scripts/ci_hygiene.py` had no OCR applicability evidence | must-fix | fixed: `docs/reviews/P00-G17_OCR_DELEGATION.md` now carries a final-candidate section with the merge-candidate preview, the resolved Python rule group, and the delegated review of `scripts/ci_hygiene.py` |
 | The delta-1 range description omitted the decision-document amendment | worth-considering | fixed: the delta-1 entry above now names it |
 | The AF-12 R7 evidence inventory still named Jev while the matrix's superseding note claimed every forward-looking gate statement names the PStack panel | worth-considering | fixed: the inventory is now forward-looking and names the records new grains produce, and the preserved `*_JEV_REVIEW.*` files are named explicitly as historical evidence |
 | The `.gitignore` rule covers `/.claude/skills/` while the hygiene rule bans any tracked path under `.claude` | skip | accepted as fail-closed and asymmetric in the safe direction; no `.claude` path is tracked today |
@@ -273,24 +295,27 @@ Findings raised by the final-candidate judge and their disposition:
   or class changed here**, with **no indexed dependents at depth 2**. 23 of the 25 changed
   files are not in the graph.
 - **Graft coverage limitation, stated explicitly:** Graft's parsers cover JavaScript,
-  Python, TypeScript, and TSX. The changed implementation file is Python
-  (`scripts/ci_hygiene.py`); the remaining 24 changed files are Markdown, `.gitignore`,
-  and `UPSTREAMS.lock.yml`, and Graft reports those as "not in the graph — no parser
-  claims the extension". The blast result therefore establishes that **no indexed
-  implementation module depends on this diff** and that the one changed Python module
-  changes no function, method, or class; it does not and cannot analyse the Markdown
-  prose or the JSON-valued lock file. The prose is covered by the four review bars above,
-  and the Python change is covered by the `bootstrap` CI job.
+  Python, TypeScript, and TSX. The two changed Python files — `scripts/ci_hygiene.py` and
+  `tests/test_ci_hygiene.py` — are parsed; the other 23 changed files are Markdown,
+  `.gitignore`, and `UPSTREAMS.lock.yml`, and Graft reports those as "not in the graph — no
+  parser claims the extension". The blast result therefore establishes that **no indexed
+  implementation module depends on this diff** and that neither changed Python module
+  changes a function, method, or class; it does not and cannot analyse the Markdown prose
+  or the JSON-valued lock file. The prose is covered by the four review bars above, and
+  the Python changes are covered by the `bootstrap` CI job.
 - TypeScript, ESLint, the Node suites, the web production build, the Lens and database
   suites, and the remaining hosted jobs are exercised by the exact-head GitHub CI run
   recorded in the governing pull request.
 
 ## Verdict
 
-Zero **unresolved** must-fix findings remain. The initial four-bar panel raised four
-must-fix findings, all fixed and confirmed by the first delta re-review. The
-final-candidate combined judge returned `correctness=FAIL · parsimony=PASS ·
-product=FAIL · security=PASS` with three must-fix findings, all dispositioned above and
-fixed in the merge candidate that follows `8c08246`. The grain is cleared for merge under
-the replacement review stack, with the former Jev gate recorded as waived rather than
+Zero **unresolved** must-fix findings remain. The initial four-bar panel raised sixteen
+must-fix findings — four in correctness, seven in parsimony, three in product, and two in
+security and privacy — all fixed, with the correctness bar's four confirmed by the first
+delta re-review. The final-candidate combined judge returned
+`correctness=FAIL · parsimony=PASS · product=FAIL · security=PASS` with three must-fix
+findings, all dispositioned above and fixed in the merge candidate that follows
+`8c08246`; two further delta judges each raised three more against the evidence records,
+all also fixed and dispositioned above. The grain is cleared for merge under the
+replacement review stack, with the former Jev gate recorded as waived rather than
 satisfied.
