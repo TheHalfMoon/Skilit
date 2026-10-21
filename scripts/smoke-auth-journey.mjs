@@ -1015,9 +1015,13 @@ async function sessionsJourney({ page, context, base, prepared }) {
     undefined,
     { timeout: 20_000 },
   );
+  // Scoped to the page: Next.js renders its own always-present, empty
+  // route announcer as a `div[role=alert]` outside the page content.
+  const pageAlerts = await page.locator("main [role='alert']").allTextContents();
   check(
-    (await page.locator("p[role='alert']").count()) === 0,
-    "revoking a session from the account page must not report an error",
+    pageAlerts.length === 0,
+    "revoking a session from the account page must not report an error: " +
+      JSON.stringify(pageAlerts),
   );
 
   // The API must agree with what the page just did.

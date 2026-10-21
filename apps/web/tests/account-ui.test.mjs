@@ -60,3 +60,23 @@ test("the account page is reachable from the primary navigation", () => {
   const shell = read("../components/skilit-shell.tsx");
   assert.match(shell, /\{ label: "Account", href: "\/account"/);
 });
+
+test("the account page styles itself with the design system, not inline styles", () => {
+  const page = read("../app/account/page.tsx");
+  const css = read("../app/globals.css");
+  // Inline styles bypass the shared stylesheet, so a later token change
+  // would not reach them.
+  assert.ok(!/style=\{\{/.test(page), "the account page must not use inline styles");
+  // A custom property that the stylesheet never declares silently falls
+  // back to the fallback value, so the two must not drift apart.
+  for (const match of page.matchAll(/var\((--[a-z0-9-]+)/g)) {
+    assert.ok(
+      css.includes(`${match[1]}:`),
+      `the account page uses ${match[1]}, which the stylesheet does not declare`,
+    );
+  }
+  for (const className of ["sk-account-actions", "sk-account-table"]) {
+    assert.ok(page.includes(className), `the account page must use ${className}`);
+    assert.ok(css.includes(`.${className}`), `the stylesheet must declare ${className}`);
+  }
+});

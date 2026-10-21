@@ -186,17 +186,17 @@ export default function AccountPage() {
       </p>
       <SessionAccessBanner />
 
-      <div role="status" aria-live="polite" style={{ minHeight: "1.5em" }}>
+      <div role="status" aria-live="polite">
         {busy !== null ? <span>{busy}…</span> : null}
         {notice !== null ? <span>{notice}</span> : null}
       </div>
       {failure !== null ? (
-        <div role="alert" style={{ color: "var(--sk-alert, #8c2f12)" }}>
+        <div role="alert">
           {failure.code}: {failure.message}
         </div>
       ) : null}
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "16px 0" }}>
+      <div className="sk-account-actions">
         <button type="button" disabled={busy !== null} onClick={() => void load()}>
           Refresh sessions
         </button>
@@ -220,42 +220,44 @@ export default function AccountPage() {
         <p>No sessions are recorded for this account.</p>
       ) : null}
       {state.status === "ready" && sessions.length > 0 ? (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th scope="col" style={{ textAlign: "left" }}>Session</th>
-              <th scope="col" style={{ textAlign: "left" }}>State</th>
-              <th scope="col" style={{ textAlign: "left" }}>Started</th>
-              <th scope="col" style={{ textAlign: "left" }}>Expires</th>
-              <th scope="col" style={{ textAlign: "left" }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((session) => {
-              const isCurrent = session.id === currentSessionId;
-              return (
-                <tr key={session.id}>
-                  <td>
-                    <code>{session.id}</code>
-                    {isCurrent ? <span> (this browser)</span> : null}
-                  </td>
-                  <td>{describe(session, isCurrent)}</td>
-                  <td>{new Date(session.createdAt).toLocaleString()}</td>
-                  <td>{new Date(session.expiresAt).toLocaleString()}</td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={busy !== null || !session.live}
-                      onClick={() => void revoke(session.id)}
-                    >
-                      Revoke
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <section>
+          <table className="sk-account-table">
+            <thead>
+              <tr>
+                <th scope="col">Session</th>
+                <th scope="col">State</th>
+                <th scope="col">Started</th>
+                <th scope="col">Expires</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map((session) => {
+                const isCurrent = session.id === currentSessionId;
+                return (
+                  <tr key={session.id}>
+                    <td>
+                      <code>{session.id}</code>
+                      {isCurrent ? <span> (this browser)</span> : null}
+                    </td>
+                    <td>{describe(session, isCurrent)}</td>
+                    <td>{new Date(session.createdAt).toLocaleString()}</td>
+                    <td>{new Date(session.expiresAt).toLocaleString()}</td>
+                    <td>
+                      <button
+                        type="button"
+                        disabled={busy !== null || !session.live}
+                        onClick={() => void revoke(session.id)}
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
       ) : null}
     </main>
   );
