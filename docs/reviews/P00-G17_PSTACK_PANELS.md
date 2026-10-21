@@ -14,7 +14,7 @@
   including security and privacy, on every grain, and the manifest records the base and
   candidate SHAs. This is the deviation recorded in decision §3.3.1.
 - Judges: **four independent fresh-context judge sessions** (correctness, parsimony,
-  product, security/privacy), plus **two independent fresh-context delta re-reviews**, plus
+  product, security/privacy), plus **three independent fresh-context delta re-reviews**, plus
   **one independent fresh-context combined judge over the final merge candidate**
   (recorded in §Delta history below). No judge authored the diff.
 - **No TypeSafe Jev review was run for this grain and none is claimed.** The former Jev
@@ -29,7 +29,7 @@
 ```
 panel: full — correctness ✓ (fresh-context judge) · parsimony ✓ (fresh-context judge) ·
 product ✓ (fresh-context judge) · security ✓ (fresh-context judge) ·
-deltas: four independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
+deltas: three independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
 base 3156969ab52d801258af616f1556023572c2990c · reviewed candidate 419796bee74992d99864ebf022520499c7bbcd1e ·
 merge candidate: the commit carrying this record
 ```
@@ -48,22 +48,23 @@ The merge candidate differs from the reviewed policy candidate `419796b` only by
    and the matrix's superseding note, both of which the final-candidate judge required to
    be made forward-looking, and the Post-Audit Delta entry this grain added.
 
-Items 1–4 are covered by the four delta re-reviews and the final-candidate combined judge
+Items 1–4 are covered by the three delta re-reviews and the final-candidate combined judge
 recorded under §Delta history. No governance rule, panel bar, degraded level, or
 historical record differs between `419796b` and the merge candidate: the only
-non-evidence change to the AF-12 matrix is the R7 inventory field, which the final-candidate
-judge itself required to move forward-looking, and the matrix's own delta-log entry that
-describes it.
+non-evidence changes to the AF-12 matrix are its superseding note, the R7 inventory field
+(which the final-candidate judge itself required to move forward-looking), and the
+matrix's own delta-log entry that describes it.
 
 **Date basis.** The decision document is dated **2026-10-21** in the founder's local
 timezone (UTC+03:00). The upstream-pin verification and the GitHub CI evidence for this
 change are dated **2026-10-20** in UTC, because the CI runner's clock is UTC and
 `scripts/validate_upstreams.py` rejects a verification date later than the runner's
 current date — the first exact-head run failed on exactly that check. Both dates
-describe the same working session (the commits are 2026-10-20T23:32–23:37Z, which is
-2026-10-21 in UTC+03:00). The lock file records the UTC date, which is the one a CI
-runner can verify. This note lives here rather than in the decision document so that the
-normative document stays byte-identical to the candidate the panel reviewed.
+describe the same working session (the grain's commits span 2026-10-20T23:32Z –
+2026-10-21T00:10Z, which is 2026-10-21 in UTC+03:00). The lock file records the UTC
+date, which is the one a CI runner can verify. This note lives here rather than in the
+decision document so that the normative document stays byte-identical to the candidate the
+panel reviewed.
 
 ## Correctness — PASS (after fixes)
 

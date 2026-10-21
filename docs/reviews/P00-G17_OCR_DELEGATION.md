@@ -102,11 +102,11 @@ The diff is purely additive: **38 insertions, 0 deletions**, one new `sources` e
 **Zero unresolved blocking findings.**
 
 The defects found in this diff were found by the PStack panel (four independent
-fresh-context judges plus two delta re-reviews) and by the delegated rule application
+fresh-context judges plus three delta re-reviews) and by the delegated rule application
 above. All were fixed before the merge candidate. They are enumerated in
 `docs/reviews/P00-G17_PSTACK_PANELS.md`.
 
-## Final-candidate section (merge candidate `8c08246`)
+## Final-candidate section (preview run against candidate `8c08246`)
 
 The merge candidate adds two governed code/configuration files to the reviewed candidate's
 diff, so the applicability evidence is recorded here for the merge candidate as well.
@@ -119,6 +119,15 @@ diff, so the applicability evidence is recorded here for the merge candidate as 
   file in the diff) and one, `tests/test_ci_hygiene.py` (+10/-0), with
   `exclude_reason: default_path`
 - `total_insertions`: 776, `total_deletions`: 36
+
+These totals are bound to candidate `8c08246`. The merge candidate that follows it adds
+only these two evidence-record files, so its `total_insertions`/`total_deletions` move
+while its **applicability does not**: re-running the preview against the merge candidate
+yields the same three reviewable files with the same per-file changes, the same
+`reviewable_count = 3`, the same `excluded_count = 22` with the same 21
+`unsupported_ext` plus one `default_path`, and the same resolved rule groups. The
+reviewable set and the rule groups are what this record governs; the line totals are
+reported here for the named candidate they were measured on.
 
 **Reviewable (3):** `.gitignore` (+4/-0), `UPSTREAMS.lock.yml` (+38/-0),
 `scripts/ci_hygiene.py` (+1/-1).
