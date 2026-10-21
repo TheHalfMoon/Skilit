@@ -53,8 +53,8 @@ changes the final-candidate judge's findings required, and by nothing else:
 the three failure answers the invitation route module had copied instead of
 importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
 mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
-comment that was left dangling when the roster type moved to
-`packages/db/src/workspaces.ts`, the claim in the invitation module's header
+comment that the roster type's move to `packages/db/src/workspaces.ts` left
+dangling, the claim in the invitation module's header
 that the final judge found overstated, and this record's own corrections.
 Three of those changes are reviewable code, and one of them —
 `apps/web/lib/rest.ts` — enters the reviewable set rather than already being
@@ -492,10 +492,8 @@ final-candidate judge read:
 - `graft blast --base origin/main --format markdown` — "5 areas changed → 4 areas
   can be affected. 30 dependent symbols, depth 2."
 
-Graft 0.21.1, on the **merge candidate's code** — the same tree with the three
-failure answers moved into `apps/web/lib/rest.ts`, the two identity view
-mappers removed, and the two comment-only edits in
-`packages/db/src/invites.ts`:
+Graft 0.21.1, on the **merge candidate** — the reviewed candidate plus the
+changes the final-candidate judge's findings required:
 
 - `graft build --no-gitignore --no-ignore .` — exit 0; 2721 nodes (1498
   function, 430 method, 330 file, 289 interface, 87 type, 87 class), 7901 edges,
@@ -503,16 +501,29 @@ mappers removed, and the two comment-only edits in
   module no longer owns and the one it now shares.
 - `graft check .` — "graph check: OK — the wiring graph is in sync with the
   code".
-- `graft blast --base origin/main --format markdown` — "5 areas changed → 4 areas
-  can be affected. 30 dependent symbols, depth 2."
+- `graft blast --base origin/main --format markdown` — "5 areas changed → 20 areas
+  can be affected. 47 dependent symbols, depth 2."
 
-The node, edge and card counts are the merge candidate's own: the two
-comment-only edits in `packages/db/src/invites.ts` change no symbol and no
-file, and `graft build` and `graft check` produce the same 2721 nodes and
-7901 edges on the merge candidate as on the tree the blast figure was
-measured on. The blast figure was measured before those two edits and
-was not re-run after them; the record says so rather than quoting it as a
-fresh measurement.
+The blast radius is **wider at the merge candidate than at the reviewed
+candidate** — 20 affected areas against 4, and 47 dependent symbols against
+30 — and the widening comes from how Graft names a changed area rather than
+from a coupling the delta introduced. Graft labels an area after the symbol
+whose lines changed, and `apps/web/lib/rest.ts` holds the three shared
+failure answers `invalidInput`, `notFound` and `opaque`. Each of those names
+is defined in several modules across the tree — `apps/web/lib/boards.ts`,
+`apps/web/lib/lens-jobs.ts`, `apps/web/lib/session.ts`,
+`apps/web/lib/mcp.ts`, and for `notFound` also
+`packages/db/src/collections.ts` and `packages/db/src/build-kit.ts` — so the
+area named `opaque` gathers the incoming edges of all of them and reaches
+twenty areas. Before the delta that file was not in the diff and the area was
+not changed. What the delta moves is the same three one-line failure
+answers; what changed is that the invitation routes import them instead of
+defining their own copies, which is what the final-candidate judge asked
+for.
+
+Both figures are reproducible with the command the record names: the
+reviewed candidate's on `ed8f5f3` itself, the merge candidate's on the tree
+that carries this record.
 
 Graft coverage limitation, stated explicitly: the per-area test signal reports
 that no test reaches `DELETE`, `refresh` or `step`, and two areas updated their
