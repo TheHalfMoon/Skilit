@@ -71,49 +71,50 @@ export default function AccountPage() {
    * a failure. The notice is deliberately not cleared here: the revoke
    * actions set it and then reload, and the reload must not swallow it.
    */
-  async function callJson(
-    label: string,
-    path: string,
-    init: RequestInit,
-    onOk: (result: Record<string, unknown>) => void | Promise<void>,
-    onGone?: () => void | Promise<void>,
-  ): Promise<void> {
-    setBusy(label);
-    setFailure(null);
-    try {
-      const response = await sessionRequest(path, init);
-      if (response.status === 401) {
-        // The credential was refused, so this browser has no account
-        // surface left to show.
-        setState({ status: "signed-out" });
-        return;
+  const callJson = useCallback(
+    async (
+      label: string,
+      path: string,
+      init: RequestInit,
+      onOk: (result: Record<string, unknown>) => void | Promise<void>,
+      onRefused?: (status: number) => void | Promise<void>,
+    ): Promise<void> => {
+      setBusy(label);
+      setFailure(null);
+      try {
+        const response = await sessionRequest(path, init);
+        if (response.status === 401) {
+          // The credential was refused, so this browser has no account
+          // surface left to show.
+          setState({ status: "signed-out" });
+          return;
+        }
+        // A proxy can answer with a body that is not JSON, so the parse
+        // is guarded: the HTTP status is what the failure message
+        // reports.
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          setFailure(readFailure(payload, `${label} failed with HTTP ${response.status}.`));
+          if (onRefused !== undefined) await onRefused(response.status);
+          return;
+        }
+        const record = asRecord(payload);
+        const result = record === null ? null : asRecord(record.result);
+        if (result === null) {
+          setFailure({ code: "UNKNOWN", message: `${label} returned an unrecognized shape.` });
+          return;
+        }
+        await onOk(result);
+      } catch {
+        if (init.signal?.aborted !== true) {
+          setFailure({ code: "UNKNOWN", message: `${label} could not reach the server.` });
+        }
+      } finally {
+        if (init.signal?.aborted !== true) setBusy(null);
       }
-      if (response.status === 404 && onGone !== undefined) {
-        await onGone();
-        return;
-      }
-      // A proxy can answer with a body that is not JSON, so the parse is
-      // guarded: the HTTP status is what the failure message reports.
-      const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) {
-        setFailure(readFailure(payload, `${label} failed with HTTP ${response.status}.`));
-        return;
-      }
-      const record = asRecord(payload);
-      const result = record === null ? null : asRecord(record.result);
-      if (result === null) {
-        setFailure({ code: "UNKNOWN", message: `${label} returned an unrecognized shape.` });
-        return;
-      }
-      await onOk(result);
-    } catch {
-      if (init.signal?.aborted !== true) {
-        setFailure({ code: "UNKNOWN", message: `${label} could not reach the server.` });
-      }
-    } finally {
-      if (init.signal?.aborted !== true) setBusy(null);
-    }
-  }
+    },
+    [],
+  );
 
   const load = useCallback(
     (signal?: AbortSignal): Promise<void> =>
@@ -134,8 +135,13 @@ export default function AccountPage() {
           }
           setState({ status: "ready", sessions, currentSessionId });
         },
+        // A list that could not be loaded is not a stale table next to an
+        // error: the page says the sessions are unavailable.
+        () => {
+          setState({ status: "unavailable" });
+        },
       ),
-    [],
+    [callJson],
   );
 
   function revoke(sessionId: string): Promise<void> {
@@ -153,9 +159,11 @@ export default function AccountPage() {
         setNotice("Session revoked.");
         await load();
       },
-      async () => {
+      async (status) => {
+        if (status !== 404) return;
         // The server says the session is not there any more, which is
         // what the user asked for, not a failure.
+        setFailure(null);
         setNotice("That session is no longer listed.");
         await load();
       },
@@ -222,7 +230,9 @@ export default function AccountPage() {
           type="button"
           aria-disabled={busy !== null || state.status !== "ready"}
           onClick={() => {
-            if (busy !== null) return;
+            // The guard matches what the button announces, so a control
+            // that is announced as unavailable never acts.
+            if (busy !== null || state.status !== "ready") return;
             void revokeOthers();
           }}
         >

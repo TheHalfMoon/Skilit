@@ -85,3 +85,25 @@ test("the account page marks an unavailable button instead of disabling it", () 
     "every row button must name the session it acts on",
   );
 });
+
+test("a control that is announced as unavailable never acts", () => {
+  const page = read("../app/account/page.tsx");
+  // The announcement and the guard must name the same condition. When
+  // they differ, the button is announced unavailable while it still
+  // fires, which is worse than either behaviour alone.
+  const label = page.indexOf("Sign out of all other sessions");
+  assert.ok(label > 0, "the account page must offer the bulk revoke");
+  // The button's attributes and handler precede its text, so the
+  // element is taken from its opening tag.
+  const bulk = page.slice(page.lastIndexOf("<button", label), label);
+  assert.match(bulk, /aria-disabled=\{busy !== null \|\| state\.status !== "ready"\}/);
+  assert.match(bulk, /if \(busy !== null \|\| state\.status !== "ready"\) return;/);
+
+  // A list that could not be loaded must not leave a stale table on
+  // screen next to the error.
+  assert.match(
+    page,
+    /\(\) => \{\s*setState\(\{ status: "unavailable" \}\);\s*\}/,
+    "a refused list must put the page in the unavailable state",
+  );
+});
