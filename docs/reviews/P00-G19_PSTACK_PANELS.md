@@ -4,14 +4,18 @@
 - Branch: `skilit/p00-g19-operator-invites`
 - Canonical base SHA: `31fdeff91015cd42599eb1c4d92a68e36065e259` (main at the
   time the branch was cut)
-- **Reviewed candidate HEAD: `b92ac3e`** — the code state that ships.
+- **Reviewed candidate HEAD: `ed8f5f3`** — the candidate the final-candidate
+  judge read. The code state that ships is that candidate plus the changes
+  the final-candidate judge's own findings required, which are listed under
+  "The final-candidate all-bars judge" and in the "Coverage of the commits"
+  table.
 - The review rounds ran over a sequence of candidates: round 1 over
   `f892a49` (the first implementation, merged with main), round 2 over
-  `ef3b1688c6b08633604d235e054ebd7855580454`, the security delta re-review
-  over `ef3b168..6549bcf`, and the correctness/parsimony/product delta
-  re-review over the same range. The table under "Coverage of the commits"
-  names which round covered which commit.
-- Reviewed diff: `origin/main...b92ac3e` — 50 files, 4773 insertions, 173
+  `ef3b1688c6b08633604d235e054ebd7855580454`, two delta re-reviews over
+  `ef3b168..6549bcf`, and the final-candidate all-bars judge over
+  `ed8f5f3`. The table under "Coverage of the commits" names which round
+  covered which commit.
+- Reviewed diff: `origin/main...ed8f5f3` — 52 files, 5478 insertions, 173
   deletions.
 - Mechanism: upstream PStack `ps-review` workflow from
   `https://github.com/phthomas/pstack`, pinned at commit
@@ -38,20 +42,22 @@
 panel: full — correctness ✓ (fresh-context judge, data/REST surface) · correctness ✓
 (fresh-context judge, UI/test surface) · parsimony ✓ (fresh-context judge) · product ✓
 (fresh-context judge) · security ✓ (dedicated fresh-context security judge) ·
-deltas: three independent fresh-context delta re-reviews ✓ ·
+deltas: two independent fresh-context delta re-reviews ✓ ·
 final-candidate combined judge ✓ (all four bars in one read) ·
 base 31fdeff91015cd42599eb1c4d92a68e36065e259 · reviewed candidate
-b92ac3e · merge candidate: the commit carrying this record
+ed8f5f3 · merge candidate: the commit carrying this record
 ```
 
-The merge candidate differs from the reviewed candidate `b92ac3e` only by
-Markdown: the two review records under `docs/reviews/` — this file and
-`docs/reviews/P00-G19_OCR_DELEGATION.md`. Both are excluded from Alibaba OCR's
-reviewable set (`unsupported_ext`) and neither is indexed by Graft, so the
-reviewable set, the resolved rule groups and every mechanical number quoted in
-this record are the same for the merge candidate as for the reviewed candidate.
-The only difference is the excluded insertions, which this record's own
-description accounts for.
+The merge candidate differs from the reviewed candidate `ed8f5f3` by the
+changes the final-candidate judge's findings required, and by nothing else:
+the three failure answers the invitation route module had copied instead of
+importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
+mappers that only copied their input's fields (`apps/web/lib/invites.ts`), and
+this record's own corrections. Two of those changes are reviewable code, so
+the merge candidate's OCR preview shows two more reviewable files than the
+reviewed candidate's, and the record's numbers below say which candidate each
+number was measured on. Every change is either the evidence this record
+carries or a direct consequence of a finding the final-candidate judge made.
 
 ## Installed upstream skill files
 
@@ -150,7 +156,7 @@ token is 256 bits and the holder already knows the address it names.
 
 Five fresh-context judges read the whole diff: a dedicated security judge, two
 correctness judges over the data/REST and the UI/test surfaces, a parsimony
-judge and a product judge. Between them they raised eight must-fix findings,
+judge and a product judge. Between them they raised **ten** must-fix findings,
 all fixed in `6549bcf` and the two commits that follow it.
 
 ### Security — one must-fix, three worth, two skip
@@ -188,7 +194,7 @@ all fixed in `6549bcf` and the two commits that follow it.
   cannot take an existing account at that address. Recorded as a known
   limitation.
 
-### Correctness, data and REST surface — one must-fix, eight worth
+### Correctness, data and REST surface — one must-fix, seven worth
 
 - **MUST-FIX — a malformed workspace id or user id raised a raw database
   error** instead of a denial, because the query ran before any validation.
@@ -245,7 +251,7 @@ all fixed in `6549bcf` and the two commits that follow it.
 - **WORTH — the invitations section rendered nothing while the list loaded.**
   **Fixed**: it says it is loading.
 
-### Parsimony — three must-fix, six worth
+### Parsimony — three must-fix, eight worth (seven fixed, one documented)
 
 - **MUST-FIX — the guard's success answer nested everything under a second
   `guarded` key** and typed the identity as nullable, so every caller wrote
@@ -265,7 +271,7 @@ all fixed in `6549bcf` and the two commits that follow it.
   **All fixed** except the last, which is now documented in the option's own
   comment.
 
-### Product — two must-fix, six worth
+### Product — two must-fix, four worth
 
 - **MUST-FIX — the role control always offered "Admin"**, but an admin may
   grant a member only, so the control could not work and the denial it earned
@@ -362,28 +368,93 @@ delta re-review's findings.
 
 ## The final-candidate all-bars judge
 
-One further independent fresh-context judge read the merge candidate and
-answered **all four bars in a single read**, as decision §3.3.1 requires. Its
-verdict, its reproduced numbers and any finding it raised are recorded in the
-section below, after the round it belongs to.
+One further independent fresh-context judge read the merge candidate
+`ed8f5f3` and answered **all four bars in a single read**, as decision
+§3.3.1 requires. It reproduced the record's claims rather than taking them
+on trust: the diff shape, every one of the 46 per-file figures, the OCR
+preview at the reviewed candidate, the three Graft figures, the mechanical
+numbers, the eleven upstream skill hashes, the OCR version, the ten
+mutation-control test names, the first round's thirteen must-fix, and the
+judge arithmetic.
+
+Its verdict: **CORRECTNESS BAR: PASS · PARSIMONY BAR: PASS · PRODUCT BAR:
+PASS · SECURITY BAR: PASS**.
+
+It raised six must-fix findings, all against this record's own accuracy, and
+four worth-considering findings against the code.
+
+### Against the records — all fixed
+
+- **MUST-FIX — the claim that the merge candidate differs from the reviewed
+  candidate only by Markdown was false**: the commit that carried the records
+  also carried four reviewable code and test changes, so the claim described
+  a delta that did not exist. **Fixed**: the header now names `ed8f5f3` as the
+  candidate the judge read, the delta is enumerated exactly, and the numbers
+  say which candidate each was measured on.
+- **MUST-FIX — the mutation-control table had ten rows and the prose said
+  nine.** **Fixed**.
+- **MUST-FIX — the second round's must-fix count said eight and the section
+  lists ten.** **Fixed**.
+- **MUST-FIX — the manifest said three delta re-reviews and the body said
+  two.** **Fixed**: the manifest says two, which is what the judge arithmetic
+  (3 + 5 + 2 + 1 = 11) requires.
+- **MUST-FIX — the one-time link's mutation control did not reproduce at the
+  reviewed candidate**, because the assertion that pins the guard was added
+  with the judge's own finding. **Fixed**: the row is attributed to the
+  candidate it reproduces against.
+- **MUST-FIX — two rows of the OCR record's candidate table did not
+  reproduce.** **Fixed**: every row is the value measured with the command
+  the record names.
+
+### Against the code — three fixed, one skipped
+
+- **WORTH — the three failure answers the invitation route module defined
+  were a fifth copy of the same three one-line mappers.** The panel had
+  already shared the request guard and the envelope helpers; the mappers were
+  left behind. **Fixed**: the three now live in `apps/web/lib/rest.ts` and the
+  invitation module imports them.
+- **WORTH — two view mappers only copied their input's fields.** **Fixed**:
+  the roster and the preview are passed through, and only the invitation
+  view keeps a mapper, because it drops the inviter's identity.
+- **WORTH — the token also discloses personal data.** `GET
+  /api/v1/invites/{token}` answers the invited address, the role and the
+  workspace name to anyone holding the token. **Fixed**: it is now one of the
+  known limitations below.
+- **SKIP — the acceptance route's rate-limit bucket is keyed on the
+  caller.** The judge proposed keying it on the invitation token instead.
+  **Not done, with the reason**: the caller-keyed bucket is what bounds a
+  token-guessing flood and a flood that tries many stolen tokens; a bucket
+  per token would give every guess its own allowance. The key's
+  `x-forwarded-for` spoofability is the pre-existing pattern shared with
+  sign-in, sign-up and sign-out, and the limiter documents itself as
+  best-effort with the gateway owning authoritative enforcement.
+- **SKIP** — the duplicated timestamp helper and the duplicated identifier
+  pattern are the repository's established convention, so the new copies are
+  consistent with the tree rather than new violations.
 
 ## Coverage of the commits between the base and the reviewed candidate
 
 | Commit | Contents | Round that covered it |
 | --- | --- | --- |
 | `1c9f5a5` | the feature | first round |
-| `f892a49` | the merge with main | first round |
+| `f892a49` | the merge of the feature with main — no content of its own | first round |
 | `ef3b168` | the thirteen first-round must-fix findings | second round |
 | `6549bcf` | the second-round findings, including the open redirect and the stale-workspace window | the delta re-reviews |
 | `f6c8038` | an unused type import removed | the final-candidate judge |
 | `5d9e3ab` | two unused bindings removed from the invitation suite, caught by the first exact-head CI run | the final-candidate judge |
 | `b92ac3e` | the dot-segment way out of the sign-in destination, and the refusal that no longer hints | the final-candidate judge |
+| `ed8f5f3` | the two review records, and the four changes the delta re-review asked for | the final-candidate judge |
+| the merge candidate | the three failure answers the invitation module had copied, the two identity view mappers, and this record's corrections | the final-candidate judge's findings |
 
 ## The panel proved the new assertions are not vacuous
 
-Nine mutation controls were run against the product in scratch copies. Every
-one was re-run against the candidate that shipped, and the messages below are
-the ones that candidate produces.
+Ten mutation controls were run against the product in scratch copies. Every
+one was re-run against the candidate it is quoted against, and the messages
+below are the ones that candidate produces. The last row is the one the
+final-candidate judge asked for: the assertion that pins the one-time link's
+workspace guard was added with the final judge's own finding, so that
+control is quoted against the reviewed candidate `ed8f5f3` and the merge
+candidate, not against `b92ac3e`, where the assertion did not yet exist.
 
 | Control | Result |
 | --- | --- |
@@ -394,7 +465,7 @@ the ones that candidate produces.
 | the refresh's current-workspace read replaced with the captured one | `✖ the workspaces page never shows one workspace's roster next to another` |
 | the unresolvable-credential fall-through replaced with a 401 | `✖ a browser whose cookie has expired can still create the invited account` |
 | the single-leading-slash check dropped from the sign-in destination | `✖ a sign-in destination that would leave the application is refused` |
-| the one-time link's workspace guard dropped | `✖ the workspaces page never shows one workspace's roster next to another` |
+| the one-time link's workspace guard dropped (quoted against `ed8f5f3` and the merge candidate) | `✖ the workspaces page never shows one workspace's roster next to another` |
 | the `Referrer-Policy: no-referrer` rule dropped from the invitation route | `✖ the invitation surface never hands its token to another origin` |
 | the `aria-disabled` announcement and its guard made to disagree | `✖ a control that is announced unavailable never acts` |
 
@@ -405,11 +476,25 @@ candidate is the one this record quotes.
 
 ## Mechanical evidence
 
-Graft 0.21.1, on the **reviewed candidate `b92ac3e`**:
+Graft 0.21.1, on the **reviewed candidate `ed8f5f3`** — the candidate the
+final-candidate judge read:
 
 - `graft build --no-gitignore --no-ignore .` — exit 0; 2725 nodes (1502
   function, 430 method, 330 file, 289 interface, 87 type, 87 class), 7919 edges,
   330 cards.
+- `graft check .` — "graph check: OK — the wiring graph is in sync with the
+  code".
+- `graft blast --base origin/main --format markdown` — "5 areas changed → 4 areas
+  can be affected. 30 dependent symbols, depth 2."
+
+Graft 0.21.1, on the **merge candidate's code** — the same tree with the three
+failure answers moved into `apps/web/lib/rest.ts` and the two identity view
+mappers removed:
+
+- `graft build --no-gitignore --no-ignore .` — exit 0; 2721 nodes (1498
+  function, 430 method, 330 file, 289 interface, 87 type, 87 class), 7901 edges,
+  330 cards. The four fewer function nodes are the five mappers the invitation
+  module no longer owns and the one it now shares.
 - `graft check .` — "graph check: OK — the wiring graph is in sync with the
   code".
 - `graft blast --base origin/main --format markdown` — "5 areas changed → 4 areas
@@ -422,14 +507,17 @@ drives and which the page's source-text test pins; Graft's static model does
 not treat the browser journey as a test path into the page module. This is a
 statement about Graft's reachability analysis, not about the coverage itself.
 
-The mechanical suites on the **reviewed candidate `b92ac3e`**: 288/288 Python;
-277/277 Node across `tests/node/`, `apps/web/tests/` and `apps/worker/tests/`;
-179/179 database tests; 20/20 real-PostgreSQL tests across the six `pg-*.test.mjs`
-files; `eslint` clean in every package; `tsc --noEmit` clean in every package; the
-production build clean; the bundle budget clean at 103 kB shared and 113 kB for
-the heaviest route; `scripts/smoke-web.mjs` and `scripts/smoke-brand-chrome.mjs`
-passing; `scripts/smoke-auth-journey.mjs` exit 0 with no disposable directory
-left behind; `scripts/ci_hygiene.py` clean at 1089 tracked files;
+The mechanical suites, on the **merge candidate's tree** (the reviewed
+candidate plus the changes the final judge's findings required, which touch
+three source files and two test files and no schema, no migration and no
+route): 288/288 Python; 277/277 Node across `tests/node/`,
+`apps/web/tests/` and `apps/worker/tests/`; 179/179 database tests; 20/20
+real-PostgreSQL tests across the six `pg-*.test.mjs` files; `eslint` clean in
+every package; `tsc --noEmit` clean in every package; the production build
+clean; the bundle budget clean at 103 kB shared and 113 kB for the heaviest
+route; `scripts/smoke-web.mjs` and `scripts/smoke-brand-chrome.mjs` passing;
+`scripts/smoke-auth-journey.mjs` exit 0 with no disposable directory left
+behind; `scripts/ci_hygiene.py` clean at 1091 tracked files;
 `scripts/validate_upstreams.py`, `scripts/validate_agent_contract.py`,
 `scripts/validate_registry.py`, `scripts/validate_build_kit.py` and
 `scripts/validate_skills.py` passing; `scripts/check_no_model.py` passing on a
@@ -459,6 +547,11 @@ recorded here rather than paid for in this grain.
   `Referrer-Policy: no-referrer`, which is a response header and therefore the
   policy in force. The API path carries the same token the page path already
   exposes to the same access logs, so moving it removes no log entry.
+- **The token also discloses personal data.** `GET /api/v1/invites/{token}`
+  answers the invited address, the role and the workspace name to anyone
+  holding the token. That is what the holder needs to decide whether the
+  invitation is for them, and the token is 256 bits of secret, but it is a
+  disclosure and it is recorded here rather than passed over.
 - **An operator who issues an invitation holds that secret and is trusted with
   the seat it grants.** Skilit has no mail service, so the link is the only
   proof of address control, and an operator who keeps the link can create the
@@ -476,6 +569,15 @@ recorded here rather than paid for in this grain.
 - **A signed-in holder whose session lookup fails transiently falls through to
   the account-creation path.** The outcome is the same failure the redemption
   would have had, and it grants no capability the token does not already grant.
+- **The acceptance route's rate-limit bucket is keyed on the caller**, and the
+  caller key is a `x-forwarded-for` header, so it is spoofable. The
+  final-candidate judge proposed keying the bucket on the invitation token
+  instead; that is not done, because the caller-keyed bucket is what bounds a
+  token-guessing flood and a flood that tries many stolen tokens, while a
+  bucket per token would give every guess its own allowance. The key's
+  spoofability is the pre-existing pattern shared with sign-in, sign-up and
+  sign-out, and the limiter documents itself as best-effort with the gateway
+  owning authoritative enforcement.
 - **The personal workspace an invitation creates is named after its owner, and
   the first owner's is not.** The two names differ on purpose — an invited
   person sees two workspaces at once, and a fresh installation's only workspace

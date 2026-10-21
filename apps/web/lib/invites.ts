@@ -35,15 +35,17 @@ import {
   redeemInvite,
   revokeInvite,
 } from "../../../packages/db/src/invites.ts";
-import type { InvitePreview, InviteRole, WorkspaceInvite } from "../../../packages/db/src/invites.ts";
+import type { InviteRole, WorkspaceInvite } from "../../../packages/db/src/invites.ts";
 import { listMembers } from "../../../packages/db/src/workspaces.ts";
-import type { RosterEntry, WorkspaceRole } from "../../../packages/db/src/workspaces.ts";
+import type { WorkspaceRole } from "../../../packages/db/src/workspaces.ts";
 import type { DbClient } from "../../../packages/db/src/db.ts";
 import {
   AgentContractError,
   newRequestId,
   successEnvelope,
 } from "./agent-contract.ts";
+import type { AgentEnvelope } from "./agent-contract.ts";
+import { invalidInput, notFound, opaque } from "./rest.ts";
 import {
   isOriginAllowed,
   requestToken,
@@ -57,21 +59,6 @@ export type InviteRouteResult = SessionRouteResult;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function invalidInput(requestId: string, message: string): InviteRouteResult {
-  const err = new AgentContractError("INVALID_INPUT", { message, requestId });
-  return { status: err.httpStatus, body: err.toFailureEnvelope() };
-}
-
-function notFound(requestId: string): InviteRouteResult {
-  const err = new AgentContractError("FORBIDDEN_OR_NOT_FOUND", { requestId });
-  return { status: err.httpStatus, body: err.toFailureEnvelope() };
-}
-
-function opaque(requestId: string): InviteRouteResult {
-  const err = new AgentContractError("INTERNAL_OPAQUE", { requestId });
-  return { status: err.httpStatus, body: err.toFailureEnvelope() };
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -128,26 +115,6 @@ function toInviteView(invite: WorkspaceInvite) {
     revokedAt: invite.revokedAt,
     createdAt: invite.createdAt,
     state: invite.state,
-  };
-}
-
-function toRosterView(entry: RosterEntry) {
-  return {
-    workspaceId: entry.workspaceId,
-    userId: entry.userId,
-    email: entry.email,
-    role: entry.role,
-    joinedAt: entry.joinedAt,
-  };
-}
-
-function toPreviewView(preview: InvitePreview) {
-  return {
-    email: preview.email,
-    role: preview.role,
-    workspaceName: preview.workspaceName,
-    expiresAt: preview.expiresAt,
-    state: preview.state,
   };
 }
 
@@ -278,7 +245,7 @@ export async function listMembersRoute(
     return {
       status: 200,
       body: successEnvelope(requestId, {
-        members: members.map(toRosterView),
+        members,
         viewerRole,
       }),
     };
@@ -307,7 +274,7 @@ export async function readInviteRoute(
     if (preview === null) return notFound(requestId);
     return {
       status: 200,
-      body: successEnvelope(requestId, { invite: toPreviewView(preview) }),
+      body: successEnvelope(requestId, { invite: preview }),
     };
   } catch (error) {
     return toFailure(error, requestId);

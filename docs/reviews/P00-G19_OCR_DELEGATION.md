@@ -7,9 +7,12 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 - Grain: `P00-G19` — let an operator invite another person to a workspace.
 - Branch: `skilit/p00-g19-operator-invites`
 - Canonical base SHA: `31fdeff91015cd42599eb1c4d92a68e36065e259`
-- **Reviewed candidate HEAD: `b92ac3e`** — the code state that ships. The review rounds
-  ran over `f892a49` and `ef3b168` before it; every commit between the base and the
-  reviewed candidate was covered by one of the PStack rounds recorded in
+- **Reviewed candidate HEAD: `ed8f5f3`** — the candidate the final-candidate
+  judge read. The code state that ships is that candidate plus the changes the
+  final-candidate judge's findings required: the three failure answers the
+  invitation route module had copied instead of importing, and the two view
+  mappers that only copied their input's fields. Every commit between the base
+  and the reviewed candidate was covered by one of the PStack rounds recorded in
   `docs/reviews/P00-G19_PSTACK_PANELS.md`.
 - OCR version: `open-code-review v1.12.13 (fabbdb29) darwin/arm64`
 - Provider status: **no OCR LLM provider credential configured**. Provider-backed OCR
@@ -17,15 +20,15 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 
 ## Exact-diff preview
 
-`ocr delegate preview --from origin/main --to b92ac3e --format json`
+`ocr delegate preview --from origin/main --to ed8f5f3 --format json`
 
-- `total_files`: 50
+- `total_files`: 52
 - `reviewable_count`: **46**
-- `excluded_count`: 4 — `docs/operations/CI.md`,
-  `docs/qualification/AF-12_ACCEPTANCE_MATRIX.md`,
+- `excluded_count`: 6 — the two review records under `docs/reviews/`,
+  `docs/operations/CI.md`, `docs/qualification/AF-12_ACCEPTANCE_MATRIX.md`,
   `docs/qualification/DEV_READINESS_2026-10-17.md` and
   `docs/qualification/V1_LOCAL_ACCEPTANCE_CONTRACT.md`, all `unsupported_ext`
-- `total_insertions`: 4773, `total_deletions`: 173
+- `total_insertions`: 5478, `total_deletions`: 173
 - `merge_base`: `31fdeff91015cd42599eb1c4d92a68e36065e259`
 
 **Reviewable (46):**
@@ -41,7 +44,7 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 | `apps/web/app/api/v1/workspaces/[id]/invites/route.ts` | added | +56 / -0 |
 | `apps/web/app/api/v1/workspaces/[id]/members/route.ts` | added | +27 / -0 |
 | `apps/web/app/globals.css` | modified | +3 / -0 |
-| `apps/web/app/invite/[token]/page.tsx` | added | +280 / -0 |
+| `apps/web/app/invite/[token]/page.tsx` | added | +283 / -0 |
 | `apps/web/app/invite/layout.tsx` | added | +19 / -0 |
 | `apps/web/app/login/page.tsx` | modified | +20 / -0 |
 | `apps/web/app/workspaces/page.tsx` | added | +505 / -0 |
@@ -53,13 +56,13 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 | `apps/web/next.config.ts` | modified | +20 / -10 |
 | `apps/web/tests/account-ui.test.mjs` | modified | +16 / -12 |
 | `apps/web/tests/browser-session.test.mjs` | modified | +9 / -2 |
-| `apps/web/tests/invites.test.mjs` | added | +575 / -0 |
+| `apps/web/tests/invites.test.mjs` | added | +576 / -0 |
 | `apps/web/tests/safe-destination.test.mjs` | added | +61 / -0 |
-| `apps/web/tests/workspaces-ui.test.mjs` | added | +221 / -0 |
+| `apps/web/tests/workspaces-ui.test.mjs` | added | +226 / -0 |
 | `packages/db/migrations/019_workspace_invites.down.sql` | added | +5 / -0 |
 | `packages/db/migrations/019_workspace_invites.up.sql` | added | +38 / -0 |
 | `packages/db/src/auth.ts` | modified | +6 / -1 |
-| `packages/db/src/invites.ts` | added | +590 / -0 |
+| `packages/db/src/invites.ts` | added | +592 / -0 |
 | `packages/db/src/workspaces.ts` | modified | +53 / -18 |
 | `packages/db/tests/auth.test.mjs` | modified | +1 / -1 |
 | `packages/db/tests/billing.test.mjs` | modified | +1 / -1 |
@@ -79,19 +82,30 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 | `scripts/smoke-auth-journey.mjs` | modified | +354 / -4 |
 | `tests/node/security-headers.test.mjs` | modified | +15 / -3 |
 
-The reviewable set is the same at every candidate: the four excluded documents are
-Markdown, and nothing in the diff removes a file from the set or adds one to it.
+The reviewable set grows as the grain grows, and every file that entered it
+entered it with the grain's own code or tests. The excluded set is the
+Markdown: three documents at the first candidate, four at the second, and six
+at the reviewed candidate, when the two review records joined them.
 
 | Candidate | total_files | reviewable_count | excluded_count | insertions | deletions |
 | --- | --- | --- | --- | --- | --- |
-| `f892a49` (first round) | 45 | 41 | 4 | 4231 | 153 |
-| `ef3b168` (second round) | 50 | 46 | 4 | 4756 | 173 |
-| `b92ac3e` (reviewed candidate) | 50 | 46 | 4 | 4773 | 173 |
+| `f892a49` (first round) | 35 | 32 | 3 | 2782 | 41 |
+| `ef3b168` (second round) | 46 | 42 | 4 | 4257 | 153 |
+| `6549bcf` (the delta re-reviews) | 50 | 46 | 4 | 4756 | 173 |
+| `b92ac3e` | 50 | 46 | 4 | 4773 | 173 |
+| `ed8f5f3` (reviewed candidate) | 52 | 46 | 6 | 5478 | 173 |
 
-The merge candidate differs from the reviewed candidate only by the two review records
-under `docs/reviews/`, which are excluded with `unsupported_ext`, so its reviewable
-count, its excluded set and its resolved rule groups are the ones quoted here; only the
-excluded insertions move.
+Every row is the value `ocr delegate preview --from origin/main --to <sha>
+--format json` reports, measured at the reviewed candidate's tree; the
+final-candidate judge reproduced the `ed8f5f3` row independently.
+
+The merge candidate differs from the reviewed candidate by the three failure
+answers the invitation route module had copied instead of importing, the two
+view mappers that only copied their input's fields, and the two review
+records. The first two are reviewable files that are already in the set, so
+the merge candidate's reviewable count, its excluded set and its resolved
+rule groups are the ones quoted here; only the excluded insertions and the
+content of two reviewable files move.
 
 ## Resolved rules
 
@@ -117,36 +131,39 @@ documents were read against the default group's questions by hand.
 
 ### Group 1 — the CI workflow
 
-The only change to the workflow is one added line in the `db-foundation` job's test
-list, naming the new real-PostgreSQL test file. Checked against the resolved rules: no
-`pull_request_target`, no secret is referenced or printed, `permissions` is unchanged, no
-action is added or unpinned, no `github.event.*` expression reaches a `run:` block, no
-credential is hardcoded, `fetch-depth` and the job dependencies are unchanged, no matrix
-leg was added and no `fail-fast` was introduced, every job keeps its timeout and the
-workflow keeps its `concurrency` group, no `continue-on-error` was added and no step was
-weakened or skipped, and no container tag was touched. The test file it names exists and
-passes. No finding.
+The change to the workflow is two added lines in the `db-foundation` job: one
+in the domain-test file list and one `node --experimental-strip-types --test
+packages/db/tests/pg-invites.test.mjs` in the real-PostgreSQL step. Checked
+against the resolved rules: no `pull_request_target`, no secret is referenced or
+printed, `permissions` is unchanged, no action is added or unpinned, no
+`github.event.*` expression reaches a `run:` block, no credential is
+hardcoded, `fetch-depth` and the job dependencies are unchanged, no matrix leg
+was added and no `fail-fast` was introduced, every job keeps its timeout and
+the workflow keeps its `concurrency` group, no `continue-on-error` was added and
+no step was weakened or skipped, and no container tag was touched. The test
+file the workflow names exists and passes. No finding.
 
 ### Group 2 — the TypeScript, JavaScript and SQL sources
 
 Checked against the resolved rules: no spelling errors in identifiers or in user-facing
 messages; no dead code — the envelope reader's two helpers are module-private, the
 invitation page's dead notice state is gone, and the guard's answer names the caller it
-resolved; the duplication rule is the judgement call, and the request-guard block and
-the envelope helpers that were copied into several files now live in two shared modules
-that the grain's own routes use. No business rule is hardcoded outside the repository's
-existing constants; no `var`; no `==` or `!=`; no `any` — every parsed value is `unknown`
-and narrowed; null checks are present on every dereference; no nested ternary. On React:
-hooks are called at the top level, the effects depend on stable callbacks and abort
-their requests on unmount, state is local to the page, there are no render side effects,
-no inner component is declared inside a component, and the pages carry no inline styles
-— the presentation is in the stylesheet, which is where the repository keeps its display
-tokens. On async handling: every request is awaited, the JSON parse is guarded, and an
-aborted request is not reported as a failure. On security: no `dangerouslySetInnerHTML`,
-no `innerHTML`, no `eval`, no `Function`, no `document.write`, no browser storage, no
-bearer token from the browser, and no modification of a native prototype. The sign-in
-destination is resolved with the browser's own URL parser and refused unless it stays on
-this origin and is a single leading slash.
+resolved; the duplication rule is the judgement call, and the request-guard block, the
+envelope helpers and the three failure answers that were copied into several files now
+live in three shared modules that the grain's own routes use. No business rule is
+hardcoded outside the repository's existing constants; no `var`; no `==` or `!=`; no
+`any` — every parsed value is `unknown` and narrowed; null checks are present on every
+dereference; no nested ternary. On React: hooks are called at the top level, the effects
+depend on stable callbacks and abort their requests on unmount, state is local to the
+page, there are no render side effects, no inner component is declared inside a
+component, and the pages carry no inline styles — the presentation is in the stylesheet,
+which is where the repository keeps its display tokens. On async handling: every
+request is awaited, the JSON parse is guarded, and an aborted request is not reported as
+a failure. On security: no `dangerouslySetInnerHTML`, no `innerHTML`, no `eval`, no
+`Function`, no `document.write`, no browser storage, no bearer token from the browser,
+and no modification of a native prototype. The sign-in destination is resolved with the
+browser's own URL parser and refused unless it stays on this origin and is a single
+leading slash.
 
 Two things are worth stating plainly rather than passing over:
 
@@ -195,9 +212,10 @@ deferred. No finding.
 ## Resolution
 
 Zero unresolved blocking findings. The items carried forward — the token in the URL, the
-operator's trust in the link, and the status code that distinguishes a refused
-registration — are recorded as known limitations in the pull request body and in the
-acceptance matrix's P04 row, with the reason each is not a hole.
+token's disclosure of the invited address, the operator's trust in the link, and the
+status code that distinguishes a refused registration — are recorded as known
+limitations in the pull request body, in the acceptance matrix's P04 row and in the
+panel record, with the reason each is not a hole.
 
 ## Egress classification
 
