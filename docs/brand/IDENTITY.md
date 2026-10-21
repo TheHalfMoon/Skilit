@@ -81,6 +81,7 @@ affected by regenerating or updating the branding source.
 | Cream | `#FAF8F5` | Primary mark background |
 | Workspace surface | `#F7F6F3` | Main workspace background |
 | Sidebar | `#191B1E` | Deep charcoal navigation |
+| Border | `#E6E1DC` | Hairline dividers and surface edges |
 
 `apps/web/app/globals.css` owns the display tokens; keep it synchronized
 with `docs/brand/tokens.json`. Workflow icon tints are deliberately secondary,
