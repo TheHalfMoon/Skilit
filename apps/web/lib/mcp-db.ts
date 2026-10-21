@@ -1,3 +1,6 @@
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+
 import { openDatabase, type DbClient } from "../../../packages/db/src/db.ts";
 
 /**
@@ -12,6 +15,20 @@ import { openDatabase, type DbClient } from "../../../packages/db/src/db.ts";
  */
 
 let shared: Promise<DbClient> | null = null;
+
+/**
+ * A PGlite data directory holds password verifiers and session-token
+ * hashes, so it must be an absolute path the operator chose, and it must
+ * not be readable by other users on a shared host. The directory is
+ * created with owner-only permissions before PGlite opens it.
+ */
+function prepareDataDir(dataDir: string): string {
+  if (!path.isAbsolute(dataDir)) {
+    throw new Error("SKILIT_MCP_PGLITE_DATA_DIR must be an absolute path");
+  }
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  return dataDir;
+}
 
 /**
  * Database selection, in order:
@@ -29,7 +46,7 @@ function databaseOptions():
     process.env.SKELET_MCP_DATABASE_URL;
   if (url !== undefined) return { connectionString: url };
   const dataDir = process.env.SKILIT_MCP_PGLITE_DATA_DIR;
-  if (dataDir !== undefined && dataDir !== "") return { dataDir };
+  if (dataDir !== undefined && dataDir !== "") return { dataDir: prepareDataDir(dataDir) };
   return undefined;
 }
 

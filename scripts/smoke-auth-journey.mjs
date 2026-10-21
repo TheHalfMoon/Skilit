@@ -39,7 +39,7 @@
  * build) and the pinned Playwright Chromium headless shell.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -119,8 +119,19 @@ if (process.argv[2] === "--prepare") {
     const bob = await signUp(db, { email: BOB_EMAIL, password: ACTOR_PASSWORD });
     const aliceSpace = await createWorkspace(db, { name: "Alice space", ownerId: alice.id });
     const bobSpace = await createWorkspace(db, { name: "Bob space", ownerId: bob.id });
+    // A real board inside the other actor's real workspace, so the item read
+    // path can be exercised and not only the collection path.
+    const { createCollection } = await import(
+      pathToFileURL(path.join(root, "packages/db/src/collections.ts")).href
+    );
+    const bobBoard = await createCollection(db, {
+      workspaceId: bobSpace.workspace.id,
+      title: "Bob board",
+      actorId: bob.id,
+    });
     prepared.aliceWorkspaceId = aliceSpace.workspace.id;
     prepared.bobWorkspaceId = bobSpace.workspace.id;
+    prepared.bobBoardId = bobBoard.id;
   }
   process.stdout.write(JSON.stringify(prepared));
   process.exit(0);
@@ -143,6 +154,46 @@ function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
+/** Secrets that must never reach a CI log. */
+const REDACTIONS = [
+  [OWNER_PASSWORD, "<redacted-password>"],
+  [ACTOR_PASSWORD, "<redacted-password>"],
+  [/skilit_session=[^\s;"']+/g, "skilit_session=<redacted>"],
+];
+
+function redact(text) {
+  let output = text;
+  for (const [pattern, replacement] of REDACTIONS) {
+    output = output.replace(pattern, replacement);
+  }
+  return output;
+}
+
+// The running server and its disposable data directory, so an interrupt
+// tears the run down instead of leaving an orphaned server holding a port
+// and a directory that contains password verifiers and session material.
+let activeServer = null;
+let activeDataDir = null;
+
+function teardown() {
+  if (activeServer) {
+    activeServer.kill("SIGTERM");
+    setTimeout(() => activeServer?.kill("SIGKILL"), 5000).unref();
+    activeServer = null;
+  }
+  if (activeDataDir) {
+    rmSync(activeDataDir, { recursive: true, force: true });
+    activeDataDir = null;
+  }
+}
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    teardown();
+    process.exit(130);
+  });
+}
+
 /** The environment the web server is allowed to see. */
 function serverEnv(dataDir) {
   const {
@@ -152,6 +203,48 @@ function serverEnv(dataDir) {
     ...rest
   } = process.env;
   return { ...rest, SKILIT_MCP_PGLITE_DATA_DIR: dataDir };
+}
+
+// Next.js loads `apps/web/.env*` into the process environment for keys that
+// are not already set, so stripping the URL variables from the inherited
+// environment is not enough: an `.env.local` on the developer's machine can
+// repopulate the very key this smoke removed, and the URL takes precedence
+// over the disposable data directory. The smoke would then write an owner
+// account, a workspace and a board into that database. Refuse to run rather
+// than risk it.
+const DATABASE_URL_KEYS = [
+  "SKILIT_MCP_DATABASE_URL",
+  "SKELET_MCP_DATABASE_URL",
+  "DATABASE_URL",
+];
+const NEXT_ENV_FILES = [
+  ".env.production.local",
+  ".env.local",
+  ".env.production",
+  ".env",
+];
+
+function assertNoDotenvDatabaseUrl() {
+  const offenders = [];
+  for (const name of NEXT_ENV_FILES) {
+    const file = path.join(root, "apps", "web", name);
+    if (!existsSync(file)) continue;
+    const contents = readFileSync(file, "utf8");
+    for (const key of DATABASE_URL_KEYS) {
+      const declared = contents
+        .split("\n")
+        .some((line) => {
+          const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+          return match?.[1] === key && !line.trimStart().startsWith("#");
+        });
+      if (declared) offenders.push(`apps/web/${name} sets ${key}`);
+    }
+  }
+  if (offenders.length > 0) {
+    throw new Error(
+      `refusing to run: ${offenders.join("; ")} — the web server would open that database instead of the disposable one`,
+    );
+  }
 }
 
 /** One in-page request, returning the status and the parsed body. */
@@ -189,6 +282,7 @@ async function prepareDatabase(scenario) {
 }
 
 async function runScenario(name, port, journey) {
+  assertNoDotenvDatabaseUrl();
   const { dataDir, prepared } = await prepareDatabase(name);
   let server = null;
   let browser = null;
@@ -203,9 +297,15 @@ async function runScenario(name, port, journey) {
         env: serverEnv(dataDir),
       },
     );
+    activeServer = server;
+    activeDataDir = dataDir;
+    // The server output is mirrored into CI logs, so it is redacted on the
+    // way out rather than checked after the fact: a check that fires after
+    // the secret has already been published protects nothing.
     const capture = (chunk) => {
-      output += chunk.toString();
-      process.stdout.write(`[web] ${chunk}`);
+      const text = chunk.toString();
+      output += text;
+      process.stdout.write(`[web] ${redact(text)}`);
     };
     server.stdout.on("data", capture);
     server.stderr.on("data", capture);
@@ -245,7 +345,9 @@ async function runScenario(name, port, journey) {
       server.kill("SIGTERM");
       setTimeout(() => server.kill("SIGKILL"), 5000).unref();
     }
+    if (activeServer === server) activeServer = null;
     rmSync(dataDir, { recursive: true, force: true });
+    if (activeDataDir === dataDir) activeDataDir = null;
   }
 }
 
@@ -449,7 +551,7 @@ async function bootstrapJourney({ page, context, base }) {
 
 // ---------------------------------------------------------------- isolation
 async function isolationJourney({ page, context, base, prepared }) {
-  const { aliceWorkspaceId, bobWorkspaceId } = prepared;
+  const { aliceWorkspaceId, bobWorkspaceId, bobBoardId } = prepared;
   check(
     typeof aliceWorkspaceId === "string" && typeof bobWorkspaceId === "string",
     "the isolation fixture must provide two real workspace ids",
@@ -457,6 +559,10 @@ async function isolationJourney({ page, context, base, prepared }) {
   check(
     aliceWorkspaceId !== bobWorkspaceId,
     "the two actors must own different workspaces",
+  );
+  check(
+    typeof bobBoardId === "string" && bobBoardId.length > 0,
+    "the isolation fixture must provide a real board id in the other actor's workspace",
   );
 
   // --- A. sign in as the first actor through the real form ---------------
@@ -514,6 +620,20 @@ async function isolationJourney({ page, context, base, prepared }) {
     `reading the other actor's workspace must answer ${DENIED_STATUS}, saw ${crossRead.status}`,
   );
 
+  // The read path must not reveal which workspace ids are real either, so
+  // the unknown workspace is read with the identical request shape and the
+  // two answers are compared, not just their status.
+  const unknownRead = await apiCall(
+    page,
+    `${ROUTES.boardsApi}?workspaceId=${encodeURIComponent(UNKNOWN_WORKSPACE_ID)}`,
+  );
+  check(
+    unknownRead.status === crossRead.status &&
+      unknownRead.body?.error?.code === crossRead.body?.error?.code &&
+      unknownRead.body?.error?.message === crossRead.body?.error?.message,
+    `reading a workspace that does not exist must be answered exactly like one the actor cannot see, saw ${JSON.stringify(unknownRead.body?.error)} against ${JSON.stringify(crossRead.body?.error)}`,
+  );
+
   // A workspace that does not exist at all must be answered identically, so
   // the API never reveals which workspace ids are real.
   const unknownWrite = await apiCall(page, ROUTES.boardsApi, {
@@ -530,6 +650,17 @@ async function isolationJourney({ page, context, base, prepared }) {
       unknownWrite.body?.error?.code === crossWrite.body?.error?.code &&
       unknownWrite.body?.error?.message === crossWrite.body?.error?.message,
     `a workspace that does not exist must be answered exactly like one the actor cannot see, saw ${JSON.stringify(unknownWrite.body?.error)} against ${JSON.stringify(crossWrite.body?.error)}`,
+  );
+
+  // A single board inside the other actor's real workspace is refused on the
+  // item read path too, not only on the collection path.
+  const crossItemRead = await apiCall(
+    page,
+    `${ROUTES.boardsApi}/${encodeURIComponent(bobBoardId)}?workspaceId=${encodeURIComponent(bobWorkspaceId)}`,
+  );
+  check(
+    crossItemRead.status === DENIED_STATUS,
+    `reading a board in the other actor's workspace must answer ${DENIED_STATUS}, saw ${crossItemRead.status}`,
   );
 
   // --- D. the actor's own workspace still works ---------------------------
