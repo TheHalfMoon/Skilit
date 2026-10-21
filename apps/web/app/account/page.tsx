@@ -77,7 +77,7 @@ export default function AccountPage() {
       path: string,
       init: RequestInit,
       onOk: (result: Record<string, unknown>) => void | Promise<void>,
-      onRefused?: (status: number) => void | Promise<void>,
+      onFailed?: (status: number | undefined) => void | Promise<void>,
     ): Promise<void> => {
       setBusy(label);
       setFailure(null);
@@ -95,7 +95,7 @@ export default function AccountPage() {
         const payload: unknown = await response.json().catch(() => null);
         if (!response.ok) {
           setFailure(readFailure(payload, `${label} failed with HTTP ${response.status}.`));
-          if (onRefused !== undefined) await onRefused(response.status);
+          if (onFailed !== undefined) await onFailed(response.status);
           return;
         }
         const record = asRecord(payload);
@@ -108,6 +108,9 @@ export default function AccountPage() {
       } catch {
         if (init.signal?.aborted !== true) {
           setFailure({ code: "UNKNOWN", message: `${label} could not reach the server.` });
+          // A request that never completed is a failure like any other:
+          // the page must not keep a stale table on screen next to it.
+          if (onFailed !== undefined) await onFailed(undefined);
         }
       } finally {
         if (init.signal?.aborted !== true) setBusy(null);

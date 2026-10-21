@@ -100,10 +100,19 @@ test("a control that is announced as unavailable never acts", () => {
   assert.match(bulk, /if \(busy !== null \|\| state\.status !== "ready"\) return;/);
 
   // A list that could not be loaded must not leave a stale table on
-  // screen next to the error.
+  // screen next to the error, whether the server refused it or the
+  // request never completed.
   assert.match(
     page,
     /\(\) => \{\s*setState\(\{ status: "unavailable" \}\);\s*\}/,
     "a refused list must put the page in the unavailable state",
+  );
+  const catchAt = page.indexOf("} catch {");
+  assert.ok(catchAt > 0, "the account page must handle a request that never completed");
+  const catchBlock = page.slice(catchAt, page.indexOf("} finally {", catchAt));
+  assert.match(
+    catchBlock,
+    /onFailed/,
+    "a request that never completed must reach the same transition as one the server refused",
   );
 });
