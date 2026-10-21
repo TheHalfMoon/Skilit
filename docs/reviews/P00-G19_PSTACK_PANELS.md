@@ -55,7 +55,7 @@ importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
 mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
 comment that the roster type's move to `packages/db/src/workspaces.ts` left
 dangling in `packages/db/src/invites.ts`, the claim in that module's header
-that the final judge found overstated, and this record's own corrections.
+that the final judge found overstated, and the two review records' own corrections.
 Three of those changes are reviewable code, and one of them —
 `apps/web/lib/rest.ts` — enters the reviewable set rather than already being
 in it, so the merge candidate's OCR preview shows **one** more reviewable
@@ -162,7 +162,8 @@ token is 256 bits and the holder already knows the address it names.
 Five fresh-context judges read the whole diff: a dedicated security judge, two
 correctness judges over the data/REST and the UI/test surfaces, a parsimony
 judge and a product judge. Between them they raised **ten** must-fix findings,
-all fixed in `6549bcf` and the two commits that follow it.
+all fixed in `6549bcf` and in the two later commits that carry the delta
+re-reviews' fixes, `b92ac3e` and `ed8f5f3`.
 
 ### Security — one must-fix, three worth, two skip
 
@@ -322,7 +323,7 @@ covering only the changed findings.
   failure. The first is now fixed anyway; the second grants no capability the
   token does not already grant.
 
-### Combined correctness, parsimony and product delta re-review — one worth each, one partly
+### Combined correctness, parsimony and product delta re-review — three worth, two skip
 
 The judge read the delta and the files it touches at their current content, and
 ran the suites, the real-PostgreSQL fixture and the browser journey itself.

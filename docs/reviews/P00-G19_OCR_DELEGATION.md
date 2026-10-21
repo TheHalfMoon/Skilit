@@ -102,11 +102,12 @@ Every row is the value `ocr delegate preview --from origin/main --to <sha>
 final-candidate judge reproduced the `ed8f5f3` row independently.
 
 The merge candidate differs from the reviewed candidate by the three failure
-answers the invitation route module had copied instead of importing, the two
-view mappers that only copied their input's fields, the comment the roster
-type's move left dangling, the claim in the invitation module's header that
-the final judge found overstated, and the two review records' own
-corrections. `ocr delegate preview --from origin/main --to <merge
+answers the invitation route module had copied instead of importing
+(`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view mappers that
+only copied their input's fields (`apps/web/lib/invites.ts`), the comment the
+roster type's move left dangling in `packages/db/src/invites.ts`, the claim in
+that module's header that the final judge found overstated, and the two
+review records' own corrections. `ocr delegate preview --from origin/main --to <merge
 candidate> --format json` reports **53 total files, 47 reviewable, 6
 excluded**: one reviewable file more than the reviewed candidate's 46,
 because `apps/web/lib/rest.ts` enters the reviewable set when the failure
@@ -182,8 +183,11 @@ hardcoded outside the repository's existing constants; no `var`; no `==` or `!=`
 dereference; no nested ternary. On React: hooks are called at the top level, the effects
 depend on stable callbacks and abort their requests on unmount, state is local to the
 page, there are no render side effects, no inner component is declared inside a
-component, and the pages carry no inline styles — the presentation is in the stylesheet,
-which is where the repository keeps its display tokens. On async handling: every
+component, and the pages this grain wrote carry no inline styles — the presentation is in
+the stylesheet, which is where the repository keeps its display tokens. One file in the
+changed set is the exception: `apps/web/app/login/page.tsx` keeps two pre-existing
+`width: 100%` inline styles that the grain did not introduce, while the grain's own
+pages use the `.sk-field-wide` class the stylesheet adds. On async handling: every
 request is awaited, the JSON parse is guarded, and an aborted request is not reported as
 a failure. On security: no `dangerouslySetInnerHTML`, no `innerHTML`, no `eval`, no
 `Function`, no `document.write`, no browser storage, no bearer token from the browser,
@@ -200,11 +204,16 @@ Two things are worth stating plainly rather than passing over:
   it removes no log entry. The invitation surface answers with
   `Referrer-Policy: no-referrer`, verified against the running production server, and
   the token is stored only as a SHA-256 hash.
-- The rate-limit key on the invitation routes is `auth:${clientKey(request, null)}`,
+- The rate-limit key on the **acceptance** route is `auth:${clientKey(request, null)}`,
   which is spoofable through `x-forwarded-for`. That is the pre-existing pattern shared
   with sign-in, sign-up and sign-out, the limiter documents itself as best-effort with
   the gateway owning authoritative enforcement, and the acceptance route is additionally
-  origin checked. Not introduced here.
+  origin checked. Not introduced here. The other four invitation routes are not keyed on
+  the caller: `GET /api/v1/invites/{token}` is keyed `rest:${clientKey(request, null)}`,
+  and the three workspace-scoped invitation and roster routes are keyed
+  `rest:${clientKey(request, token)}`, on the presented credential. The caller-keyed
+  bucket on the acceptance route is the one that bounds a token-guessing flood, which is
+  why it is the one the panel's rate-limit finding is about.
 
 No blocking finding.
 
