@@ -54,7 +54,7 @@ the three failure answers the invitation route module had copied instead of
 importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
 mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
 comment that the roster type's move to `packages/db/src/workspaces.ts` left
-dangling, the claim in the invitation module's header
+dangling in `packages/db/src/invites.ts`, the claim in that module's header
 that the final judge found overstated, and this record's own corrections.
 Three of those changes are reviewable code, and one of them —
 `apps/web/lib/rest.ts` — enters the reviewable set rather than already being
@@ -379,14 +379,14 @@ One further independent fresh-context judge read the merge candidate
 on trust: the diff shape, every one of the 46 per-file figures, the OCR
 preview at the reviewed candidate, the three Graft figures, the mechanical
 numbers, the eleven upstream skill hashes, the OCR version, the ten
-mutation-control test names, the first round's thirteen must-fix, and the
-judge arithmetic.
+mutation controls and the test messages they produce, the first round's
+thirteen must-fix, and the judge arithmetic.
 
 Its verdict: **CORRECTNESS BAR: PASS · PARSIMONY BAR: PASS · PRODUCT BAR:
 PASS · SECURITY BAR: PASS**.
 
 It raised six must-fix findings, all against this record's own accuracy, and
-four worth-considering findings against the code.
+findings against the code, which are listed below.
 
 ### Against the records — all fixed
 
@@ -411,7 +411,7 @@ four worth-considering findings against the code.
   reproduce.** **Fixed**: every row is the value measured with the command
   the record names.
 
-### Against the code — three fixed, one skipped
+### Against the code — three fixed, two declined
 
 - **WORTH — the three failure answers the invitation route module defined
   were a fifth copy of the same three one-line mappers.** The panel had
@@ -447,15 +447,15 @@ four worth-considering findings against the code.
 | `6549bcf` | the second-round findings, including the open redirect and the stale-workspace window | the delta re-reviews |
 | `f6c8038` | an unused type import removed | the final-candidate judge |
 | `5d9e3ab` | two unused bindings removed from the invitation suite, caught by the first exact-head CI run | the final-candidate judge |
-| `b92ac3e` | the dot-segment way out of the sign-in destination, and the refusal that no longer hints | the final-candidate judge |
+| `b92ac3e` | the dot-segment way out of the sign-in destination, the refusal that no longer hints, and the one-time link shown only under the workspace it was issued for | the final-candidate judge |
 | `ed8f5f3` | the two review records, and the four changes the delta re-review asked for | the final-candidate judge |
-| the merge candidate | the three failure answers the invitation module had copied, the two identity view mappers, the dangling comment left by the roster type's move, the overstated claim in the invitation module's header, and this record's corrections | the final-candidate judge's findings |
+| the merge candidate | the three failure answers the invitation route module had copied, the two identity view mappers, the dangling comment left in `packages/db/src/invites.ts` by the roster type's move, the overstated claim in that module's header, and this record's corrections | the final-candidate judge's findings |
 
 ## The panel proved the new assertions are not vacuous
 
 Ten mutation controls were run against the product in scratch copies. Every
 one was re-run against the candidate it is quoted against, and the messages
-below are the ones that candidate produces. The last row is the one the
+below are the ones that candidate produces. The row added last is the one the
 final-candidate judge asked for: the assertion that pins the one-time link's
 workspace guard was added with the final judge's own finding, so that
 control is quoted against the reviewed candidate `ed8f5f3` and the merge
@@ -464,7 +464,7 @@ candidate, not against `b92ac3e`, where the assertion did not yet exist.
 | Control | Result |
 | --- | --- |
 | the `revoked_at is null` clause dropped from the guarded acceptance | `✖ a revoked invitation cannot be accepted afterwards` and `✖ a revoked invitation stops working at once` |
-| the `expires_at > now()` clause dropped from the guarded acceptance | `✖ an expired invitation cannot be accepted afterwards` and `✖ an expired invitation cannot be redeemed` |
+| the expiry clause dropped from the guarded acceptance — it reads `expires_at > now()` at `ef3b168` and `expires_at > clock_timestamp()` from `6549bcf` on | `✖ an expired invitation cannot be accepted afterwards` and `✖ an expired invitation cannot be redeemed` |
 | the address comparison dropped from `acceptInvite` | `✖ a signed-in stranger may not take the seat of an invited address` |
 | the malformed-identifier guard dropped from `acceptInvite` | `✖ a malformed identifier is a denial, not a database error` |
 | the refresh's current-workspace read replaced with the captured one | `✖ the workspaces page never shows one workspace's roster next to another` |

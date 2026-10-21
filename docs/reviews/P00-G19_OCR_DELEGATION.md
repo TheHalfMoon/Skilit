@@ -125,13 +125,19 @@ that ships. The table above is scoped to the reviewed candidate.
 
 `ocr delegate rule` resolved, for the reviewed candidate's file set, into three groups:
 
-- **group 1 — system / `.github/workflows/**/*.{yaml,yml}`** for `.github/workflows/ci.yml`.
-- **group 2 — system / `**/*.{ts,js,tsx,jsx,mjs,cjs}`** for the two pages, the two new
-  libraries, the three route modules, the guard, the five API route files, the four test
-  files, the two database source files, the two migration files, the smoke and the
-  security-header test.
-- **group 3 — system / `default`** for `apps/web/app/globals.css` and the four excluded
-  Markdown documents.
+- **group 1 — system / `.github/workflows/**/*.{yaml,yml}`** — one file:
+  `.github/workflows/ci.yml`.
+- **group 2 — system / `**/*.{ts,js,tsx,jsx,mjs,cjs}`** — the 42 reviewable TypeScript,
+  JavaScript and MJS files: the five pages and layouts under `apps/web/app/`, the six
+  route files under `apps/web/app/api/`, `apps/web/components/skilit-shell.tsx`, the
+  four libraries under `apps/web/lib/`, `apps/web/next.config.ts`, the five tests under
+  `apps/web/tests/`, the three sources under `packages/db/src/`, the fifteen tests under
+  `packages/db/tests/`, `scripts/smoke-auth-journey.mjs` and
+  `tests/node/security-headers.test.mjs`.
+- **group 3 — system / `default`** — the nine files the pattern above does not claim:
+  `apps/web/app/globals.css`, the two migrations under `packages/db/migrations/`, and
+  the six Markdown documents, four of them excluded from the reviewable set and the two
+  review records under `docs/reviews/`.
 
 At the merge candidate the resolved set is the reviewed candidate's plus one file,
 `apps/web/lib/rest.ts`, which resolves into group 2 as well. The group
@@ -143,8 +149,9 @@ One distinction worth recording, because the two commands answer different quest
 records under `docs/reviews/` resolve to the default group; `ocr delegate preview`
 filters the diff by the file types the reviewable set supports, so those same two records
 are excluded with `unsupported_ext` and are not part of the reviewable set. The rule
-groups below therefore govern the 46 reviewable files, and the four excluded Markdown
-documents were read against the default group's questions by hand.
+groups below therefore govern the 46 reviewable files — one in group 1, 42 in group 2
+and three in group 3, the stylesheet and the two migrations — and the four excluded
+Markdown documents were read against the default group's questions by hand.
 
 ## Delegated review executed against the exact diff
 
@@ -162,7 +169,7 @@ the workflow keeps its `concurrency` group, no `continue-on-error` was added and
 no step was weakened or skipped, and no container tag was touched. The test
 file the workflow names exists and passes. No finding.
 
-### Group 2 — the TypeScript, JavaScript and SQL sources
+### Group 2 — the TypeScript, JavaScript and MJS sources
 
 Checked against the resolved rules: no spelling errors in identifiers or in user-facing
 messages; no dead code — the envelope reader's two helpers are module-private, the
@@ -201,6 +208,13 @@ Two things are worth stating plainly rather than passing over:
 
 No blocking finding.
 
+### Group 3 — the stylesheet, the two migrations and the documents
+
+`apps/web/app/globals.css` adds three lines for one full-width field class. Every
+value is taken from the stylesheet's existing scale, no colour token is introduced or
+changed, and the brand-token drift test in `apps/web/tests/brand-identity.test.mjs`
+still passes, so the stylesheet and `docs/brand/tokens.json` have not drifted.
+
 ### The two migrations
 
 `019_workspace_invites.up.sql` creates one table and three indexes: the token hash is
@@ -210,13 +224,6 @@ unique index holds one live invitation per workspace and address. Every value is
 literal; there is no interpolation, no dynamic SQL and no extension. The down migration
 drops the table, which drops its indexes with it, and the rehearsal test proves the
 round trip. No finding.
-
-### Group 3 — the stylesheet and the documents
-
-`apps/web/app/globals.css` adds three lines for one full-width field class. Every
-value is taken from the stylesheet's existing scale, no colour token is introduced or
-changed, and the brand-token drift test in `apps/web/tests/brand-identity.test.mjs`
-still passes, so the stylesheet and `docs/brand/tokens.json` have not drifted.
 
 The four excluded Markdown documents were read against the default group's correctness,
 security, performance, maintainability and test-coverage questions. Each describes what
@@ -233,8 +240,11 @@ deferred. No finding.
 Zero unresolved blocking findings. The items carried forward — the token in the URL, the
 token's disclosure of the invited address, the operator's trust in the link, and the
 status code that distinguishes a refused registration — are recorded as known
-limitations in the pull request body, in the acceptance matrix's P04 row and in the
-panel record, with the reason each is not a hole.
+limitations in the pull request body and in the panel record, with the reason each is
+not a hole. The acceptance matrix's P04 row carries two of the four: the token in the
+URL path and the operator's trust in the link. The token's disclosure of the invited
+address and the status code that distinguishes a refused registration are in the pull
+request body and the panel record, and the P04 row does not carry them.
 
 ## Egress classification
 
