@@ -115,16 +115,26 @@ diff, so the applicability evidence is recorded here for the merge candidate as 
 
 - `total_files`: 25
 - `reviewable_count`: **3**
-- `excluded_count`: 22, every excluded file with `exclude_reason: unsupported_ext`
+- `excluded_count`: 22 — 21 files with `exclude_reason: unsupported_ext` (every Markdown
+  file in the diff) and one, `tests/test_ci_hygiene.py` (+10/-0), with
+  `exclude_reason: default_path`
 - `total_insertions`: 776, `total_deletions`: 36
 
 **Reviewable (3):** `.gitignore` (+4/-0), `UPSTREAMS.lock.yml` (+38/-0),
 `scripts/ci_hygiene.py` (+1/-1).
 
 `ocr delegate rule scripts/ci_hygiene.py` resolved **Rule Group 1: system /
-`**/*.{py,pyi,ipynb}`**, whose bars are Content (favour precision over recall; treat
-security and correctness findings as blocking), Identity and Equality Comparisons,
-Resource Management, Performance, Concurrency and Async, and Security-Sensitive Code.
+`**/*.{py,pyi,ipynb}`**. The group has eleven bars: Content (favour precision over
+recall; treat security and correctness findings as blocking), Obvious Typos, Dead Code,
+Mutable Default Arguments and Shared State, Identity and Equality Comparisons, Boundary
+and Edge-Case Handling, Resource Management, Performance, Concurrency and Async,
+Error Handling and Exceptions, and Security-Sensitive Code. Six of the eleven apply
+materially to a single set-literal addition — Content, Identity and Equality Comparisons,
+Resource Management, Performance, Concurrency and Async, and Security-Sensitive Code, and
+each is addressed below. The remaining five (Obvious Typos, Dead Code, Mutable Default
+Arguments and Shared State, Boundary and Edge-Case Handling, Error Handling and
+Exceptions) are inapplicable to a diff that adds one element to one module-level set
+literal and introduces no name, no default, no branch, and no exception path.
 
 ### Delegated review of `scripts/ci_hygiene.py`
 

@@ -210,7 +210,7 @@ Reviewed diff: `3156969ab52d801258af616f1556023572c2990c...8c082465dec4a8fda0ed7
   `GOVERNANCE.md` names gates and links without restating them; one line of code plus one
   test for the enforcement; superseding notes reduced to one line each. No speculative
   abstraction, no duplicated rule sets, no dead paths."
-- **Product completeness and specification alignment — FAIL.** Two must-fix findings (one
+- **Product completeness and specification alignment — FAIL.** Two findings (one must-fix
   against the OCR record, one worth-considering against the AF-12 matrix), plus
   confirmation that the directive itself is fully covered.
 - **Security and privacy — PASS.** Confirmed that the degraded path cannot let an agent
@@ -219,16 +219,22 @@ Reviewed diff: `3156969ab52d801258af616f1556023572c2990c...8c082465dec4a8fda0ed7
   internal hostname, or local machine path appears in the diff, and that the new
   `ci_hygiene.py` rule is strictly additive to the control set.
 
+The judge's manifest line reported `MUST-FIX=3 WORTH=3 SKIP=1`; its finding text
+enumerated three must-fix, two worth-considering, and one skip finding. Every finding it
+enumerated is dispositioned below. Its summary count includes one additional
+worth-considering item that its finding text did not enumerate, so the panel records the
+count discrepancy rather than inventing a finding.
+
 Findings raised by the final-candidate judge and their disposition:
 
-| Finding | Disposition |
-| --- | --- |
-| MUST-FIX — the quoted Graft output was stale (`0 areas changed`); at the merge candidate it is `1 area changed` (`ci_hygiene.py`) | fixed: the graft evidence below now quotes the merge-candidate output, including the affected area and the updated not-in-the-graph count |
-| MUST-FIX — the record asserted a "zero must-fix" verdict for a final-candidate judge whose report did not yet exist | fixed: this section now reports the judge's actual verdict, including its two FAIL bars and the findings it raised |
-| MUST-FIX — the OCR record bound to the superseded candidate `419796b`, whose exact diff has `reviewable_count = 3`; `scripts/ci_hygiene.py` had no OCR applicability evidence | fixed: `docs/reviews/P00-G17_OCR_DELEGATION.md` now carries a final-candidate section with the merge-candidate preview, the resolved Python rule group, and the delegated review of `scripts/ci_hygiene.py` |
-| WORTH — the delta-1 range description omitted the decision-document amendment | fixed: the delta-1 entry above now names it |
-| WORTH — the AF-12 R7 evidence inventory still named Jev while the matrix's superseding note claimed every forward-looking gate statement names the PStack panel | fixed: the inventory is now forward-looking and names the records new grains produce, and the preserved `*_JEV_REVIEW.*` files are named explicitly as historical evidence |
-| SKIP — the `.gitignore` rule covers `/.claude/skills/` while the hygiene rule bans any tracked path under `.claude` | accepted as fail-closed and asymmetric in the safe direction; no `.claude` path is tracked today |
+| Finding | Severity as reported | Disposition |
+| --- | --- | --- |
+| The quoted Graft output was stale (`0 areas changed`); at the merge candidate it is `1 area changed` (`ci_hygiene.py`) | must-fix | fixed: the graft evidence below now quotes the merge-candidate output, including the affected area and the updated not-in-the-graph count |
+| The record asserted a "zero must-fix" verdict for a final-candidate judge whose report did not yet exist | must-fix | fixed: this section now reports the judge's actual verdict, including its two FAIL bars and the findings it raised |
+| The OCR record bound to the superseded candidate `419796b`, whose exact diff has `reviewable_count = 3`; `scripts/ci_hygiene.py` had no OCR applicability evidence | must-fix | fixed: `docs/reviews/P00-G17_OCR_DELEGATION.md` now carries a final-candidate section with the merge-candidate preview, the resolved Python rule group, and the delegated review of `scripts/ci_hygiene.py` |
+| The delta-1 range description omitted the decision-document amendment | worth-considering | fixed: the delta-1 entry above now names it |
+| The AF-12 R7 evidence inventory still named Jev while the matrix's superseding note claimed every forward-looking gate statement names the PStack panel | worth-considering | fixed: the inventory is now forward-looking and names the records new grains produce, and the preserved `*_JEV_REVIEW.*` files are named explicitly as historical evidence |
+| The `.gitignore` rule covers `/.claude/skills/` while the hygiene rule bans any tracked path under `.claude` | skip | accepted as fail-closed and asymmetric in the safe direction; no `.claude` path is tracked today |
 
 ### Mechanical evidence verified by the final-candidate judge
 
@@ -281,7 +287,10 @@ Findings raised by the final-candidate judge and their disposition:
 
 ## Verdict
 
-Zero unresolved must-fix findings across correctness, parsimony, product, and
-security/privacy, in the initial panel, in both delta re-reviews, and in the
-final-candidate combined judge. The grain is cleared for merge under the replacement
-review stack, with the former Jev gate recorded as waived rather than satisfied.
+Zero **unresolved** must-fix findings remain. The initial four-bar panel raised four
+must-fix findings, all fixed and confirmed by the first delta re-review. The
+final-candidate combined judge returned `correctness=FAIL · parsimony=PASS ·
+product=FAIL · security=PASS` with three must-fix findings, all dispositioned above and
+fixed in the merge candidate that follows `8c08246`. The grain is cleared for merge under
+the replacement review stack, with the former Jev gate recorded as waived rather than
+satisfied.
