@@ -77,6 +77,11 @@ test("the workspaces page never shows one workspace's roster next to another", (
   assert.match(page, /const current = useRef\(""\);/);
   assert.match(page, /current\.current = workspaceId;/);
   assert.match(page, /const id = current\.current;/);
+  assert.match(page, /await load\(id, controller\.signal\);/);
+  // The one-time link belongs to the workspace it was issued for, so a
+  // create that lands after a switch does not show it under the new
+  // workspace.
+  assert.match(page, /if \(current\.current !== workspaceId\) return;/);
   // The link that belonged to the previous workspace is dropped with it.
   assert.match(page, /setInviteLink\(null\);/);
 });

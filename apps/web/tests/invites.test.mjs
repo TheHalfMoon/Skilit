@@ -541,7 +541,8 @@ test("a browser whose cookie has expired can still create the invited account", 
   }
 });
 
-test("a spent invitation reads as an absence, whatever the caller is", async () => {  const fx = await fixture();
+test("a spent invitation reads as an absence, whatever the caller is", async () => {
+  const fx = await fixture();
   try {
     const { owner, workspace } = await operator(fx.db);
     const created = await createInviteRoute(

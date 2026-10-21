@@ -100,11 +100,14 @@ export default function InvitePage() {
       });
       return;
     }
+    const viewerEmail = readViewerEmail(sessionOutcome.result);
     setState({
       status: "ready",
       invite: preview,
-      viewer: "identified",
-      viewerEmail: readViewerEmail(sessionOutcome.result),
+      // A session that names no address is not a signed-in visitor the
+      // page can reason about, so it reads as unverified.
+      viewer: viewerEmail === null ? "unavailable" : "identified",
+      viewerEmail,
     });
   }, [token]);
 

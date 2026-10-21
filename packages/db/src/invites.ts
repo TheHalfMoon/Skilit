@@ -97,8 +97,10 @@ export interface InvitePreview {
  * One roster line: a membership with the address behind it. The address
  * is what an operator manages a workspace by, so the roster has to carry
  * it; a bare user id is not a person.
+ *
+ * The roster query itself lives with the other roster query, in
+ * `workspaces.ts`.
  */
-export type { RosterEntry } from "./workspaces.ts";
 
 export const INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const INVITE_MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
