@@ -22,7 +22,7 @@ let shared: Promise<DbClient> | null = null;
  * not be readable by other users on a shared host. The directory is
  * created with owner-only permissions before PGlite opens it.
  */
-function prepareDataDir(dataDir: string): string {
+export function prepareDataDir(dataDir: string): string {
   if (!path.isAbsolute(dataDir)) {
     throw new Error("SKILIT_MCP_PGLITE_DATA_DIR must be an absolute path");
   }

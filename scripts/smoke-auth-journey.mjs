@@ -46,6 +46,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { createRedactor } from "./lib/log-redaction.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const selfPath = fileURLToPath(import.meta.url);
 const requireLens = createRequire(path.join(root, "packages/lens/package.json"));
@@ -155,43 +157,18 @@ function check(condition, message) {
 }
 
 /**
- * Secrets that must never reach a CI log. The literals are matched
- * globally, because a string pattern would only redact the first
- * occurrence in a chunk.
+ * Secrets that must never reach a CI log. The session token is only known
+ * once the fixture is prepared, so the redactor is rebuilt with it.
  */
-const REDACTIONS = [
-  [new RegExp(escapeRegExp(OWNER_PASSWORD), "g"), "<redacted-password>"],
-  [new RegExp(escapeRegExp(ACTOR_PASSWORD), "g"), "<redacted-password>"],
-  [/skilit_session=[^\s;"']+/g, "skilit_session=<redacted>"],
-];
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * The longest secret that must be redacted, minus one character: a secret
- * split across two stdout chunks is carried over so it is still recognised
- * when the rest of it arrives.
- */
-const REDACTION_CARRY = Math.max(OWNER_PASSWORD.length, ACTOR_PASSWORD.length) - 1;
-let redactionCarry = "";
-/** Secrets that are only known at run time, such as the expiry session token. */
-const runtimeSecrets = [];
+const redactor = createRedactor([OWNER_PASSWORD, ACTOR_PASSWORD]);
 
 function redact(text) {
-  const combined = redactionCarry + text;
-  let output = combined;
-  for (const [pattern, replacement] of REDACTIONS) {
-    output = output.replace(pattern, replacement);
-  }
-  for (const secret of runtimeSecrets) {
-    output = output.replace(new RegExp(escapeRegExp(secret), "g"), "<redacted-token>");
-  }
-  // Hold back the tail that could still be the start of a secret.
-  const tail = output.slice(-REDACTION_CARRY);
-  redactionCarry = /[A-Za-z0-9_-]+$/.test(tail) ? tail : "";
-  return output.slice(0, output.length - redactionCarry.length);
+  return redactor.redact(text);
+}
+
+/** Emit the held-back tail once the stream has ended. */
+function flushRedactionCarry() {
+  return redactor.flush();
 }
 
 // The running server and its disposable data directory, so an interrupt
@@ -218,7 +195,10 @@ function teardown() {
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     teardown();
-    process.exit(130);
+    // Keep the event loop alive across the escalation window, so the child
+    // cannot survive the parent: an immediate exit would discard the
+    // pending SIGKILL timer.
+    setTimeout(() => process.exit(130), 6000);
   });
 }
 
@@ -307,7 +287,7 @@ async function prepareDatabase(scenario) {
     );
     // The live session token must never reach a log, even if the server
     // ever echoed it.
-    runtimeSecrets.push(prepared.privateFixtureToken);
+    redactor.add(prepared.privateFixtureToken);
   }
   return { dataDir, prepared };
 }
@@ -345,6 +325,8 @@ async function runScenario(name, port, journey) {
     let exited = false;
     server.on("exit", () => {
       exited = true;
+      const tail = flushRedactionCarry();
+      if (tail !== "") process.stdout.write(`[web] ${tail}`);
     });
     const deadline = Date.now() + 120_000;
     for (;;) {
@@ -372,6 +354,12 @@ async function runScenario(name, port, journey) {
       !output.includes(OWNER_PASSWORD) && !output.includes(ACTOR_PASSWORD),
       "the web server output must not contain a session password",
     );
+    if (typeof prepared.privateFixtureToken === "string") {
+      check(
+        !output.includes(prepared.privateFixtureToken),
+        "the web server output must not contain the session token",
+      );
+    }
   } finally {
     if (browser) await browser.close();
     if (server) {
