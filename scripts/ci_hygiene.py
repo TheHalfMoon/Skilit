@@ -47,7 +47,7 @@ BINARY_EXTENSIONS = {
     ".woff2",
     ".zip",
 }
-FORBIDDEN_TRACKED_PARTS = {"__pycache__", "graft", "node_modules"}
+FORBIDDEN_TRACKED_PARTS = {".claude", "__pycache__", "graft", "node_modules"}
 FORBIDDEN_TRACKED_SUFFIXES = {".pyc", ".pyo"}
 REQUIRED_PATHS = {
     ".github/workflows/ci.yml",

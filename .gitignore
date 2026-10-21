@@ -1,6 +1,10 @@
 # graft's local graph cache - regenerable, not committed (run `graft build`).
 /graft/
 
+# Review-tool skill cache - installed at review time from the pinned upstream
+# commit recorded in UPSTREAMS.lock.yml; never vendored, never committed.
+/.claude/skills/
+
 # Dependencies and install output.
 node_modules/
 .pnpm-store/

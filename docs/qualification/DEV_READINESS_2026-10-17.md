@@ -6,6 +6,8 @@ local development plan only — the long-term commercial/cloud vision in
 only where explicit measurable acceptance criteria exist; everything else is
 stated as gates with evidence.
 
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mention below is a historical observation of 2026-10-17 and is preserved verbatim.
+
 No release, no tags, no deployment were performed. All browser/database proof
 used isolated scratch resources, destroyed afterwards.
 
