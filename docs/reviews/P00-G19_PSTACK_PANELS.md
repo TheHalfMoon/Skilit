@@ -386,7 +386,7 @@ delta re-review's findings.
 
 ## The final-candidate all-bars judge
 
-One further independent fresh-context judge read the merge candidate
+One further independent fresh-context judge read the reviewed candidate
 `ed8f5f3` and answered **all four bars in a single read**, as decision
 §3.3.1 requires. It reproduced the record's claims rather than taking them
 on trust: the diff shape, every one of the 46 per-file figures, the OCR
@@ -450,13 +450,13 @@ findings against the code, which are listed below.
   pattern are the repository's established convention, so the new copies are
   consistent with the tree rather than new violations.
 
-## Coverage of the commits between the base and the reviewed candidate
+## Coverage of the commits between the base and the merge candidate
 
 | Commit | Contents | Round that covered it |
 | --- | --- | --- |
 | `1c9f5a5` | the feature | first round |
 | `f892a49` | the merge of the feature with main — no content of its own | first round |
-| `ef3b168` | the thirteen first-round must-fix findings | second round |
+| `ef3b168` | twelve of the thirteen first-round must-fix findings; the thirteenth is the acceptance matrix's Post-Audit Delta entry, which the post-merge closeout adds | second round |
 | `6549bcf` | the second-round findings, including the open redirect and the stale-workspace window | the delta re-reviews |
 | `f6c8038` | an unused type import removed | the final-candidate judge |
 | `5d9e3ab` | two unused bindings removed from the invitation suite, caught by the first exact-head CI run | the final-candidate judge |
@@ -506,12 +506,13 @@ final-candidate judge read:
   can be affected. 30 dependent symbols, depth 2."
 
 Graft 0.21.1, on the **merge candidate** — the reviewed candidate plus the
-changes the final-candidate judge's findings required:
+enumerated delta:
 
 - `graft build --no-gitignore --no-ignore .` — exit 0; 2721 nodes (1498
   function, 430 method, 330 file, 289 interface, 87 type, 87 class), 7901 edges,
-  330 cards. The four fewer function nodes are the five mappers the invitation
-  module no longer owns and the one it now shares.
+  330 cards. The four fewer function nodes are the five functions the
+  invitation route module no longer owns — the three failure answers and the
+  two view mappers — less the one the shared module gains, `notFound`.
 - `graft check .` — "graph check: OK — the wiring graph is in sync with the
   code".
 - `graft blast --base origin/main --format markdown` — "5 areas changed → 20 areas
@@ -546,9 +547,8 @@ not treat the browser journey as a test path into the page module. This is a
 statement about Graft's reachability analysis, not about the coverage itself.
 
 The mechanical suites, on the **merge candidate's tree** (the reviewed
-candidate plus the changes the final judge's findings required, which touch
-three source files and no test file, and no schema, no migration and no
-route): 288/288 Python; 277/277 Node across `tests/node/`,
+candidate plus the enumerated delta, whose code changes touch three source
+files and no test file, and no schema, no migration and no route): 288/288 Python; 277/277 Node across `tests/node/`,
 `apps/web/tests/` and `apps/worker/tests/`; 179/179 database tests; 20/20
 real-PostgreSQL tests across the six `pg-*.test.mjs` files; `eslint` clean in
 every package; `tsc --noEmit` clean in every package; the production build
