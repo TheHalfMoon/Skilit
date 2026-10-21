@@ -102,7 +102,7 @@ The diff is purely additive: **38 insertions, 0 deletions**, one new `sources` e
 **Zero unresolved blocking findings.**
 
 The defects found in this diff were found by the PStack panel (four independent
-fresh-context judges plus three delta re-reviews) and by the delegated rule application
+fresh-context judges plus five delta re-reviews) and by the delegated rule application
 above. All were fixed before the merge candidate. They are enumerated in
 `docs/reviews/P00-G17_PSTACK_PANELS.md`.
 

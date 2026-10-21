@@ -14,7 +14,7 @@
   including security and privacy, on every grain, and the manifest records the base and
   candidate SHAs. This is the deviation recorded in decision §3.3.1.
 - Judges: **four independent fresh-context judge sessions** (correctness, parsimony,
-  product, security/privacy), plus **three independent fresh-context delta re-reviews**, plus
+  product, security/privacy), plus **five independent fresh-context delta re-reviews**, plus
   **one independent fresh-context combined judge over the final merge candidate**
   (recorded in §Delta history below). No judge authored the diff.
 - **No TypeSafe Jev review was run for this grain and none is claimed.** The former Jev
@@ -29,7 +29,7 @@
 ```
 panel: full — correctness ✓ (fresh-context judge) · parsimony ✓ (fresh-context judge) ·
 product ✓ (fresh-context judge) · security ✓ (fresh-context judge) ·
-deltas: three independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
+deltas: five independent fresh-context delta re-reviews ✓ · final-candidate combined judge ✓ ·
 base 3156969ab52d801258af616f1556023572c2990c · reviewed candidate 419796bee74992d99864ebf022520499c7bbcd1e ·
 merge candidate: the commit carrying this record
 ```
@@ -48,7 +48,7 @@ The merge candidate differs from the reviewed policy candidate `419796b` only by
    and the matrix's superseding note, both of which the final-candidate judge required to
    be made forward-looking, and the Post-Audit Delta entry this grain added.
 
-Items 1–4 are covered by the three delta re-reviews and the final-candidate combined judge
+Items 1–4 are covered by the five delta re-reviews and the final-candidate combined judge
 recorded under §Delta history. No governance rule, panel bar, degraded level, or
 historical record differs between `419796b` and the merge candidate: the only
 non-evidence changes to the AF-12 matrix are its superseding note, the R7 inventory field
@@ -214,13 +214,37 @@ to the candidate the panel reviewed.
   finding table omitted one worth-considering item from the judge's summary count while
   mislabelling another item's severity. All three were fixed, and the judge confirmed
   the decision document still byte-identical and the historical evidence still untouched.
-- **Delta 4 — the merge candidate that follows `3173d75`** — reviewed by an independent
-  fresh-context delta judge. It confirmed the three Delta-3 fixes and raised three
-  further must-fix findings against this record: the top-level verdict under-counted the
-  panel's must-fix findings; the "merge candidate differs only by" list omitted the
-  AF-12 matrix amendment; and the Graft coverage limitation paragraph counted 24
-  non-graph files where 23 are correct, because `tests/test_ci_hygiene.py` is Python and
-  was parsed. All three were fixed.
+- **Delta 4 — `3173d75..2d32516`** — reviewed by an independent fresh-context delta
+  judge. It confirmed the three Delta-3 fixes and raised three further must-fix findings
+  against this record: the top-level verdict under-counted the panel's must-fix findings;
+  the "merge candidate differs only by" list omitted the AF-12 matrix amendment; and the
+  Graft coverage limitation paragraph counted 24 non-graph files where 23 are correct,
+  because `tests/test_ci_hygiene.py` is Python and was parsed. All three were fixed.
+- **Delta 5 — `2d32516..5fa8a5a`** — reviewed by an independent fresh-context delta
+  judge. It confirmed the three Delta-4 fixes and raised one must-fix finding — the delta
+  re-review count was stated three different ways across this record's header, its
+  manifest, its "differs only by" paragraph, and the OCR record's findings paragraph —
+  plus three worth-considering findings: the narrowed no-change sentence enumerated only
+  two of the three AF-12 matrix changes, the date-basis parenthetical quoted a commit
+  range that excluded the grain's HEAD commit, and the OCR record's final-candidate
+  heading called `8c08246` "the merge candidate". All four were fixed.
+- **Delta 6 — `5fa8a5a..55f288aa`** — reviewed by an independent fresh-context delta
+  judge. It confirmed the four Delta-5 fixes and raised one must-fix finding — the OCR
+  record's carry-forward paragraph claimed the merge candidate added only the two
+  evidence-record files, contradicting this record's item 4 — plus one worth-considering
+  finding: the date-basis parenthetical still quoted a fixed end time. Both were fixed.
+
+**The trailing review round.** This record is part of the diff it documents, so the round
+that reviews the merge candidate cannot be written into this file: its findings are
+necessarily recorded in the commit that fixes them and in the governing pull-request
+body instead. The rounds enumerated above are therefore the complete set of rounds whose
+findings were raised against this file before it was last written; the count is stated for
+that point, and the merge commit's message carries the next round.
+
+**Total must-fix findings raised against this grain and fixed:** the initial four-bar
+panel raised 16 (four correctness, seven parsimony, three product, two security and
+privacy); Delta 1 raised 2; the final-candidate combined judge raised 3; Delta 3 raised 3;
+Delta 4 raised 3; Delta 5 raised 1; Delta 6 raised 1 — **29 in total, all fixed**.
 
 ## Final-candidate review (all four bars, independent fresh-context judge)
 
@@ -310,13 +334,12 @@ Findings raised by the final-candidate judge and their disposition:
 
 ## Verdict
 
-Zero **unresolved** must-fix findings remain. The initial four-bar panel raised sixteen
-must-fix findings — four in correctness, seven in parsimony, three in product, and two in
-security and privacy — all fixed, with the correctness bar's four confirmed by the first
-delta re-review. The final-candidate combined judge returned
-`correctness=FAIL · parsimony=PASS · product=FAIL · security=PASS` with three must-fix
-findings, all dispositioned above and fixed in the merge candidate that follows
-`8c08246`; two further delta judges each raised three more against the evidence records,
-all also fixed and dispositioned above. The grain is cleared for merge under the
+Zero **unresolved** must-fix findings remain. Twenty-nine must-fix findings were raised
+against this grain — sixteen by the initial four-bar panel and thirteen across the six
+later rounds (two delta re-reviews, one final-candidate combined judge, and three further
+delta re-reviews) — and every one is fixed and dispositioned above. The final-candidate
+combined judge returned
+`correctness=FAIL · parsimony=PASS · product=FAIL · security=PASS`; the delta rounds
+confirmed each fix against live tool output. The grain is cleared for merge under the
 replacement review stack, with the former Jev gate recorded as waived rather than
 satisfied.
