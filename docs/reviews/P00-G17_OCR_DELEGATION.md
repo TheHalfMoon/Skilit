@@ -108,8 +108,8 @@ above. All were fixed before the merge candidate. They are enumerated in
 
 ## Final-candidate section (preview run against candidate `8c08246`)
 
-The merge candidate adds two governed code/configuration files to the reviewed candidate's
-diff, so the applicability evidence is recorded here for the merge candidate as well.
+Candidate `8c08246` adds two governed code/configuration files to the reviewed
+candidate's diff, so the applicability evidence is recorded here for it as well.
 
 `ocr delegate preview --from 3156969ab52d801258af616f1556023572c2990c --to 8c082465dec4a8fda0ed77526587d500fb0f19c5 --format json`
 

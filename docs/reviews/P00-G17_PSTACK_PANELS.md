@@ -14,9 +14,9 @@
   including security and privacy, on every grain, and the manifest records the base and
   candidate SHAs. This is the deviation recorded in decision §3.3.1.
 - Judges: **four independent fresh-context judge sessions** (correctness, parsimony,
-  product, security/privacy), plus **five independent fresh-context delta re-reviews**, plus
-  **one independent fresh-context combined judge over the final merge candidate**
-  (recorded in §Delta history below). No judge authored the diff.
+  product, security/privacy), plus **five independent fresh-context delta re-reviews**,
+  plus **one independent fresh-context combined judge over the final candidate
+  `8c08246`** (all recorded in §Delta history below). No judge authored the diff.
 - **No TypeSafe Jev review was run for this grain and none is claimed.** The former Jev
   gate was waived for this one policy transition by explicit founder instruction, recorded
   in decision §2 and in the governing pull-request body. This is a waived gate, not a
@@ -201,7 +201,7 @@ to the candidate the panel reviewed.
   decision document into this record** (reverted in `8c08246`), so the normative document
   is byte-identical to the reviewed candidate, and the manifest now states the
   merge-candidate relationship explicitly.
-- **Delta 2 — `8c08246` (the merge candidate)** — reviewed by an independent
+- **Delta 2 — `8c08246` (the final candidate)** — reviewed by an independent
   fresh-context combined judge over the complete final diff, covering all four bars. Its
   findings and disposition are recorded below. Three must-fix findings were raised
   against this record and the OCR record, and all three were fixed in the merge candidate
@@ -235,16 +235,24 @@ to the candidate the panel reviewed.
   finding: the date-basis parenthetical still quoted a fixed end time. Both were fixed.
 
 **The trailing review round.** This record is part of the diff it documents, so the round
-that reviews the merge candidate cannot be written into this file: its findings are
+that reviews the commit carrying it cannot be written into this file: its findings are
 necessarily recorded in the commit that fixes them and in the governing pull-request
-body instead. The rounds enumerated above are therefore the complete set of rounds whose
-findings were raised against this file before it was last written; the count is stated for
-that point, and the merge commit's message carries the next round.
+body instead. The rounds enumerated above are therefore the complete set of rounds
+**recorded in this file**; the count is stated for that set, and the next round's
+findings are carried by the merge commit's message and the pull-request body.
 
 **Total must-fix findings raised against this grain and fixed:** the initial four-bar
 panel raised 16 (four correctness, seven parsimony, three product, two security and
 privacy); Delta 1 raised 2; the final-candidate combined judge raised 3; Delta 3 raised 3;
-Delta 4 raised 3; Delta 5 raised 1; Delta 6 raised 1 — **29 in total, all fixed**.
+Delta 4 raised 3; Delta 5 raised 1; Delta 6 raised 1 — **29 across the six rounds
+enumerated above, all fixed**. The trailing round's must-fix is recorded in the merge
+commit's message and is fixed there.
+
+**Range convention.** Each delta entry's range runs from the state the judge reviewed to
+the commit that fixed its findings. Delta 1's range is the whole diff from the reviewed
+candidate to the state judged, and its fix landed in `8c08246`; Delta 2 names a single
+candidate, `8c08246`, because that round reviewed the whole final diff rather than a
+delta.
 
 ## Final-candidate review (all four bars, independent fresh-context judge)
 
