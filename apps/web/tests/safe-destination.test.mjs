@@ -26,6 +26,13 @@ test("a sign-in destination that would leave the application is refused", () => 
     "javascript:alert(1)",
     "invite/abc",
     "\\\\evil.example",
+    // A path whose dot segments normalise away can leave a
+    // protocol-relative pathname under this origin, and a browser reads
+    // that as another origin.
+    "/..//evil.example",
+    "/a/../../..//evil.example",
+    "/%2e%2e//evil.example",
+    "/..//evil.example?x=1",
   ];
   for (const raw of hostile) {
     assert.equal(

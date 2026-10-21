@@ -97,13 +97,14 @@ function toFailure(error: unknown, requestId: string): InviteRouteResult {
       return invalidInput(requestId, "Password must be 8 to 128 characters.");
     }
     if (error.code === "auth/email-taken") {
-      // The answer never says whether the address has an account: a
-      // refused registration reads exactly like any other refused
-      // registration. Signing in is the way forward for somebody who
-      // already has one.
+      // The refusal says what happened and nothing else: it does not
+      // name the address and it does not say whether that address holds
+      // an account. The way forward for somebody who already has one is
+      // to sign in as the invited address, which the invitation page
+      // offers whatever the answer is.
       return invalidInput(
         requestId,
-        "That address could not be used to create an account. If you already have one, sign in and accept the invitation instead.",
+        "That address could not be used to create an account.",
       );
     }
     if (error.code === "auth/invalid-role" || error.code === "auth/invalid-invite") {

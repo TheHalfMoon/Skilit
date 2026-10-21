@@ -459,12 +459,17 @@ test("an address that already has an account is refused without saying so", asyn
     );
     assert.equal(refused.status, 400);
     assert.equal(refused.body.error.code, "INVALID_INPUT");
-    // The answer never confirms that the address has an account.
+    // The answer never confirms that the address has an account, and it
+    // does not hint at one either: the invitation page offers the
+    // sign-in path whatever the answer is.
     const message = String(refused.body.error.message ?? "").toLowerCase();
-    assert.ok(
-      !message.includes("already registered") && !message.includes("already exists"),
-      `the answer must not confirm that the address has an account: ${message}`,
-    );
+    for (const hint of ["already registered", "already exists", "if you already have"]) {
+      assert.ok(
+        !message.includes(hint),
+        `the answer must not confirm that the address has an account: ${message}`,
+      );
+    }
+    assert.match(message, /could not be used to create an account/);
   } finally {
     await fx.db.close();
   }

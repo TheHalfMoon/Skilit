@@ -225,6 +225,10 @@ export default function WorkspacesPage() {
       setFailure({ code: "UNKNOWN", message: "The invitation was created without a token." });
       return;
     }
+    // The operator may have moved on to another workspace while the
+    // invitation was being issued: the link belongs to the workspace it
+    // was issued for, so it is only shown under that one.
+    if (current.current !== workspaceId) return;
     setNotice("Invitation created. Share the link below with the person you invited.");
     setInviteLink(
       typeof window === "undefined" ? token : `${window.location.origin}/invite/${token}`,

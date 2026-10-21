@@ -16,9 +16,14 @@ export function safeDestination(raw: string | null, origin: string): string | nu
   } catch {
     return null;
   }
-  // The comparison is the whole guard: a browser reads a backslash in a
-  // path as "//", so "/\evil.example" resolves to another origin and is
-  // refused here, exactly as "//evil.example" is.
+  // The origin comparison alone is not enough. A path whose dot segments
+  // normalise away can leave a protocol-relative pathname ("//host")
+  // under this origin — "/..//evil.example" resolves to
+  // "https://app.example.com//evil.example" — and a browser reads that
+  // string as another origin. So the path itself has to be a single
+  // leading slash.
   if (resolved.origin !== base.origin) return null;
-  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  const path = resolved.pathname;
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  return `${path}${resolved.search}${resolved.hash}`;
 }
