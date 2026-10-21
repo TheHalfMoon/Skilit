@@ -57,6 +57,10 @@ fourteen files and the same resolved rule groups:
 | `a86565f` (rounds 1-2) | 18 | 14 | 4 | 1781 | 15 |
 | `a84ceb4` (round 3) | 20 | 14 | 6 | 2295 | 14 |
 | `8ec23c4` (reviewed candidate) | 20 | 14 | 6 | 2482 | 14 |
+| `c10ac1f` (merge candidate) | 20 | 14 | 6 | 2617 | 15 |
+
+The merge candidate's line totals move with the excluded set as these records grow;
+its reviewable count, its excluded set and its resolved rule groups do not.
 
 Between those candidates the reviewable files that changed were
 `apps/web/app/account/page.tsx` and `apps/web/tests/account-ui.test.mjs`, and both are
@@ -136,11 +140,11 @@ Two things are worth stating plainly rather than passing over:
 
 No blocking finding.
 
-### The two files that changed between the reviewed candidates, re-reviewed at final content
+### The files that changed between the reviewed candidates, re-reviewed at final content
 
-Between the round-1 and round-2 candidate and the round-3 candidate, exactly two
-reviewable files changed. They are re-reviewed here at their final content, against the
-same resolved group-2 rules.
+Between each pair of successive reviewed candidates, exactly two reviewable files
+changed: `apps/web/app/account/page.tsx` and `apps/web/tests/account-ui.test.mjs`. They
+are re-reviewed here at their final content, against the same resolved group-2 rules.
 
 **`apps/web/app/account/page.tsx`.** The final content differs from the version
 reviewed in rounds 1 and 2 in six ways: `callJson` is memoised with `useCallback` and
@@ -181,10 +185,9 @@ brand-token drift test in `apps/web/tests/brand-identity.test.mjs` still passes,
 stylesheet and `docs/brand/tokens.json` have not drifted.
 
 The four excluded Markdown documents that are not review records were read against the
-default group's correctness,
-security, performance, maintainability and test-coverage questions. Their state differs
-between the two reviewed candidates, and each candidate's state is described as it
-actually was:
+default group's correctness, security, performance, maintainability and test-coverage
+questions. Their state differs between the three reviewed candidates, and each
+candidate's state is described as it actually was:
 
 - At the round-1 and round-2 candidate `a86565f`, the acceptance matrix's
   "Review-stack migration" bullet had been split in two by the splice that inserted

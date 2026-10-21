@@ -274,7 +274,7 @@ Two further observations were verified and needed no action: the shared
 `validateSession` throws `AuthError` for every invalid credential and lets a database
 error through, so the two are distinguishable.
 
-### Third round — the last fix cycle
+### Second fix cycle — the delta over `a86565f..a84ceb4`
 
 Two independent fresh-context delta re-reviews over `a86565f..a84ceb4`, covering the
 code fixes, the acceptance-matrix repair, the new UI contract test and the two review
@@ -351,12 +351,12 @@ refresh discards a still-valid table, which is the restored base behaviour; and 
 `graft build` node count on the merge candidate was not reproduced by this judge
 because `graft build` writes into the tree.
 
-### Fourth cycle — the last fix cycle
+### Third fix cycle — the delta over `a84ceb4..8ec23c4`
 
 Two independent fresh-context delta re-reviews over `a84ceb4..c5dc98c` and
 `c5dc98c..8ec23c4`.
 
-#### Security delta re-review — zero code must-fix, five record-accuracy must-fix
+#### Security delta re-review — no code must-fix, two findings
 
 The judge confirmed that the server side is byte-identical to the round-3 candidate,
 that the `undefined` sentinel is type-level distinct from every HTTP status, that the
@@ -370,7 +370,8 @@ The judge then found that this record and the OCR record still named `a84ceb4` a
 shipping state, which `c5dc98c` had overtaken — the same record-accuracy defect class
 the record itself had already fixed once, against the repository's own `P00-G17`
 precedent. **Fixed**: this record now names `8ec23c4` as the reviewed candidate, the
-merge candidate is described as differing from it only by the two Markdown records, and
+merge candidate is described as differing from it only by Markdown — at that point the two
+review records, and since the readiness scorecard's superseding note as well — and
 every mechanical number is scoped to the candidate it was measured on.
 
 The judge also found a real gap in the new UI contract test: it asserted that the catch
@@ -396,6 +397,28 @@ matrix at `a86565f`: the record said the historical bullet "was intact but the n
 #168 entry had been spliced into the middle of it", which is self-contradictory — the
 splice split the bullet in two. **Fixed**: the record now says the bullet was split in
 two by the splice.
+
+### Closing confirmation review
+
+One further independent fresh-context judge read the delta from the reviewed candidate
+to the merge candidate — three Markdown files, none of them production code — and
+answered all four bars. It confirmed that both of the final-candidate judge's must-fix
+findings were genuinely closed: that every row of the mutation-control table quotes a
+message the current code actually produces, and that the all-bars judge is recorded
+with its verdict, with the judge count and the manifest agreeing with each other. It
+reproduced the OCR previews at all four quoted candidates, the three resolved rule
+groups, the mechanical numbers, and the Graft figures from the tree's own graph
+artifact, and confirmed that the matrix's historical bullet is byte-for-byte identical
+to the base's and that no CI run identifier is claimed anywhere.
+
+It raised one must-fix finding, an internal contradiction in this record — a sentence
+in the third fix cycle's section still said the merge candidate differed "only by the
+two Markdown records" while the manifest above it said three, because the manifest
+was corrected when the readiness note joined the delta and the section below it was
+not. **Fixed**. It also raised three worth-considering findings: a heading that
+claimed a count its body did not substantiate, two sections both titled "the last fix
+cycle", and a phrase that named two candidates where three had been reviewed. **All
+fixed**.
 
 ### Final-candidate all-bars judge
 
@@ -434,13 +457,13 @@ and recorded below.
 
 | Commit | Contents | Round that covered it |
 | --- | --- | --- |
-| `efabf73` | the feature | round 1 |
-| `a3bc2af` | the account page driven in a real browser | round 1 |
-| `36d1113` | inline styles → design system; the vacuous smoke check made real | round 1 |
-| `a86565f` | the thirteen round-1 must-fix findings | rounds 2 and 3 |
-| `a84ceb4` | the round-2 findings, plus the two review records | round 3 |
-| `c5dc98c` | the catch-branch transition, plus the record corrections | round 4 |
-| `8ec23c4` | the UI contract test requires no HTTP status | round 4 |
+| `efabf73` | the feature | first round |
+| `a3bc2af` | the account page driven in a real browser | first round |
+| `36d1113` | inline styles → design system; the vacuous smoke check made real | first round |
+| `a86565f` | the thirteen round-1 must-fix findings | first and second fix cycles |
+| `a84ceb4` | the round-2 findings, plus the two review records | second fix cycle |
+| `c5dc98c` | the catch-branch transition, plus the record corrections | third fix cycle |
+| `8ec23c4` | the UI contract test requires no HTTP status | third fix cycle |
 
 ## The panel proved the new assertions are not vacuous
 
