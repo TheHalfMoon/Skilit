@@ -146,6 +146,43 @@ test("brand tokens and runtime stylesheet have no palette drift", () => {
   }
 });
 
+test("brand panel text meets WCAG AA contrast on the approved orange field", () => {
+  // The brand field is the approved orange; the text that sits on it must
+  // stay readable when the field is darkened, so the contrast is asserted
+  // here rather than left to a visual review.
+  const relativeLuminance = (hex) => {
+    const channels = [0, 2, 4].map((offset) => parseInt(hex.slice(1 + offset, 3 + offset), 16) / 255);
+    const [r, g, b] = channels.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a, b) => {
+    const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const css = read("../app/globals.css");
+  const field = css.match(/--sk-orange-field:\s*(#[0-9a-f]{6})/i)?.[1];
+  assert.ok(field, "the stylesheet declares the brand field colour");
+  assert.equal(field.toUpperCase(), tokens.colors.orangeField.toUpperCase());
+
+  // The panel text colours are brand tokens, so the contrast is asserted
+  // against the recorded palette rather than against whatever the
+  // stylesheet happens to say today.
+  const surfaces = [
+    { selector: ".sk-brand-panel-top", variable: "--sk-brand-panel-text-strong", token: "brandPanelTextStrong" },
+    { selector: ".sk-brand-panel-bottom", variable: "--sk-brand-panel-text", token: "brandPanelText" },
+  ];
+  for (const { selector, variable, token } of surfaces) {
+    const colour = tokens.colors[token];
+    assert.ok(colour, `${token} is a recorded brand colour`);
+    assert.ok(css.toUpperCase().includes(colour.toUpperCase()), `${variable} is declared in the stylesheet`);
+    const rule = css.split("\n").find((line) => line.startsWith(selector) && line.includes("{"));
+    assert.ok(rule, `${selector} has a rule`);
+    assert.ok(rule.includes(`var(${variable})`), `${selector} uses ${variable}`);
+    const ratio = contrast(colour, field);
+    assert.ok(ratio >= 4.5, `${selector} contrast ${ratio.toFixed(3)}:1 on ${field} is below WCAG AA 4.5:1`);
+  }
+});
+
 test("navigation includes each existing Skilit workflow", () => {
   const navigation = read("../components/skilit-shell.tsx");
   const home = read("../app/page.tsx");

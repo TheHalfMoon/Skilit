@@ -12,6 +12,8 @@
   --sk-muted: #747579;
   --sk-orange: #ff6a1f;
   --sk-orange-field: #ff782d;
+  --sk-brand-panel-text: #42301f;
+  --sk-brand-panel-text-strong: #35251c;
   --sk-surface: #f7f6f3;
   --sk-cream: #faf8f5;
   --sk-line: #e6e1dc;
@@ -88,8 +90,8 @@ button, input, select, textarea { font: inherit; }
 
 .sk-intro-grid { display: grid; grid-template-columns: minmax(0, 1.27fr) minmax(0, .73fr); gap: 17px; }
 .sk-brand-panel { background: var(--sk-orange-field); border-radius: 19px; min-height: 320px; overflow: hidden; padding: 24px 28px; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
-.sk-brand-panel-top, .sk-brand-panel-bottom { display: flex; justify-content: space-between; align-items: center; gap: 15px; font-size: 11px; font-weight: 750; letter-spacing: .11em; color: #35251c; }
-.sk-brand-panel-bottom { font-size: 11px; text-transform: none; font-weight: 550; letter-spacing: 0; color: #553727; }
+.sk-brand-panel-top, .sk-brand-panel-bottom { display: flex; justify-content: space-between; align-items: center; gap: 15px; font-size: 11px; font-weight: 750; letter-spacing: .11em; color: var(--sk-brand-panel-text-strong); }
+.sk-brand-panel-bottom { font-size: 11px; text-transform: none; font-weight: 550; letter-spacing: 0; color: var(--sk-brand-panel-text); }
 .sk-hero-lockup { display: block; width: min(100%, 630px); height: auto; align-self: center; }
 .sk-principle-panel { background: #edecea; border: 1px solid #e4e3e0; border-radius: 19px; padding: 28px 30px; min-height: 320px; display: flex; flex-direction: column; }
 .sk-principle-header { display: flex; align-items: center; justify-content: space-between; }
