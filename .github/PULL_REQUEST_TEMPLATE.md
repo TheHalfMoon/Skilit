@@ -22,7 +22,7 @@ Record the **actual** commands, evidence URLs and outcomes. Mark a non-applicabl
 - [ ] Auth, workspace isolation, privacy and secret handling were considered.
 - [ ] New upstream code/assets have documented rights, exact source IDs and required notices.
 - [ ] Graft build/check and exact-base blast-radius evidence recorded.
-- [ ] TypeSafe Jev exact-diff review is complete and has no unresolved blocking findings.
+- [ ] PStack review panel completed over the exact diff, covering correctness, parsimony, product completeness and specification alignment, and security/privacy, with no unresolved must-fix finding. If the review was degraded, the degraded level and the additional mechanical and risk-specific checks it required are recorded.
 - [ ] Alibaba Open Code Review applicability preview and required review/delegation evidence recorded.
 - [ ] Required GitHub CI completed successfully on the **exact candidate HEAD**.
 
@@ -30,7 +30,7 @@ Record the **actual** commands, evidence URLs and outcomes. Mark a non-applicabl
 
 **Graft version, run and blast evidence:**
 
-**Jev version, review status and evidence:**
+**PStack panel status (independent or degraded), reviewers, base and candidate SHAs, and evidence:**
 
 **Alibaba OCR version, preview reviewable count, status and evidence:**
 

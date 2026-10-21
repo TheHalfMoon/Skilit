@@ -54,7 +54,7 @@ Some tests need services or fixtures. Clearly label skipped or blocked checks; n
 **Required exact-diff review gates** come from [GOVERNANCE.md](GOVERNANCE.md):
 
 1. **Graft:** verify the dependency graph and blast radius against the canonical base.
-2. **TypeSafe Jev:** complete exact-diff review with no unresolved blocking findings.
+2. **PStack review panel:** run the review over the exact diff, covering correctness, parsimony, product completeness and specification alignment, and security/privacy, with no unresolved must-fix finding. Judges must run in a fresh context that did not author the diff. If an independent fresh-context judge cannot be obtained, the review is recorded at the applicable degraded level and carries the extra mechanical and risk-specific checks that level requires — it is never described as independent.
 3. **Alibaba Open Code Review:** perform exact-diff applicability preview and any required review or permitted delegated coverage. Documentation-only grains still require `ocr delegate preview`; do not call a preview a completed review.
 4. **GitHub CI:** all required checks green on the exact pull-request HEAD, followed by verification on merged `main`.
 
