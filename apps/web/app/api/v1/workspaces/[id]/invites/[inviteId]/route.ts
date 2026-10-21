@@ -11,12 +11,12 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string; inviteId: string }> },
 ): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   const { id, inviteId } = await context.params;
   const result = await revokeInviteRoute(
-    guarded.guarded.db,
-    guarded.guarded.userId ?? "",
+    guarded.db,
+    guarded.userId,
     id,
     inviteId,
     request.headers.get("x-request-id"),

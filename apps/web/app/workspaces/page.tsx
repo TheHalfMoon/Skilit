@@ -111,6 +111,11 @@ export default function WorkspacesPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
   const request = useRef<AbortController | null>(null);
+  // The workspace the page is showing right now. A refresh reads it
+  // from here rather than from the closure it was created in, so an
+  // action that lands after the operator has switched workspace cannot
+  // put the previous workspace's roster back on screen.
+  const current = useRef("");
 
   const load = useCallback(
     async (id: string, signal: AbortSignal): Promise<void> => {
@@ -143,6 +148,9 @@ export default function WorkspacesPage() {
         return;
       }
       const operator = viewerRole === "owner" || viewerRole === "admin";
+      // An admin may grant a member only, so the role this person picks
+      // starts at the only role they can grant.
+      if (viewerRole !== "owner") setRole("member");
       setView({
         status: "ready",
         members,
@@ -177,6 +185,11 @@ export default function WorkspacesPage() {
 
   useEffect(() => {
     request.current?.abort();
+    current.current = workspaceId;
+    // A link that belonged to the previous workspace is not this
+    // workspace's link.
+    setInviteLink(null);
+    setCopied(false);
     if (workspaceId === "") {
       setView(IDLE_VIEW);
       return;
@@ -238,13 +251,13 @@ export default function WorkspacesPage() {
     setNotice("Invitation revoked.");
     void refresh();
   }
-
   async function refresh(): Promise<void> {
-    if (workspaceId === "") return;
+    const id = current.current;
+    if (id === "") return;
     const controller = new AbortController();
     request.current?.abort();
     request.current = controller;
-    await load(workspaceId, controller.signal);
+    await load(id, controller.signal);
   }
 
   async function copyInviteLink(): Promise<void> {
@@ -325,7 +338,10 @@ export default function WorkspacesPage() {
               onChange={(event) => setRole(event.target.value)}
             >
               <option value="member">Member</option>
-              <option value="admin">Admin</option>
+              {/* An admin may grant a member only, so the option is not
+                  offered to one: a control that cannot work is worse
+                  than no control. */}
+              {view.viewerRole === "owner" ? <option value="admin">Admin</option> : null}
             </select>
           </div>
           <div>
@@ -341,7 +357,16 @@ export default function WorkspacesPage() {
               <option value="2592000">Thirty days</option>
             </select>
           </div>
-          <button type="button" disabled={!canAct} onClick={() => void createInvite()}>
+          <button
+            type="button"
+            aria-disabled={!canAct}
+            onClick={() => {
+              // The guard names the same condition as the announcement,
+              // so a control that is announced unavailable never acts.
+              if (!canAct) return;
+              void createInvite();
+            }}
+          >
             Create invitation
           </button>
           {inviteLink !== null ? (
@@ -387,6 +412,7 @@ export default function WorkspacesPage() {
         {view.invitesStatus === "hidden" && view.status === "ready" ? (
           <p>Invitations are readable by owners and admins only.</p>
         ) : null}
+        {view.invitesStatus === "loading" ? <p>Loading invitations…</p> : null}
         {view.invitesStatus === "unavailable" ? (
           <p>The invitations for this workspace could not be loaded.</p>
         ) : null}
@@ -414,8 +440,14 @@ export default function WorkspacesPage() {
                   <td>
                     <button
                       type="button"
-                      disabled={busy !== null || invite.state !== "pending"}
-                      onClick={() => void revokeInvite(invite.id)}
+                      aria-disabled={busy !== null || invite.state !== "pending"}
+                      onClick={() => {
+                        // The guard names the same condition as the
+                        // announcement, so a control that is announced
+                        // unavailable never acts.
+                        if (busy !== null || invite.state !== "pending") return;
+                        void revokeInvite(invite.id);
+                      }}
                     >
                       Revoke
                     </button>

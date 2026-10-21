@@ -505,8 +505,38 @@ test("a signed-in stranger may not take the seat of an invited address", async (
   }
 });
 
-test("a spent invitation reads as an absence, whatever the caller is", async () => {
+test("a browser whose cookie has expired can still create the invited account", async () => {
   const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member" },
+      owner.id,
+      workspace.id,
+      "rid-invite-35",
+    );
+    const token = created.body.result.token;
+    // A cookie that names no live session is not a signed-in visitor: the
+    // invitation is the authority, so the account is still created.
+    const accepted = await acceptInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", password: "guest-password-01" },
+      cookieRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, "not-a-live-session", {
+        method: "POST",
+      }),
+      token,
+      "rid-invite-36",
+    );
+    assert.equal(accepted.status, 201, "a stale cookie must not block the invitation");
+    assert.equal(accepted.body.result.user.email, "guest@skilit.example");
+    assert.ok(typeof accepted.setCookie === "string", "the browser is signed in");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("a spent invitation reads as an absence, whatever the caller is", async () => {  const fx = await fixture();
   try {
     const { owner, workspace } = await operator(fx.db);
     const created = await createInviteRoute(

@@ -32,12 +32,18 @@
  *     other session while staying signed in itself, and the revoked token is
  *     refused in both Bearer and Cookie mode.
  *
- *   invites — one owner with one workspace: the owner signs up through the
- *     real form, invites a second person from the workspace page, and the
- *     invited person opens the invitation link in a separate anonymous
- *     browser, reads what the invitation is, creates their account and joins
- *     the workspace. The owner then sees the new member in the roster and
- *     the invitation as accepted, and a second invitation is revoked.
+ *   invites — one owner with one workspace and two invited people: the
+ *     owner signs up through the real form, invites two people from the
+ *     workspace page, and the first invited person opens the invitation
+ *     link in a separate anonymous browser, reads what the invitation is,
+ *     creates their account and joins the workspace. The second invited
+ *     person does the same. The invitation is bound to its address, so a
+ *     signed-in stranger is told the seat is not theirs and is refused;
+ *     a spent invitation says it was used; an invited person who already
+ *     has an account is sent to sign in and is brought back to the
+ *     invitation, where the seat is theirs to take. The owner then sees
+ *     the new members in the roster and the invitation as accepted, and
+ *     a second invitation is revoked.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
@@ -225,6 +231,14 @@ if (
 const failures = [];
 function check(condition, message) {
   if (!condition) failures.push(message);
+}
+/**
+ * The step a journey is on, so a timeout says which step it was and
+ * not only how long it waited.
+ */
+let currentStep = "startup";
+function step(name) {
+  currentStep = name;
 }
 
 /**
@@ -1212,7 +1226,12 @@ async function sessionsJourney({ page, context, base, prepared }) {
 
 // ------------------------------------------------------------------- invites
 async function invitesJourney({ page, context, base }) {
+  const browser = context.browser();
+  check(browser !== null, "the browser context must expose its browser");
+  if (browser === null) return;
+
   // --- A. the owner signs up through the real form ----------------------
+  step("invites: a. the owner signs up through the real form");
   await page.goto(base + ROUTES.signup, { waitUntil: "load" });
   await page.fill("#signup-email", "invites-owner@skilit.example");
   await page.fill("#signup-password", PASSWORD);
@@ -1224,7 +1243,8 @@ async function invitesJourney({ page, context, base }) {
     `the owner sign-up did not report success: ${signupNotice}`,
   );
 
-  // --- B. the owner invites a second person ----------------------------
+  // --- B. the owner invites two people ---------------------------------
+  step("invites: b. the owner invites two people");
   await page.goto(base + "/workspaces", { waitUntil: "load" });
   // The selector renders a placeholder option first, so wait for the
   // choice itself rather than for the option list.
@@ -1253,8 +1273,7 @@ async function invitesJourney({ page, context, base }) {
   check(token.length >= 32, "the invitation link must carry a long token");
 
   // A second invitation, for an address that is not a member and has no
-  // account yet. It is the one the invited-person journey below walks
-  // through.
+  // account yet. The journey below walks both.
   await page.fill("#workspaces-email", INVITES_THIRD_EMAIL);
   await page.getByRole("button", { name: "Create invitation" }).click();
   await page.waitForFunction(
@@ -1276,12 +1295,11 @@ async function invitesJourney({ page, context, base }) {
   check(invitationsText.includes(INVITES_EMAIL), "the invitation list must name the invited address");
   check(invitationsText.includes("pending"), "the invitation must be pending");
 
-  // --- C. the invited person accepts in a separate anonymous browser -----
-  const browser = context.browser();
-  check(browser !== null, "the browser context must expose its browser");
-  if (browser === null) return;
   const guestContext = await browser.newContext();
+  const thirdContext = await browser.newContext();
   try {
+    // --- C. the invited person creates an account and joins -------------
+    step("invites: c. the invited person creates an account and joins");
     const guest = await guestContext.newPage();
     await guest.goto(`${base}/invite/${encodeURIComponent(token)}`, { waitUntil: "load" });
     await guest.waitForSelector("#invite-password", { timeout: 20_000 });
@@ -1329,10 +1347,8 @@ async function invitesJourney({ page, context, base }) {
       `the two workspaces must be distinguishable, saw ${guestNames.join(", ")}`,
     );
 
-    // --- the invitation is bound to the address it names -----------------
-    // The guest is signed in as the first invited address, and opens an
-    // invitation that names another one. The page says why the seat is
-    // not theirs, and offers no control that could take it.
+    // --- D. a signed-in stranger is told the seat is not theirs ---------
+    step("invites: d. a signed-in stranger is told the seat is not theirs");
     await guest.goto(`${base}/invite/${encodeURIComponent(thirdToken)}`, { waitUntil: "load" });
     await guest.waitForFunction(
       () => (document.querySelector("main")?.textContent ?? "").includes("You are signed in as"),
@@ -1359,44 +1375,8 @@ async function invitesJourney({ page, context, base }) {
       `a signed-in stranger must be refused, saw ${strangerAccept.status}`,
     );
 
-    // --- an existing account is sent to sign in -------------------------
-    // The guest signs out and comes back to the invitation. The page
-    // offers the sign-in path, and the sign-in page returns to the
-    // invitation afterwards.
-    await apiCall(guest, ROUTES.signout, { method: "POST" });
-    await guest.goto(`${base}/invite/${encodeURIComponent(thirdToken)}`, { waitUntil: "load" });
-    await guest.waitForSelector("#invite-password", { timeout: 20_000 });
-    const signInLink = guest.getByRole("link", { name: "Sign in as" });
-    check(
-      (await signInLink.count()) === 1,
-      "a visitor who may already have an account must be offered the sign-in path",
-    );
-    await signInLink.click();
-    await guest.waitForFunction(
-      () => (document.querySelector("main")?.textContent ?? "").includes("You will be returned to"),
-      undefined,
-      { timeout: 20_000 },
-    );
-    await guest.fill("#login-email", INVITES_EMAIL);
-    await guest.fill("#login-password", PASSWORD);
-    await guest.click("form button[type=submit]");
-    await guest.waitForURL(
-      (url) => url.pathname.startsWith("/invite/"),
-      undefined,
-      { timeout: 20_000 },
-    );
-    await guest.waitForFunction(
-      () => (document.querySelector("main")?.textContent ?? "").includes("You are signed in as"),
-      undefined,
-      { timeout: 20_000 },
-    );
-    const signedBackText = (await guest.textContent("main")) ?? "";
-    check(
-      signedBackText.includes(INVITES_EMAIL),
-      "the signed-in visitor must be named as the account they hold",
-    );
-
-    // --- a spent invitation says it was used ---------------------------
+    // --- E. a spent invitation says it was used ------------------------
+    step("invites: e. a spent invitation says it was used");
     await guest.goto(`${base}/invite/${encodeURIComponent(token)}`, { waitUntil: "load" });
     await guest.waitForFunction(
       () =>
@@ -1404,15 +1384,114 @@ async function invitesJourney({ page, context, base }) {
       undefined,
       { timeout: 20_000 },
     );
+
+    // --- F. the third person creates an account of their own -----------
+    step("invites: f. the third person creates an account of their own");
+    const third = await thirdContext.newPage();
+    await third.goto(`${base}/invite/${encodeURIComponent(thirdToken)}`, { waitUntil: "load" });
+    await third.waitForSelector("#invite-password", { timeout: 20_000 });
+    await third.fill("#invite-password", PASSWORD);
+    await third.getByRole("button", { name: "Accept and create my account" }).click();
+    await third.waitForFunction(
+      () =>
+        (document.querySelector("div[aria-live='polite']")?.textContent ?? "").includes("You joined"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    const thirdSession = await apiCall(third, ROUTES.session);
+    check(
+      thirdSession.body?.result?.user?.email === INVITES_THIRD_EMAIL,
+      "the second invited person must be signed in as themselves",
+    );
+
+    // --- G. the guest owns a workspace and invites that address ---------
+    step("invites: g. the guest owns a workspace and invites that address");
+    // The guest is the owner of a workspace of their own, so the address
+    // that now holds an account can be invited to it.
+    await guest.goto(base + "/workspaces", { waitUntil: "load" });
+    await guest.waitForFunction(
+      () => {
+        const select = document.querySelector("#workspaces-picker");
+        return select instanceof HTMLSelectElement && select.options.length > 2;
+      },
+      undefined,
+      { timeout: 20_000 },
+    );
+    const own = guestWorkspaces.find(
+      (space) => typeof space?.name === "string" && space.name.startsWith("Personal ("),
+    );
+    check(own !== undefined, "the invited person must own a workspace of their own");
+    await guest.selectOption("#workspaces-picker", own.id);
+    // The roster follows the selection: their own workspace holds one
+    // member, and the one they joined holds two.
+    await guest.waitForFunction(
+      () => document.querySelectorAll("section[aria-label='Members'] table tbody tr").length === 1,
+      undefined,
+      { timeout: 20_000 },
+    );
+    await guest.fill("#workspaces-email", INVITES_THIRD_EMAIL);
+    await guest.getByRole("button", { name: "Create invitation" }).click();
+    await guest.waitForSelector("#workspaces-invite-link", { timeout: 20_000 });
+    const ownLink = (await guest.inputValue("#workspaces-invite-link")) ?? "";
+    const ownToken = ownLink.slice(ownLink.lastIndexOf("/invite/") + "/invite/".length);
+    check(ownToken.length >= 32, "the personal invitation must carry a long token");
+
+    // --- H. an account that already exists signs in and accepts ---------
+    step("invites: h. an account that already exists signs in and accepts");
+    // The third person signs out, opens the invitation, and is offered
+    // the sign-in path. Signing in brings them back to the invitation,
+    // where they can take the seat.
+    await apiCall(third, ROUTES.signout, { method: "POST" });
+    await third.goto(`${base}/invite/${encodeURIComponent(ownToken)}`, { waitUntil: "load" });
+    await third.waitForSelector("#invite-password", { timeout: 20_000 });
+    const signInLink = third.getByRole("link", { name: "Sign in as" });
+    check(
+      (await signInLink.count()) === 1,
+      "a visitor who may already have an account must be offered the sign-in path",
+    );
+    await signInLink.click();
+    await third.waitForFunction(
+      () => (document.querySelector("main")?.textContent ?? "").includes("You will be returned to"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    await third.fill("#login-email", INVITES_THIRD_EMAIL);
+    await third.fill("#login-password", PASSWORD);
+    await third.click("form button[type=submit]");
+    await third.waitForURL(
+      (url) => url.pathname.startsWith("/invite/"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    // The page now knows who this is, and this is the invited address,
+    // so it offers the seat.
+    await third.waitForSelector("section[aria-label='Accept the invitation']", { timeout: 20_000 });
+    await third.getByRole("button", { name: "Join this workspace" }).click();
+    await third.waitForFunction(
+      () =>
+        (document.querySelector("div[aria-live='polite']")?.textContent ?? "").includes("You joined"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    const afterJoin = await apiCall(third, ROUTES.session);
+    check(
+      (afterJoin.body?.result?.workspaces ?? []).length === 3,
+      "the invited person must have joined the third workspace",
+    );
   } finally {
     await guestContext.close();
+    await thirdContext.close();
   }
 
-  // --- D. the owner sees the new member ---------------------------------
+  // --- I. the owner sees the new member ---------------------------------
+  step("invites: i. the owner sees the new member");
   await page.reload({ waitUntil: "load" });
   await page.waitForSelector("section[aria-label='Members'] table tbody tr", { timeout: 20_000 });
   const memberRows = await page.locator("section[aria-label='Members'] table tbody tr").count();
-  check(memberRows === 2, `the roster must show two members, saw ${memberRows}`);
+  check(
+    memberRows === 3,
+    `the roster must show the owner and both invited people, saw ${memberRows}`,
+  );
   // The roster shows the address behind every membership, not an
   // identifier: a roster of identifiers is not a roster of people.
   const rosterText = (await page.textContent("section[aria-label='Members']")) ?? "";
@@ -1440,11 +1519,12 @@ async function invitesJourney({ page, context, base }) {
   );
   check(roster.status === 200, `the roster must be readable, saw ${roster.status}`);
   check(
-    (roster.body?.result?.members ?? []).length === 2,
-    "the roster must show two members",
+    (roster.body?.result?.members ?? []).length === 3,
+    "the roster must show the owner and both invited people",
   );
 
-  // --- E. an invitation can be revoked ----------------------------------
+  // --- J. an invitation can be revoked ----------------------------------
+  step("invites: j. an invitation can be revoked");
   await page.fill("#workspaces-email", INVITES_SECOND_EMAIL);
   await page.getByRole("button", { name: "Create invitation" }).click();
   await page.waitForSelector("section[aria-label='Invitations'] table tbody tr", { timeout: 20_000 });
@@ -1474,7 +1554,7 @@ try {
   await runScenario("sessions", sessionsPort, sessionsJourney);
   await runScenario("invites", invitesPort, invitesJourney);
 } catch (error) {
-  failures.push(`smoke error: ${error?.message ?? error}`);
+  failures.push(`smoke error: ${currentStep}: ${error?.message ?? error}`);
 }
 
 if (failures.length > 0) {

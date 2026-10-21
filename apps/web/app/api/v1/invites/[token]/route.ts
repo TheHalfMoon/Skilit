@@ -17,13 +17,13 @@ export async function GET(
   context: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
   const guarded = await guardRequest(request, {
-    session: "optional",
+    session: "anonymous",
     credential: "anonymous",
   });
   if (!guarded.ok) return guarded.response;
   const { token } = await context.params;
   const result = await readInviteRoute(
-    guarded.guarded.db,
+    guarded.db,
     token,
     request.headers.get("x-request-id"),
   );

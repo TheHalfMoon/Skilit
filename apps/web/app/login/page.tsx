@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 
+import { safeDestination } from "../../lib/safe-destination";
+
 import { useCallback, useEffect, useState } from "react";
 
 interface SessionView {
@@ -49,19 +51,12 @@ export default function LoginPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
 
-  // A destination is only ever a path inside this application. Anything
-  // else — an absolute URL, a protocol-relative URL — is ignored, so the
-  // page cannot be used as a redirect service.
-  const safeDestination = useCallback((raw: string | null): string | null => {
-    if (raw === null) return null;
-    if (!raw.startsWith("/") || raw.startsWith("//")) return null;
-    return raw;
-  }, []);
-
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get("next");
-    setDestination(safeDestination(raw));
-  }, [safeDestination]);
+    // A destination is only ever a path inside this application, so the
+    // page cannot be used as a redirect service.
+    setDestination(safeDestination(raw, window.location.origin));
+  }, []);
 
   const refreshSession = useCallback(async (): Promise<void> => {
     try {

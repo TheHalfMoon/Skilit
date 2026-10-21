@@ -4,11 +4,10 @@ import test from "node:test";
 import { openDatabase } from "../src/db.ts";
 import { migrateUp, migrateDown } from "../src/migrate.ts";
 import { signUp, hashToken } from "../src/auth.ts";
-import { createWorkspaceTx } from "../src/workspaces.ts";
+import { createWorkspaceTx, listMembers } from "../src/workspaces.ts";
 import {
   acceptInvite,
   createInvite,
-  listWorkspaceRoster,
   redeemInvite,
   revokeInvite,
 } from "../src/invites.ts";
@@ -90,10 +89,7 @@ test("real PostgreSQL lets exactly one of two racing redemptions take the seat",
     );
     assert.notEqual(row.rows[0].accepted_at, null, "the invitation is accepted once");
 
-    const roster = await listWorkspaceRoster(db, {
-      workspaceId: space.workspace.id,
-      actorId: owner.id,
-    });
+    const roster = await listMembers(db, space.workspace.id, owner.id);
     assert.equal(roster.length, 2, "the invited person joined exactly once");
   } finally {
     await other.close();
@@ -135,7 +131,7 @@ test("real PostgreSQL never leaves an invitation both accepted and revoked", {
         inviteId: invite.id,
         actorId: owner.id,
       }).then(
-        () => "revoked",
+        (revoked) => (revoked ? "revoked" : "not-revoked"),
         () => "refused",
       ),
       redeemInvite(other, {
@@ -227,6 +223,74 @@ test("real PostgreSQL lets exactly one of two racing issuances stand", {
   }
 });
 
+test("real PostgreSQL makes a redemption wait for the invitation's lock", {
+  skip: !enabled,
+  timeout: 30000,
+}, async () => {
+  fixtureGuard();
+  const db = await openDatabase({ connectionString });
+  const other = await openDatabase({ connectionString });
+  try {
+    await migrateUp(db);
+    const owner = await signUp(db, {
+      email: "pg-lock-owner@skilit.example",
+      password: "pg-lock-01",
+    });
+    const space = await createWorkspaceTx(db, {
+      name: "PG invitation lock",
+      ownerId: owner.id,
+    });
+    const { invite, token } = await createInvite(db, {
+      workspaceId: space.workspace.id,
+      email: "pg-lock-guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+
+    // One transaction holds the invitation's row lock open. The
+    // redemption on the other connection must wait for it: that wait is
+    // what stops a revocation from interleaving with a redemption.
+    let signal;
+    let resume;
+    const ready = new Promise((resolve) => { signal = resolve; });
+    const held = new Promise((resolve) => { resume = resolve; });
+    const holder = db.transaction(async (tx) => {
+      await tx.query("select id from workspace_invites where id = $1 for update", [
+        invite.id,
+      ]);
+      signal();
+      await held;
+    });
+    await ready;
+
+    let settled = false;
+    const redeeming = redeemInvite(other, {
+      token,
+      email: "pg-lock-guest@skilit.example",
+      password: "pg-lock-guest-01",
+    }).then(
+      () => "redeemed",
+      (error) => (isForbidden(error) ? "refused" : "failed"),
+    ).finally(() => { settled = true; });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      assert.equal(
+        settled,
+        false,
+        "the redemption must wait for the invitation's lock, not run past it",
+      );
+    } finally {
+      resume();
+    }
+    await holder;
+    assert.equal(await redeeming, "redeemed", "the redemption lands once the lock is free");
+  } finally {
+    await other.close();
+    await migrateDown(db);
+    await db.close();
+  }
+});
+
 test("real PostgreSQL refuses a signed-in stranger who holds the link", {
   skip: !enabled,
   timeout: 30000,
@@ -258,10 +322,7 @@ test("real PostgreSQL refuses a signed-in stranger who holds the link", {
       isForbidden,
       "a signed-in stranger cannot take the seat",
     );
-    const roster = await listWorkspaceRoster(db, {
-      workspaceId: space.workspace.id,
-      actorId: owner.id,
-    });
+    const roster = await listMembers(db, space.workspace.id, owner.id);
     assert.equal(roster.length, 1, "no membership was written");
   } finally {
     await migrateDown(db);

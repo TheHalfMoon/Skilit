@@ -11,7 +11,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   const { id } = await context.params;
   let body: unknown = null;
@@ -21,9 +21,9 @@ export async function POST(
     body = null;
   }
   const result = await createInviteRoute(
-    guarded.guarded.db,
+    guarded.db,
     body,
-    guarded.guarded.userId ?? "",
+    guarded.userId,
     id,
     request.headers.get("x-request-id"),
   );
@@ -40,12 +40,12 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   const { id } = await context.params;
   const result = await listInvitesRoute(
-    guarded.guarded.db,
-    guarded.guarded.userId ?? "",
+    guarded.db,
+    guarded.userId,
     id,
     request.headers.get("x-request-id"),
   );

@@ -63,7 +63,7 @@ export default function AccountPage() {
       path: string,
       init: RequestInit,
       onOk: (result: Record<string, unknown>) => void | Promise<void>,
-      onFailed?: (status: number | undefined) => void | Promise<void>,
+      onFailed?: (status: number) => void | Promise<void>,
     ): Promise<void> => {
       setBusy(label);
       setFailure(null);

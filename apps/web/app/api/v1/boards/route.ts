@@ -7,7 +7,7 @@ import { guardRequest } from "../../../../lib/rest-guard";
  * POST /api/v1/boards — create a reference board in a workspace.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   let body: unknown = null;
   try {
@@ -16,9 +16,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     body = null;
   }
   const result = await createBoardRoute(
-    guarded.guarded.db,
+    guarded.db,
     body,
-    guarded.guarded.userId ?? "",
+    guarded.userId,
     request.headers.get("x-request-id"),
   );
   return NextResponse.json(result.body, {
@@ -31,13 +31,13 @@ export async function POST(request: Request): Promise<NextResponse> {
  * GET /api/v1/boards?workspaceId= — list boards visible to the caller.
  */
 export async function GET(request: Request): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   const url = new URL(request.url);
   const result = await listBoardsRoute(
-    guarded.guarded.db,
+    guarded.db,
     { workspaceId: url.searchParams.get("workspaceId") ?? undefined },
-    guarded.guarded.userId ?? "",
+    guarded.userId,
     request.headers.get("x-request-id"),
   );
   return NextResponse.json(result.body, {

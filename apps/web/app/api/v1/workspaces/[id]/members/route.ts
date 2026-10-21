@@ -11,12 +11,12 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guarded = await guardRequest(request);
+  const guarded = await guardRequest(request, { session: "session" });
   if (!guarded.ok) return guarded.response;
   const { id } = await context.params;
   const result = await listMembersRoute(
-    guarded.guarded.db,
-    guarded.guarded.userId ?? "",
+    guarded.db,
+    guarded.userId,
     id,
     request.headers.get("x-request-id"),
   );

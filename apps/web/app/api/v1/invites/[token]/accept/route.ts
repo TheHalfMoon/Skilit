@@ -17,7 +17,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
-  const guarded = await guardRequest(request, { scope: "auth", session: "optional" });
+  const guarded = await guardRequest(request, { scope: "auth", session: "anonymous" });
   if (!guarded.ok) return guarded.response;
   let body: unknown = null;
   try {
@@ -27,7 +27,7 @@ export async function POST(
   }
   const { token } = await context.params;
   const result = await acceptInviteRoute(
-    guarded.guarded.db,
+    guarded.db,
     body,
     request,
     token,

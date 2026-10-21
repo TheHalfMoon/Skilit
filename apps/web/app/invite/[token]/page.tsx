@@ -13,9 +13,12 @@ interface Preview {
   state: string;
 }
 
+/** Who the browser is, as far as the invitation surface can tell. */
+type Viewer = "anonymous" | "identified" | "unavailable";
+
 type LoadState =
   | { status: "loading" }
-  | { status: "ready"; invite: Preview; viewerEmail: string | null }
+  | { status: "ready"; invite: Preview; viewer: Viewer; viewerEmail: string | null }
   | { status: "joined"; workspaceName: string }
   | { status: "unavailable" };
 
@@ -55,19 +58,19 @@ export default function InvitePage() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
 
-  const load = useCallback(async (): Promise<void> => {
+  const load = useCallback(async (signal: AbortSignal): Promise<void> => {
     if (token === "") {
       setState({ status: "unavailable" });
       return;
     }
     const previewOutcome = await fetchJson(
       `/api/v1/invites/${encodeURIComponent(token)}`,
-      {},
+      { signal },
       "Read the invitation",
     );
+    if (signal.aborted) return;
     if (!previewOutcome.ok) {
       setState({ status: "unavailable" });
       return;
@@ -81,24 +84,44 @@ export default function InvitePage() {
     // offered an account for the invited address.
     const sessionOutcome = await fetchJson(
       "/api/v1/auth/session",
-      {},
+      { signal },
       "Read the session",
     );
-    const viewerEmail = sessionOutcome.ok ? readViewerEmail(sessionOutcome.result) : null;
-    setState({ status: "ready", invite: preview, viewerEmail });
+    if (signal.aborted) return;
+    if (!sessionOutcome.ok) {
+      // A refused session means nobody is signed in. Any other failure
+      // means the browser cannot tell, and the page says so rather than
+      // offering a form that may not work.
+      setState({
+        status: "ready",
+        invite: preview,
+        viewer: sessionOutcome.status === 401 ? "anonymous" : "unavailable",
+        viewerEmail: null,
+      });
+      return;
+    }
+    setState({
+      status: "ready",
+      invite: preview,
+      viewer: "identified",
+      viewerEmail: readViewerEmail(sessionOutcome.result),
+    });
   }, [token]);
 
   useEffect(() => {
-    void load();
+    // The load is abandoned if the page goes away, so it neither
+    // updates an unmounted page nor waits on a request nobody needs.
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   async function accept(): Promise<void> {
     if (busy !== null || state.status !== "ready") return;
     setBusy("Accepting");
     setFailure(null);
-    setNotice(null);
     const init: RequestInit = { method: "POST" };
-    if (state.viewerEmail === null) {
+    if (state.viewer !== "identified") {
       init.headers = { "Content-Type": "application/json" };
       init.body = JSON.stringify({ email: state.invite.email, password });
     }
@@ -159,11 +182,11 @@ export default function InvitePage() {
     );
   }
 
-  const { invite, viewerEmail } = state;
+  const { invite, viewer, viewerEmail } = state;
   const spendable = invite.state === "pending";
-  const signedIn = viewerEmail !== null;
+  const signedIn = viewer === "identified" && viewerEmail !== null;
   const signedInAsInvited =
-    viewerEmail !== null && viewerEmail.toLowerCase() === invite.email.toLowerCase();
+    signedIn && viewerEmail.toLowerCase() === invite.email.toLowerCase();
   const signInHref = `/login?next=${encodeURIComponent(`/invite/${token}`)}`;
 
   return (
@@ -180,7 +203,6 @@ export default function InvitePage() {
 
       <div role="status" aria-live="polite">
         {busy !== null ? <span>{busy}…</span> : null}
-        {notice !== null ? <span>{notice}</span> : null}
       </div>
       {failure !== null ? (
         <div role="alert">
@@ -190,14 +212,20 @@ export default function InvitePage() {
 
       {spendable ? (
         <section aria-label="Accept the invitation">
+          {viewer === "unavailable" ? (
+            <p>
+              This browser cannot tell whether it is signed in right now. Reload
+              the page, or <a href={signInHref}>sign in again</a>.
+            </p>
+          ) : null}
           {signedIn && !signedInAsInvited ? (
             <p>
               You are signed in as <strong>{viewerEmail}</strong>, and this
-              invitation is for <strong>{invite.email}</strong>. Sign in as the
-              invited address to accept it.
+              invitation is for <strong>{invite.email}</strong>.{" "}
+              <a href={signInHref}>Sign in as {invite.email}</a> to accept it.
             </p>
           ) : null}
-          {!signedIn ? (
+          {viewer === "anonymous" ? (
             <div>
               <label htmlFor="invite-password">Choose a password</label>
               <input
@@ -214,22 +242,30 @@ export default function InvitePage() {
           {signedInAsInvited ? (
             <button
               type="button"
-              disabled={busy !== null}
-              onClick={() => void accept()}
+              aria-disabled={busy !== null}
+              onClick={() => {
+                // The guard names the same condition as the announcement,
+                // so a control that is announced unavailable never acts.
+                if (busy !== null) return;
+                void accept();
+              }}
             >
               Join this workspace
             </button>
           ) : null}
-          {!signedIn ? (
+          {viewer === "anonymous" ? (
             <button
               type="button"
-              disabled={busy !== null || password.length < 8}
-              onClick={() => void accept()}
+              aria-disabled={busy !== null || password.length < 8}
+              onClick={() => {
+                if (busy !== null || password.length < 8) return;
+                void accept();
+              }}
             >
               Accept and create my account
             </button>
           ) : null}
-          {!signedIn ? (
+          {viewer === "anonymous" ? (
             <p>
               Already have an account? <a href={signInHref}>Sign in as {invite.email}</a>{" "}
               and then accept the invitation.

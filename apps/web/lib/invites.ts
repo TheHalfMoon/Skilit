@@ -17,10 +17,13 @@
  * - the invitation token is returned once, in the response that creates
  *   it, and never again;
  * - every access failure is one generic denial, so a caller cannot tell
- *   an unknown token from a revoked, expired or already-spent one;
- * - no failure answers whether an address already has an account: the
- *   answer for a refused registration is the same as for any other
- *   refused registration, and the way forward is to sign in instead.
+ *   an unknown token from a revoked, expired or already-spent one. A
+ *   token that names a real invitation is disclosed together with that
+ *   invitation's state, so the holder is told whether it is still
+ *   spendable;
+ * - a refused registration never names the address, so the refusal does
+ *   not say whether that address holds an account. The way forward is to
+ *   sign in as the invited address and accept the invitation.
  */
 
 import { AuthError } from "../../../packages/db/src/auth.ts";
@@ -28,14 +31,13 @@ import {
   acceptInvite,
   createInvite,
   listInvites,
-  listWorkspaceRoster,
   readInvite,
   redeemInvite,
   revokeInvite,
 } from "../../../packages/db/src/invites.ts";
 import type { InvitePreview, InviteRole, WorkspaceInvite } from "../../../packages/db/src/invites.ts";
-import type { RosterEntry } from "../../../packages/db/src/invites.ts";
-import type { WorkspaceRole } from "../../../packages/db/src/workspaces.ts";
+import { listMembers } from "../../../packages/db/src/workspaces.ts";
+import type { RosterEntry, WorkspaceRole } from "../../../packages/db/src/workspaces.ts";
 import type { DbClient } from "../../../packages/db/src/db.ts";
 import {
   AgentContractError,
@@ -49,12 +51,10 @@ import {
   resolveRequestUserFromRequest,
   sessionCookieHeader,
 } from "./session.ts";
+import type { SessionRouteResult } from "./session.ts";
 
-export interface InviteRouteResult {
-  status: number;
-  body: AgentEnvelope;
-  setCookie?: string | undefined;
-}
+/** The route answer, in the same shape as the other route modules. */
+export type InviteRouteResult = SessionRouteResult;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -270,7 +270,9 @@ export async function listMembersRoute(
   const requestId = newRequestId(providedRequestId);
   if (!checkUuid(actorId) || !checkUuid(workspaceId)) return notFound(requestId);
   try {
-    const members = await listWorkspaceRoster(db, { workspaceId, actorId });
+    const members = await db.transaction((tx) =>
+      listMembers(tx, workspaceId, actorId),
+    );
     const viewer = members.find((entry) => entry.userId === actorId);
     const viewerRole: WorkspaceRole | null = viewer === undefined ? null : viewer.role;
     return {
@@ -337,30 +339,33 @@ export async function acceptInviteRoute(
   const record = isRecord(body) ? body : null;
   try {
     if (presented !== null) {
-      // A signed-in holder joins the workspace as themselves.
-      let userId: string;
+      // A signed-in holder joins the workspace as themselves. A credential
+      // that cannot be resolved is treated as absent: a browser whose
+      // cookie has expired must still be able to create the account the
+      // invitation names, so the choice of path follows the credential's
+      // validity and not its presence.
+      let userId: string | null = null;
       try {
         userId = await resolveRequestUserFromRequest(db, request);
       } catch {
+        userId = null;
+      }
+      if (userId !== null) {
+        const accepted = await acceptInvite(db, { token, userId });
         return {
-          status: 401,
-          body: new AgentContractError("UNAUTHENTICATED", { requestId }).toFailureEnvelope(),
+          status: 200,
+          body: successEnvelope(requestId, {
+            workspaceId: accepted.workspaceId,
+            workspaceName: accepted.workspaceName,
+            membership: {
+              workspaceId: accepted.membership.workspaceId,
+              userId: accepted.membership.userId,
+              role: accepted.membership.role,
+              joinedAt: accepted.membership.joinedAt,
+            },
+          }),
         };
       }
-      const accepted = await acceptInvite(db, { token, userId });
-      return {
-        status: 200,
-        body: successEnvelope(requestId, {
-          workspaceId: accepted.workspaceId,
-          workspaceName: accepted.workspaceName,
-          membership: {
-            workspaceId: accepted.membership.workspaceId,
-            userId: accepted.membership.userId,
-            role: accepted.membership.role,
-            joinedAt: accepted.membership.joinedAt,
-          },
-        }),
-      };
     }
     // No credential: the invitation is the only authority that may
     // create an account, and only for the address it names.

@@ -4,12 +4,11 @@ import test from "node:test";
 import { openDatabase } from "../src/db.ts";
 import { migrateUp } from "../src/migrate.ts";
 import { createSession, signUp } from "../src/auth.ts";
-import { createWorkspaceTx, listWorkspacesForUser } from "../src/workspaces.ts";
+import { createWorkspaceTx, listMembers, listWorkspacesForUser } from "../src/workspaces.ts";
 import {
   acceptInvite,
   createInvite,
   listInvites,
-  listWorkspaceRoster,
   personalWorkspaceName,
   readInvite,
   redeemInvite,
@@ -122,7 +121,6 @@ test("a member may not invite, and an admin may invite only a member", async () 
       email: "guest@skilit.example",
       password: "correct-horse-01",
     });
-    const session = await db.transaction((tx) => createSession(tx, guest.id));
 
     await assert.rejects(
       () =>
@@ -134,6 +132,45 @@ test("a member may not invite, and an admin may invite only a member", async () 
         }),
       isForbidden,
       "a non-member cannot invite",
+    );
+
+    // The same refusal for a plain member of the workspace.
+    await db.query(
+      "insert into workspace_members (workspace_id, user_id, role) values ($1, $2, 'member')",
+      [workspace.id, guest.id],
+    );
+    await assert.rejects(
+      () =>
+        createInvite(db, {
+          workspaceId: workspace.id,
+          email: "someone@skilit.example",
+          role: "member",
+          actorId: guest.id,
+        }),
+      isForbidden,
+      "a plain member cannot invite",
+    );
+    await assert.rejects(
+      () =>
+        listInvites(db, { workspaceId: workspace.id, actorId: guest.id }),
+      isForbidden,
+      "a plain member cannot read the invitation list",
+    );
+    const nothing = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "revoked-by-a-member@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    await assert.rejects(
+      () =>
+        revokeInvite(db, {
+          workspaceId: workspace.id,
+          inviteId: nothing.invite.id,
+          actorId: guest.id,
+        }),
+      isForbidden,
+      "a plain member cannot revoke an invitation",
     );
 
     // An admin may grant member only.
@@ -164,6 +201,52 @@ test("a member may not invite, and an admin may invite only a member", async () 
       actorId: owner.id,
     });
     assert.equal(ok.invite.role, "member");
+  } finally {
+    await db.close();
+  }
+});
+
+test("a malformed identifier is a denial, not a database error", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const guest = await signUp(db, {
+      email: "guest@skilit.example",
+      password: "correct-horse-01",
+    });
+    await assert.rejects(
+      () =>
+        createInvite(db, {
+          workspaceId: "not-a-uuid",
+          email: "someone@skilit.example",
+          role: "member",
+          actorId: owner.id,
+        }),
+      isForbidden,
+      "a malformed workspace id is refused",
+    );
+    await assert.rejects(
+      () =>
+        createInvite(db, {
+          workspaceId: workspace.id,
+          email: "someone@skilit.example",
+          role: "member",
+          actorId: "not-a-uuid",
+        }),
+      isForbidden,
+      "a malformed actor id is refused",
+    );
+    const { token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "someone@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    await assert.rejects(
+      () => acceptInvite(db, { token, userId: "not-a-uuid" }),
+      isForbidden,
+      "a malformed user id is refused",
+    );
   } finally {
     await db.close();
   }
@@ -337,10 +420,7 @@ test("an invited person redeems the invitation and joins the workspace", async (
       isForbidden,
     );
 
-    const members = await listWorkspaceRoster(db, {
-      workspaceId: workspace.id,
-      actorId: owner.id,
-    });
+    const members = await listMembers(db, workspace.id, owner.id);
     assert.equal(members.length, 2);
   } finally {
     await db.close();
@@ -424,10 +504,7 @@ test("a signed-in stranger may not take the seat of an invited address", async (
       isForbidden,
       "a signed-in stranger cannot take the seat",
     );
-    const members = await listWorkspaceRoster(db, {
-      workspaceId: workspace.id,
-      actorId: owner.id,
-    });
+    const members = await listMembers(db, workspace.id, owner.id);
     assert.equal(members.length, 1, "no membership was written");
     const listed = await listInvites(db, {
       workspaceId: workspace.id,
@@ -649,19 +726,13 @@ test("the roster carries the address behind every membership", async () => {
       "insert into workspace_members (workspace_id, user_id, role) values ($1, $2, 'member')",
       [workspace.id, guest.id],
     );
-    const roster = await listWorkspaceRoster(db, {
-      workspaceId: workspace.id,
-      actorId: owner.id,
-    });
+    const roster = await listMembers(db, workspace.id, owner.id);
     assert.equal(roster.length, 2);
     const addresses = roster.map((entry) => entry.email);
     assert.ok(addresses.includes("owner@skilit.example"));
     assert.ok(addresses.includes("guest@skilit.example"));
     // A plain member may read the roster of their own workspace.
-    const asMember = await listWorkspaceRoster(db, {
-      workspaceId: workspace.id,
-      actorId: guest.id,
-    });
+    const asMember = await listMembers(db, workspace.id, guest.id);
     assert.equal(asMember.length, 2);
   } finally {
     await db.close();

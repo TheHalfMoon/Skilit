@@ -36,7 +36,7 @@ test("browser session transport rejects remote URLs and accidental bearer header
 });
 
 test("each Skilit human workspace renders session status without token inputs", () => {
-  for (const view of ["gallery", "patterns", "flows", "boards", "lens", "account"]) {
+  for (const view of ["gallery", "patterns", "flows", "boards", "lens", "account", "workspaces"]) {
     const source = readFileSync(new URL(`../app/${view}/page.tsx`, import.meta.url), "utf8");
     // The cookie-aware transport, directly or through the shared
     // envelope reader that owns it.

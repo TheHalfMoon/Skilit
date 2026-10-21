@@ -21,7 +21,7 @@ export function asRecord(value: unknown): Record<string, unknown> | null {
  * envelope reads as an unknown failure with the caller's fallback
  * message, never as a raw payload.
  */
-export function readFailure(
+function readFailure(
   payload: unknown,
   fallback: string,
 ): { code: string; message: string } {
@@ -34,7 +34,7 @@ export function readFailure(
 }
 
 /** The result an envelope carries, or null when the shape is unknown. */
-export function readResult(payload: unknown): Record<string, unknown> | null {
+function readResult(payload: unknown): Record<string, unknown> | null {
   const record = asRecord(payload);
   return record === null ? null : asRecord(record.result);
 }

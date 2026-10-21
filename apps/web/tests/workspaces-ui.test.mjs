@@ -70,6 +70,52 @@ test("the workspaces page never shows one workspace's roster next to another", (
   // The request that goes away with the page does not update it.
   assert.match(page, /if \(signal\.aborted\) return;/);
   assert.match(page, /new AbortController\(\)/);
+  // A refresh reads the workspace that is showing right now, not the one
+  // the handler was created with: an action that lands after the
+  // operator has switched workspace must not put the previous
+  // workspace's roster back on screen.
+  assert.match(page, /const current = useRef\(""\);/);
+  assert.match(page, /current\.current = workspaceId;/);
+  assert.match(page, /const id = current\.current;/);
+  // The link that belonged to the previous workspace is dropped with it.
+  assert.match(page, /setInviteLink\(null\);/);
+});
+
+test("a control that is announced unavailable never acts", () => {
+  const page = read("../app/workspaces/page.tsx");
+  // A disabled button that becomes disabled while focused drops the
+  // keyboard user's place, so the state is announced instead.
+  assert.ok(
+    !/<button[^>]*\sdisabled=/.test(page),
+    "the workspaces page must not disable a button it may be focused on",
+  );
+  for (const control of ["Create invitation", "Revoke", "Refresh"]) {
+    assert.ok(page.includes(control), `the page must offer ${control}`);
+  }
+  // The announcement and the guard name the same condition. The button's
+  // text is the last occurrence of its label, and the element is taken
+  // from the opening tag before it.
+  const createAt = page.lastIndexOf("Create invitation");
+  const create = page.slice(page.lastIndexOf("<button", createAt), createAt);
+  assert.match(create, /aria-disabled=\{!canAct\}/);
+  assert.match(create, /if \(!canAct\) return;/);
+  const revokeAt = page.lastIndexOf("Revoke");
+  const revoke = page.slice(page.lastIndexOf("<button", revokeAt), revokeAt);
+  assert.match(revoke, /aria-disabled=\{busy !== null \|\| invite\.state !== "pending"\}/);
+  assert.match(
+    revoke,
+    /if \(busy !== null \|\| invite\.state !== "pending"\) return;/,
+  );
+});
+
+test("the role an operator picks is one they may actually grant", () => {
+  const page = read("../app/workspaces/page.tsx");
+  // An admin may grant a member only, so the option is not offered to
+  // one: a control that cannot work is worse than no control.
+  assert.match(
+    page,
+    /view\.viewerRole === "owner" \? <option value="admin">Admin<\/option> : null/,
+  );
 });
 
 test("the workspaces page offers a copy control and a refresh control", () => {
@@ -138,8 +184,11 @@ test("the invitation surface never leaks the token to another origin", () => {
 test("the sign-in page can return to where the visitor came from", () => {
   const page = read("../app/login/page.tsx");
   assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\("next"\)/);
-  // The destination is only ever a path inside this application.
-  assert.match(page, /if \(!raw\.startsWith\("\/"\) \|\| raw\.startsWith\("\/\/"\)\) return null;/);
+  // The destination is checked by the shared helper, which refuses any
+  // value that would leave the application.
+  assert.match(page, /safeDestination\(raw, window\.location\.origin\)/);
+  const helper = read("../lib/safe-destination.ts");
+  assert.match(helper, /resolved\.origin !== base\.origin/);
   assert.match(page, /window\.location\.assign\(destination\)/);
 });
 
