@@ -55,12 +55,14 @@ importing (`apps/web/lib/invites.ts`, `apps/web/lib/rest.ts`), the two view
 mappers that only copied their input's fields (`apps/web/lib/invites.ts`), the
 comment that was left dangling when the roster type moved to
 `packages/db/src/workspaces.ts`, the claim in the invitation module's header
-that the final judge found overstated, and this record's own corrections. Two
-of those changes are reviewable code, so the merge candidate's OCR preview
-shows two more reviewable files than the reviewed candidate's, and the
-record's numbers below say which candidate each number was measured on. Every
-change is either the evidence this record carries or a direct consequence of
-a finding the final-candidate judge made.
+that the final judge found overstated, and this record's own corrections.
+Three of those changes are reviewable code, and one of them —
+`apps/web/lib/rest.ts` — enters the reviewable set rather than already being
+in it, so the merge candidate's OCR preview shows **one** more reviewable
+file than the reviewed candidate's (47 against 46) and the same six excluded
+documents. The record's numbers below say which candidate each number was
+measured on. Every change is either the evidence this record carries or a
+direct consequence of a finding the final-candidate judge made.
 
 ## Installed upstream skill files
 
@@ -491,8 +493,9 @@ final-candidate judge read:
   can be affected. 30 dependent symbols, depth 2."
 
 Graft 0.21.1, on the **merge candidate's code** — the same tree with the three
-failure answers moved into `apps/web/lib/rest.ts` and the two identity view
-mappers removed:
+failure answers moved into `apps/web/lib/rest.ts`, the two identity view
+mappers removed, and the two comment-only edits in
+`packages/db/src/invites.ts`:
 
 - `graft build --no-gitignore --no-ignore .` — exit 0; 2721 nodes (1498
   function, 430 method, 330 file, 289 interface, 87 type, 87 class), 7901 edges,
@@ -503,6 +506,14 @@ mappers removed:
 - `graft blast --base origin/main --format markdown` — "5 areas changed → 4 areas
   can be affected. 30 dependent symbols, depth 2."
 
+The node, edge and card counts are the merge candidate's own: the two
+comment-only edits in `packages/db/src/invites.ts` change no symbol and no
+file, and `graft build` and `graft check` produce the same 2721 nodes and
+7901 edges on the merge candidate as on the tree the blast figure was
+measured on. The blast figure was measured before those two edits and
+was not re-run after them; the record says so rather than quoting it as a
+fresh measurement.
+
 Graft coverage limitation, stated explicitly: the per-area test signal reports
 that no test reaches `DELETE`, `refresh` or `step`, and two areas updated their
 tests. `refresh` is the workspace page's reload, which the browser journey
@@ -512,7 +523,7 @@ statement about Graft's reachability analysis, not about the coverage itself.
 
 The mechanical suites, on the **merge candidate's tree** (the reviewed
 candidate plus the changes the final judge's findings required, which touch
-three source files and two test files and no schema, no migration and no
+three source files and no test file, and no schema, no migration and no
 route): 288/288 Python; 277/277 Node across `tests/node/`,
 `apps/web/tests/` and `apps/worker/tests/`; 179/179 database tests; 20/20
 real-PostgreSQL tests across the six `pg-*.test.mjs` files; `eslint` clean in

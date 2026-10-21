@@ -10,10 +10,12 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 - **Reviewed candidate HEAD: `ed8f5f3`** — the candidate the final-candidate
   judge read. The code state that ships is that candidate plus the changes the
   final-candidate judge's findings required: the three failure answers the
-  invitation route module had copied instead of importing, and the two view
-  mappers that only copied their input's fields. Every commit between the base
-  and the reviewed candidate was covered by one of the PStack rounds recorded in
-  `docs/reviews/P00-G19_PSTACK_PANELS.md`.
+  invitation route module had copied instead of importing, the two view
+  mappers that only copied their input's fields, the comment the roster type's
+  move left dangling, the claim in the invitation module's header that the
+  final judge found overstated, and this record's own corrections. Every
+  commit between the base and the reviewed candidate was covered by one of the
+  PStack rounds recorded in `docs/reviews/P00-G19_PSTACK_PANELS.md`.
 - OCR version: `open-code-review v1.12.13 (fabbdb29) darwin/arm64`
 - Provider status: **no OCR LLM provider credential configured**. Provider-backed OCR
   review was therefore not available and was not simulated.
@@ -101,11 +103,22 @@ final-candidate judge reproduced the `ed8f5f3` row independently.
 
 The merge candidate differs from the reviewed candidate by the three failure
 answers the invitation route module had copied instead of importing, the two
-view mappers that only copied their input's fields, and the two review
-records. The first two are reviewable files that are already in the set, so
-the merge candidate's reviewable count, its excluded set and its resolved
-rule groups are the ones quoted here; only the excluded insertions and the
-content of two reviewable files move.
+view mappers that only copied their input's fields, the comment the roster
+type's move left dangling, the claim in the invitation module's header that
+the final judge found overstated, and the two review records' own
+corrections. `ocr delegate preview --from origin/main --to <merge
+candidate> --format json` reports **53 total files, 47 reviewable, 6
+excluded**: one reviewable file more than the reviewed candidate's 46,
+because `apps/web/lib/rest.ts` enters the reviewable set when the failure
+answers move into it, and the same six excluded documents. The two
+qualification records that name the merge candidate and its CI runs are not
+part of this pull request; they are the closeout pull request's, which is
+why the excluded set does not grow. The resolved rule groups below therefore
+govern the merge candidate's 47 reviewable files, and the file set is the
+same at every commit that carries this record. The insertion and deletion
+counts are not quoted for the merge candidate: they move with this record's
+own edits, so quoting them would pin a number to a tree that is not the one
+that ships. The table above is scoped to the reviewed candidate.
 
 ## Resolved rules
 
@@ -118,6 +131,11 @@ content of two reviewable files move.
   security-header test.
 - **group 3 — system / `default`** for `apps/web/app/globals.css` and the four excluded
   Markdown documents.
+
+At the merge candidate the resolved set is the reviewed candidate's plus one file,
+`apps/web/lib/rest.ts`, which resolves into group 2 as well. The group
+memberships and the questions each group asks are therefore unchanged; only the
+membership of group 2 grows by one file.
 
 One distinction worth recording, because the two commands answer different questions:
 `ocr delegate rule` resolves a rule group for every path it is given, so the two review
