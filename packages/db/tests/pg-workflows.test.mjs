@@ -26,7 +26,7 @@ test("real PostgreSQL ordered flow, tenant-tagged collection, and state identity
  const db=await openDatabase({connectionString});
  try {
   assert.deepEqual(await migrateUp(db),
-   ["001_sources_products","002_design_graph","003_workflows","004_auth","005_workspaces","006_collections_auth","007_billing","008_jobs","009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename"]);
+   ["001_sources_products","002_design_graph","003_workflows","004_auth","005_workspaces","006_collections_auth","007_billing","008_jobs","009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename", "019_workspace_invites"]);
   const source=await createSource(db,{key:"pg-workflows",kind:"fixture"});
   const product=await createProduct(db,{sourceId:source.id,title:"Journey"});
   const version=await createProductVersion(db,{productId:product.id,versionNo:1});

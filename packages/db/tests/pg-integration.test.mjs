@@ -94,7 +94,7 @@ test("real PostgreSQL serializes two demonstrably contending migration processes
   const results = await Promise.all(workers);
   assert.deepEqual(
     results.flat().sort(),
-    ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename"],
+    ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename", "019_workspace_invites"],
     "Only one blocked process may apply each migration",
   );
 
@@ -103,7 +103,7 @@ test("real PostgreSQL serializes two demonstrably contending migration processes
     const ledger = await db.query(
       "select filename from schema_migrations order by filename",
     );
-    assert.deepEqual(ledger.rows.map((row) => row.filename), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename"]);
+    assert.deepEqual(ledger.rows.map((row) => row.filename), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename", "019_workspace_invites"]);
     for (const table of ["sources", "products", "product_versions"]) {
       const result = await db.query("select to_regclass($1) as oid", ["public." + table]);
       assert.notEqual(result.rows[0]?.oid, null);

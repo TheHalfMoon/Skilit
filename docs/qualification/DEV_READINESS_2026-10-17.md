@@ -24,7 +24,7 @@ used isolated scratch resources, destroyed afterwards.
 
 - Auth/sessions/workspaces/collections/boards/flows/replays/patterns/gallery/assets/lens-jobs: covered by domain suites plus REST↔MCP parity (`envelope-parity`, `golden-journey`, interop stdio/HTTP). No open functional gap found in the adopted scope.
 - First-party browser sign-in (Issue #152 implementation): delivered in #157 — bootstrap-only signup, HttpOnly cookie sessions, sign-out revocation, whoami/expiry recovery, CSRF/origin checks, 9 DB-backed + 3 UI-contract tests, 16/16 real-Chromium E2E on an isolated scratch DB. Issue left open for founder closeout only.
-- Deliberately deferred (recorded, not gaps): cookie-first data pages, operator invite flow. The session list/revoke-all UI is no longer deferred: it was delivered with the account surface (`/account`, `GET`/`DELETE /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{id}`).
+- Deliberately deferred (recorded, not gaps): cookie-first data pages. Two surfaces that this record listed as deferred are now delivered: the session list/revoke-all UI, with the account surface (`/account`, `GET`/`DELETE /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{id}`), and the operator invite flow (`/workspaces`, `POST`/`GET /api/v1/workspaces/{id}/invites`, `DELETE /api/v1/workspaces/{id}/invites/{id}`, `GET /api/v1/workspaces/{id}/members`, `GET`/`POST /api/v1/invites/{token}`).
 
 ## 3. Agent/MCP readiness — PASS
 
@@ -69,6 +69,6 @@ No release published, no tags created, no deployment performed — per standing 
 
 1. Issue #152: implementation merged; founder closeout pending (no code required).
 2. Issue #34: autonomous program record (informational).
-3. Queued follow-ups: cookie-first data pages, operator invites. The session list/revoke-all UI is delivered.
+3. Queued follow-ups: cookie-first data pages. The session list/revoke-all UI and the operator invite flow are delivered.
 4. Tool limits honestly recorded: Jev/PStack/Alibaba review unavailable (no keys/access); graft, full CI, Playwright/Chromium, ESLint/TypeScript, migration rehearsals, and real-PostgreSQL suites used instead.
 5. Windows: only the `storage-windows-latest` CI job claims coverage (per `CLEAN_INSTALL.md`); no full Windows install claim is made.

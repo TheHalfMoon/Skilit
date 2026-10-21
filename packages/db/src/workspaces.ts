@@ -105,7 +105,11 @@ function validateRole(role: string): WorkspaceRole {
   return role;
 }
 
-function forbidden(): AuthError {
+/**
+ * One generic denial for every access failure, so a caller cannot tell a
+ * missing resource from a forbidden one. Shared with the invitation flow.
+ */
+export function workspaceForbidden(): AuthError {
   return new AuthError("auth/forbidden", ACCESS_DENIED);
 }
 
@@ -183,7 +187,7 @@ export async function requireRole(
 ): Promise<WorkspaceRole> {
   const role = await getMembership(tx, workspaceId, userId);
   if (role === null || ROLE_RANK[role] < ROLE_RANK[minimum]) {
-    throw forbidden();
+    throw workspaceForbidden();
   }
   return role;
 }
@@ -208,7 +212,12 @@ async function lockRoster(tx: DbTransaction, workspaceId: string): Promise<void>
   );
 }
 
-function canGrant(actorRole: WorkspaceRole, role: WorkspaceRole): boolean {
+/**
+ * Whether an actor holding `actorRole` may grant `role`. Owners may grant
+ * any role; admins may grant member only. Shared with the invitation
+ * flow, which grants exactly the roles an operator could add directly.
+ */
+export function canGrantRole(actorRole: WorkspaceRole, role: WorkspaceRole): boolean {
   if (actorRole === "owner") return true;
   return actorRole === "admin" && role === "member";
 }
@@ -224,8 +233,8 @@ export async function addMember(
   const role = validateRole(input.role);
   return client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
-    if (actorRole === null || !canGrant(actorRole, role)) {
-      throw forbidden();
+    if (actorRole === null || !canGrantRole(actorRole, role)) {
+      throw workspaceForbidden();
     }
     if (!isUuid(input.userId)) {
       throw new AuthError("auth/user-not-found", "User was not found.");
@@ -264,7 +273,7 @@ export async function setMemberRole(
   return client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
     if (actorRole !== "owner") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (role !== "owner") {
       const current = await getMembership(tx, input.workspaceId, input.userId);
@@ -301,16 +310,16 @@ export async function removeMember(
   await client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
     if (actorRole === null) {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     const targetRole = await getMembership(tx, input.workspaceId, input.userId);
     if (targetRole === null) return;
     const selfRemoval = input.userId === input.actorId;
     if (!selfRemoval && actorRole === "member") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (!selfRemoval && actorRole === "admin" && targetRole !== "member") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (targetRole === "owner") {
       await lockRoster(tx, input.workspaceId);
@@ -333,7 +342,7 @@ export async function listMembers(
 ): Promise<Membership[]> {
   const role = await getMembership(tx, workspaceId, callerId);
   if (role === null) {
-    throw forbidden();
+    throw workspaceForbidden();
   }
   const result = await tx.query(
     `select workspace_id, user_id, role, joined_at from workspace_members

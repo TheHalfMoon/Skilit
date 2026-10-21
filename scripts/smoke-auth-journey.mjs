@@ -3,7 +3,7 @@
  * `node scripts/smoke-auth-journey.mjs [port]`
  *
  * Proves real, isolated, authenticated browser journeys on a clean install.
- * Four scenarios run against four disposable databases:
+ * Five scenarios run against five disposable databases:
  *
  *   bootstrap — an empty installation: the owner creates the first account
  *     through the real form, receives a HttpOnly session cookie with no
@@ -31,6 +31,13 @@
  *     real account page to revoke one of its own sessions, signs out every
  *     other session while staying signed in itself, and the revoked token is
  *     refused in both Bearer and Cookie mode.
+ *
+ *   invites — one owner with one workspace: the owner signs up through the
+ *     real form, invites a second person from the workspace page, and the
+ *     invited person opens the invitation link in a separate anonymous
+ *     browser, reads what the invitation is, creates their account and joins
+ *     the workspace. The owner then sees the new member in the roster and
+ *     the invitation as accepted, and a second invitation is revoked.
  *
  * Isolation: a disposable PGlite data directory under the system temp
  * area, migrated by a short-lived child process and then opened by the web
@@ -71,6 +78,7 @@ const ROUTES = {
   boardsApi: "/api/v1/boards",
   sessions: "/api/v1/auth/sessions",
   account: "/account",
+  workspaces: "/api/v1/workspaces",
 };
 const OWNER_EMAIL = "owner@skilit.example";
 // One credential for every fixture identity: the journeys never need two
@@ -90,6 +98,8 @@ const EXPIRY_SESSION_TTL_SECONDS = 600;
 const EXPIRY_BACKDATE_MS = 510_000;
 const BOB_EMAIL = "bob@skilit.example";
 const SESSIONS_EMAIL = "sessions@skilit.example";
+const INVITES_EMAIL = "guest@skilit.example";
+const INVITES_SECOND_EMAIL = "second-guest@skilit.example";
 // A second, unrelated account with a real session of its own. The journey
 // tries to revoke that session from the first account's browser: the answer
 // must be indistinguishable from revoking a session id that never existed,
@@ -201,10 +211,11 @@ const basePort = Number(process.env.SMOKE_PORT ?? process.argv[2] ?? 3105);
 const isolationPort = basePort + 1;
 const expiryPort = basePort + 2;
 const sessionsPort = basePort + 3;
+const invitesPort = basePort + 4;
 if (
   !Number.isInteger(basePort) ||
   basePort < 1 ||
-  sessionsPort > 65535
+  invitesPort > 65535
 ) {
   console.error(`SMOKE_FAIL invalid port: ${process.argv[2] ?? ""}`);
   process.exit(2);
@@ -1197,12 +1208,153 @@ async function sessionsJourney({ page, context, base, prepared }) {
   check(liveEntry?.live === true, "the calling browser's session must still be live");
 }
 
+
+// ------------------------------------------------------------------- invites
+async function invitesJourney({ page, context, base }) {
+  // --- A. the owner signs up through the real form ----------------------
+  await page.goto(base + ROUTES.signup, { waitUntil: "load" });
+  await page.fill("#signup-email", "invites-owner@skilit.example");
+  await page.fill("#signup-password", PASSWORD);
+  await page.click("form button[type=submit]");
+  await page.waitForSelector("div[aria-live='polite'] p", { timeout: 20_000 });
+  const signupNotice = (await page.textContent("div[aria-live='polite'] p")) ?? "";
+  check(
+    signupNotice.includes("Owner account created and signed in"),
+    `the owner sign-up did not report success: ${signupNotice}`,
+  );
+
+  // --- B. the owner invites a second person ----------------------------
+  await page.goto(base + "/workspaces", { waitUntil: "load" });
+  // The selector renders a placeholder option first, so wait for the
+  // choice itself rather than for the option list.
+  await page
+    .waitForFunction(
+      () => {
+        const select = document.querySelector("#workspaces-picker");
+        return select instanceof HTMLSelectElement && select.value !== "";
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
+  const workspaceId = await page.evaluate(() => {
+    const select = document.querySelector("#workspaces-picker");
+    return select instanceof HTMLSelectElement ? select.value : "";
+  });
+  check(workspaceId.length > 0, "the workspace selector must choose the owner's workspace");
+
+  await page.fill("#workspaces-email", INVITES_EMAIL);
+  await page.getByRole("button", { name: "Create invitation" }).click();
+  await page.waitForSelector("#workspaces-invite-link", { timeout: 20_000 });
+  const inviteLink = (await page.inputValue("#workspaces-invite-link")) ?? "";
+  check(inviteLink.includes("/invite/"), `the invitation link is malformed: "${inviteLink}"`);
+  const token = inviteLink.slice(inviteLink.lastIndexOf("/invite/") + "/invite/".length);
+  check(token.length >= 32, "the invitation link must carry a long token");
+
+  // The invitation list shows it as pending.
+  await page.waitForSelector("section[aria-label='Invitations'] table tbody tr", { timeout: 20_000 });
+  const invitationsText =
+    (await page.textContent("section[aria-label='Invitations']")) ?? "";
+  check(invitationsText.includes(INVITES_EMAIL), "the invitation list must name the invited address");
+  check(invitationsText.includes("pending"), "the invitation must be pending");
+
+  // --- C. the invited person accepts in a separate anonymous browser -----
+  const browser = context.browser();
+  check(browser !== null, "the browser context must expose its browser");
+  if (browser === null) return;
+  const guestContext = await browser.newContext();
+  try {
+    const guest = await guestContext.newPage();
+    await guest.goto(`${base}/invite/${encodeURIComponent(token)}`, { waitUntil: "load" });
+    await guest.waitForSelector("#invite-password", { timeout: 20_000 });
+    const preview = (await guest.textContent("main")) ?? "";
+    check(
+      preview.includes(INVITES_EMAIL),
+      `the invitation preview must name the invited address: ${preview.slice(0, 200)}`,
+    );
+    check(
+      preview.includes("Personal"),
+      `the invitation preview must name the workspace: ${preview.slice(0, 200)}`,
+    );
+    // The token itself is never rendered on the invitation page.
+    check(
+      !preview.includes(token),
+      "the invitation page must not render the invitation token",
+    );
+
+    await guest.fill("#invite-password", PASSWORD);
+    await guest.getByRole("button", { name: "Accept and create my account" }).click();
+    await guest.waitForFunction(
+      () =>
+        (document.querySelector("div[aria-live='polite']")?.textContent ?? "").includes("You joined"),
+      undefined,
+      { timeout: 20_000 },
+    );
+
+    // The new account is signed in.
+    const guestSession = await apiCall(guest, ROUTES.session);
+    check(
+      guestSession.status === 200 && guestSession.body?.result?.user?.email === INVITES_EMAIL,
+      `the invited person must be signed in as themselves, saw ${guestSession.status}`,
+    );
+  } finally {
+    await guestContext.close();
+  }
+
+  // --- D. the owner sees the new member ---------------------------------
+  await page.reload({ waitUntil: "load" });
+  await page.waitForSelector("section[aria-label='Members'] table tbody tr", { timeout: 20_000 });
+  const memberRows = await page.locator("section[aria-label='Members'] table tbody tr").count();
+  check(memberRows === 2, `the roster must show two members, saw ${memberRows}`);
+  await page.waitForFunction(
+    () =>
+      (document.querySelector("section[aria-label='Invitations']")?.textContent ?? "").includes(
+        "accepted",
+      ),
+    undefined,
+    { timeout: 20_000 },
+  );
+
+  // The invited person is a member of the owner's workspace.
+  const roster = await apiCall(
+    page,
+    `${ROUTES.workspaces}/${encodeURIComponent(workspaceId)}/members`,
+  );
+  check(roster.status === 200, `the roster must be readable, saw ${roster.status}`);
+  check(
+    (roster.body?.result?.members ?? []).length === 2,
+    "the roster must show two members",
+  );
+
+  // --- E. an invitation can be revoked ----------------------------------
+  await page.fill("#workspaces-email", INVITES_SECOND_EMAIL);
+  await page.getByRole("button", { name: "Create invitation" }).click();
+  await page.waitForSelector("section[aria-label='Invitations'] table tbody tr", { timeout: 20_000 });
+  await page
+    .locator("section[aria-label='Invitations'] table tbody tr", {
+      hasText: INVITES_SECOND_EMAIL,
+    })
+    .getByRole("button", { name: "Revoke" })
+    .click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector("section[aria-label='Invitations']")?.textContent ?? "").includes(
+        "revoked",
+      ),
+    undefined,
+    { timeout: 20_000 },
+  );
+  const revokedLink = await apiCall(page, ROUTES.session);
+  check(revokedLink.status === 200, "the owner stays signed in");
+}
+
 // ------------------------------------------------------------------- main
 try {
   await runScenario("bootstrap", basePort, bootstrapJourney);
   await runScenario("isolation", isolationPort, isolationJourney);
   await runScenario("expiry", expiryPort, expiryJourney);
   await runScenario("sessions", sessionsPort, sessionsJourney);
+  await runScenario("invites", invitesPort, invitesJourney);
 } catch (error) {
   failures.push(`smoke error: ${error?.message ?? error}`);
 }
@@ -1212,5 +1364,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  "SMOKE_PASSED authenticated browser journeys (bootstrap status, signup, workspace, isolation, enumeration, sign-out, expiry, session recovery, session revocation)",
+  "SMOKE_PASSED authenticated browser journeys (bootstrap status, signup, workspace, isolation, enumeration, sign-out, expiry, session recovery, session revocation, workspace invitation)",
 );
