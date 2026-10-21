@@ -115,4 +115,12 @@ test("a control that is announced as unavailable never acts", () => {
     /onFailed/,
     "a request that never completed must reach the same transition as one the server refused",
   );
+  // It must be reported without an HTTP status. A status of 404 would be
+  // taken by the revoke action as "that session is no longer listed",
+  // which a request that never completed cannot mean.
+  assert.match(
+    catchBlock,
+    /onFailed\(undefined\)/,
+    "a request that never completed must be reported without an HTTP status",
+  );
 });
