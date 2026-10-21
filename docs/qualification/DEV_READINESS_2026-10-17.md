@@ -6,7 +6,7 @@ local development plan only — the long-term commercial/cloud vision in
 only where explicit measurable acceptance criteria exist; everything else is
 stated as gates with evidence.
 
-Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mention below is a historical observation of 2026-10-17 and is preserved verbatim.
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mention below is a historical observation of 2026-10-17 and is preserved verbatim. The same note covers the PStack and Alibaba mentions in item 4 of §10: they too were true on 2026-10-17 and were superseded on 2026-10-21, when the zero-cost review stack replaced the metered gate. Both now run — the PStack review panel and the Alibaba Open Code Review delegation — and their evidence is under `docs/reviews/`. For the account-session grain (`P00-G18`) the panel record is `docs/reviews/P00-G18_PSTACK_PANELS.md` and the delegation record is `docs/reviews/P00-G18_OCR_DELEGATION.md`.
 
 No release, no tags, no deployment were performed. All browser/database proof
 used isolated scratch resources, destroyed afterwards.
@@ -24,7 +24,7 @@ used isolated scratch resources, destroyed afterwards.
 
 - Auth/sessions/workspaces/collections/boards/flows/replays/patterns/gallery/assets/lens-jobs: covered by domain suites plus REST↔MCP parity (`envelope-parity`, `golden-journey`, interop stdio/HTTP). No open functional gap found in the adopted scope.
 - First-party browser sign-in (Issue #152 implementation): delivered in #157 — bootstrap-only signup, HttpOnly cookie sessions, sign-out revocation, whoami/expiry recovery, CSRF/origin checks, 9 DB-backed + 3 UI-contract tests, 16/16 real-Chromium E2E on an isolated scratch DB. Issue left open for founder closeout only.
-- Deliberately deferred (recorded, not gaps): cookie-first data pages, operator invite flow, session list/revoke-all UI.
+- Deliberately deferred (recorded, not gaps): cookie-first data pages, operator invite flow. The session list/revoke-all UI is no longer deferred: it was delivered with the account surface (`/account`, `GET`/`DELETE /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{id}`).
 
 ## 3. Agent/MCP readiness — PASS
 
@@ -69,6 +69,6 @@ No release published, no tags created, no deployment performed — per standing 
 
 1. Issue #152: implementation merged; founder closeout pending (no code required).
 2. Issue #34: autonomous program record (informational).
-3. Queued follow-ups: cookie-first data pages, operator invites, session list/revoke-all UI.
+3. Queued follow-ups: cookie-first data pages, operator invites. The session list/revoke-all UI is delivered.
 4. Tool limits honestly recorded: Jev/PStack/Alibaba review unavailable (no keys/access); graft, full CI, Playwright/Chromium, ESLint/TypeScript, migration rehearsals, and real-PostgreSQL suites used instead.
 5. Windows: only the `storage-windows-latest` CI job claims coverage (per `CLEAN_INSTALL.md`); no full Windows install claim is made.

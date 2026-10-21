@@ -1,9 +1,17 @@
 import {
   AUTH_SESSION_TTL_SECONDS,
+  AuthError,
+  listAccountSessions,
+  revokeAccountSession,
+  revokeOtherAccountSessions,
   signIn,
   signOut,
   signUp,
   validateSession,
+} from "../../../packages/db/src/auth.ts";
+import type {
+  AccountSession,
+  AuthenticatedSession,
 } from "../../../packages/db/src/auth.ts";
 import { createWorkspaceTx, listWorkspacesForUser } from "../../../packages/db/src/workspaces.ts";
 import type { DbClient, DbTransaction } from "../../../packages/db/src/db.ts";
@@ -222,6 +230,21 @@ function unauthenticated(requestId: string): SessionRouteResult {
   return { status: err.httpStatus, body: err.toFailureEnvelope() };
 }
 
+function notFound(requestId: string): SessionRouteResult {
+  const err = new AgentContractError("FORBIDDEN_OR_NOT_FOUND", { requestId });
+  return { status: err.httpStatus, body: err.toFailureEnvelope() };
+}
+
+/**
+ * A failure that reveals nothing about the cause. Used when the database
+ * fails: that is not the caller's fault and must not be answered as if
+ * the caller were signed out.
+ */
+function internalOpaque(requestId: string): SessionRouteResult {
+  const err = new AgentContractError("INTERNAL_OPAQUE", { requestId });
+  return { status: err.httpStatus, body: err.toFailureEnvelope() };
+}
+
 async function hasAnyUser(db: { query: DbTransaction["query"] }): Promise<boolean> {
   const result = await db.query("select exists (select 1 from users) as present");
   return (result.rows[0] as Record<string, unknown> | undefined)?.present === true;
@@ -406,6 +429,148 @@ export async function sessionStatusRoute(
   } catch {
     return unauthenticated(requestId);
   }
+}
+
+/**
+ * The session the presented credential belongs to, with the owning user
+ * id, or the failure the caller must see.
+ *
+ * Both revocation routes need exactly this, and they must apply exactly
+ * the origin rule sign-out applies: a cookie carries ambient authority,
+ * so an unsafe method may only exercise it from a matching origin.
+ */
+async function currentSession(
+  db: DbClient,
+  request: Request,
+  requestId: string,
+): Promise<{ id: string; userId: string } | SessionRouteResult> {
+  const presented = requestToken(request);
+  if (presented.token === null) return unauthenticated(requestId);
+  if (presented.viaCookie && isUnsafeMethod(request.method) && !isOriginAllowed(request)) {
+    return invalidInput(requestId, "Request origin is not allowed.");
+  }
+  try {
+    const session = await validateSession(db, presented.token);
+    return { id: session.session.id, userId: session.user.id };
+  } catch (error) {
+    // An invalid credential is a signed-out caller; a database failure is
+    // not, and must not be answered as one.
+    if (error instanceof AuthError) return unauthenticated(requestId);
+    return internalOpaque(requestId);
+  }
+}
+
+/**
+ * GET /api/v1/auth/sessions — the caller's own sessions.
+ *
+ * The list is derived from the server-side user id of the presented
+ * credential, never from a caller-supplied identity, so it can only ever
+ * contain the caller's own sessions. A session that is neither live nor
+ * still listed is still listed, so a holder can see what they have
+ * signed in with. The token and its hash are never part of the answer.
+ */
+export async function listSessionsRoute(
+  db: DbClient,
+  request: Request,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const presented = requestToken(request);
+  if (presented.token === null) return unauthenticated(requestId);
+  let session: AuthenticatedSession;
+  try {
+    session = await validateSession(db, presented.token);
+  } catch (error) {
+    // An invalid credential is a signed-out caller; a database failure is
+    // not, and must not be answered as one.
+    if (error instanceof AuthError) return unauthenticated(requestId);
+    return internalOpaque(requestId);
+  }
+  let sessions: AccountSession[];
+  try {
+    sessions = await db.transaction((tx) =>
+      listAccountSessions(tx, session.user.id),
+    );
+  } catch {
+    // A database failure is not a signed-out caller. Answering 401 here
+    // would sign the browser out over a transient error.
+    return internalOpaque(requestId);
+  }
+  return {
+    status: 200,
+    body: successEnvelope(requestId, {
+      currentSessionId: session.session.id,
+      sessions,
+    }),
+  };
+}
+
+/**
+ * DELETE /api/v1/auth/sessions/{id} — revoke one of the caller's own
+ * sessions.
+ *
+ * A session that belongs to somebody else and a session that does not
+ * exist are the same absence, so the answer cannot be used to probe
+ * which session ids are real. Revoking the caller's own current session
+ * is allowed and signs that browser out, and revoking one that is
+ * already revoked is a no-op that still answers 200, so a retry after a
+ * timeout does not read as "not found".
+ */
+export async function revokeSessionRoute(
+  db: DbClient,
+  request: Request,
+  sessionId: string,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const current = await currentSession(db, request, requestId);
+  if ("status" in current) return current;
+  let revoked: boolean;
+  try {
+    revoked = await db.transaction((tx) =>
+      revokeAccountSession(tx, current.userId, sessionId),
+    );
+  } catch {
+    return internalOpaque(requestId);
+  }
+  if (!revoked) return notFound(requestId);
+  const signedOut = current.id === sessionId;
+  return {
+    status: 200,
+    body: successEnvelope(requestId, { revoked: true, signedOut }),
+    ...(signedOut ? { setCookie: clearSessionCookieHeader(request) } : {}),
+  };
+}
+
+/**
+ * DELETE /api/v1/auth/sessions — revoke every other session of the
+ * caller ("sign out everywhere else").
+ *
+ * The session making the request survives, so the browser that asked
+ * stays signed in while every other browser or agent holding one of the
+ * account's session tokens is locked out. The answer carries how many
+ * sessions were revoked.
+ */
+export async function revokeOtherSessionsRoute(
+  db: DbClient,
+  request: Request,
+  providedRequestId?: unknown,
+): Promise<SessionRouteResult> {
+  const requestId = newRequestId(providedRequestId);
+  const current = await currentSession(db, request, requestId);
+  if ("status" in current) return current;
+  let revoked: number;
+  try {
+    revoked = await db.transaction((tx) =>
+      revokeOtherAccountSessions(tx, current.userId, current.id),
+    );
+  } catch {
+    return internalOpaque(requestId);
+  }
+  return {
+    status: 200,
+    body: successEnvelope(requestId, { revoked, signedOut: false }),
+  };
 }
 
 /**

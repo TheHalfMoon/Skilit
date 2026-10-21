@@ -36,7 +36,7 @@ test("browser session transport rejects remote URLs and accidental bearer header
 });
 
 test("each Skilit human workspace renders session status without token inputs", () => {
-  for (const view of ["gallery", "patterns", "flows", "boards", "lens"]) {
+  for (const view of ["gallery", "patterns", "flows", "boards", "lens", "account"]) {
     const source = readFileSync(new URL(`../app/${view}/page.tsx`, import.meta.url), "utf8");
     assert.match(source, /sessionRequest\(/, `${view} uses cookie-aware transport`);
     assert.match(source, /<SessionAccessBanner \/>/, `${view} communicates session state`);
@@ -45,7 +45,10 @@ test("each Skilit human workspace renders session status without token inputs", 
   const banner = readFileSync(new URL("../components/session-access-banner.tsx", import.meta.url), "utf8");
   assert.match(banner, /\/api\/v1\/auth\/session/);
   assert.match(banner, /skilit:session-expired/);
-  assert.match(banner, /href="\/login"/);
+  // A signed-in visitor is offered the account page; an anonymous one is
+  // offered the sign-in page.
+  assert.match(banner, /"\/account"/);
+  assert.match(banner, /"\/login"/);
   for (const prohibited of ["localStorage", "sessionStorage", "document.cookie"]) {
     assert.ok(!banner.includes(prohibited), `no ${prohibited} access`);
   }

@@ -158,6 +158,11 @@ button, input, select, textarea { font: inherit; }
 }
 .sk-page-content > main:not(.sk-dashboard) button:hover:not(:disabled) { border-color: #ee9b73; }
 .sk-page-content > main:not(.sk-dashboard) button:disabled { cursor: not-allowed; opacity: .6; }
+/* An unavailable button is marked rather than disabled, so a keyboard
+   user who is on it when it becomes unavailable keeps their place. */
+.sk-page-content > main:not(.sk-dashboard) button[aria-disabled='true'] {
+  cursor: not-allowed; opacity: .6;
+}
 
 
 /* Native workflow UI: deliberate, low-friction forms and results, without
@@ -332,3 +337,22 @@ button, input, select, textarea { font: inherit; }
   color: #625f5a; font-size: 12px; margin: 7px 0 0;
   line-height: 1.6;
 }
+
+/* The account surface lists the sessions a signed-in holder may revoke. */
+.sk-account-actions {
+  display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0;
+}
+.sk-account-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px;
+}
+.sk-account-table th,
+.sk-account-table td {
+  text-align: left; padding: 10px 12px; vertical-align: top;
+  border-bottom: 1px solid #f0eeea; line-height: 1.6;
+}
+.sk-account-table th {
+  font-size: 11px; font-weight: 700; color: #625f5a;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.sk-account-table tbody tr:last-child td { border-bottom: none; }
+.sk-account-table code { overflow-wrap: anywhere; }

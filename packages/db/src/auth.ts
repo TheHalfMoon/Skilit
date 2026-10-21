@@ -372,6 +372,114 @@ export async function signOut(tx: DbTransaction, token: string): Promise<void> {
   }
 }
 
+/**
+ * A session as the account holder may see it: never the token, only the
+ * session id, when it started, when it expires, and whether it is still
+ * usable. The token hash is never exposed.
+ */
+export interface AccountSession {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  /** Live means not revoked and not past its expiry at the supplied clock. */
+  live: boolean;
+}
+
+function toAccountSession(row: Record<string, unknown>, now: Date): AccountSession {
+  const expiresAt = toIsoTimestamp(row.expires_at);
+  const revokedAt = row.revoked_at === null || row.revoked_at === undefined
+    ? null
+    : toIsoTimestamp(row.revoked_at);
+  return {
+    id: String(row.id),
+    createdAt: toIsoTimestamp(row.created_at),
+    expiresAt,
+    revokedAt,
+    live: revokedAt === null && new Date(expiresAt).getTime() > now.getTime(),
+  };
+}
+
+/**
+ * Every session that belongs to one user, newest first. The list is the
+ * user's own account surface, so it is derived from the server-side
+ * user id and never from a caller-supplied identity.
+ */
+export async function listAccountSessions(
+  tx: DbTransaction,
+  userId: string,
+  now?: Date,
+): Promise<AccountSession[]> {
+  const at = now ?? new Date();
+  const result = await tx.query(
+    `select id, created_at, expires_at, revoked_at
+     from sessions where user_id = $1
+     order by created_at desc, id desc`,
+    [userId],
+  );
+  return result.rows.map((row) => toAccountSession(row, at));
+}
+
+/**
+ * Revoke one session that belongs to the given user.
+ *
+ * Returns false when the session does not exist or belongs to somebody
+ * else, so a caller cannot distinguish the two cases: a foreign session
+ * id and an invented one are the same absence.
+ *
+ * Revoking a session that is already revoked returns true and keeps the
+ * first revocation time, so a caller that retries after a timeout learns
+ * that the session is gone rather than that it never existed.
+ */
+export async function revokeAccountSession(
+  tx: DbTransaction,
+  userId: string,
+  sessionId: string,
+): Promise<boolean> {
+  try {
+    const result = await tx.query(
+      `update sessions set revoked_at = coalesce(revoked_at, now())
+       where id = $1 and user_id = $2
+       returning id`,
+      [sessionId, userId],
+    );
+    return result.rows.length > 0;
+  } catch (error) {
+    // A malformed identifier is an absent session, not a database error.
+    if (isInvalidIdentifier(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * Revoke every live session of one user except the one named, and answer
+ * how many were revoked. Used by "sign out of every other session": the
+ * caller's own session survives so the browser stays signed in.
+ *
+ * Only live sessions are counted. An expired session cannot sign in any
+ * more, so counting it would tell the caller that more browsers were
+ * locked out than actually were.
+ */
+export async function revokeOtherAccountSessions(
+  tx: DbTransaction,
+  userId: string,
+  keepSessionId: string,
+): Promise<number> {
+  try {
+    const result = await tx.query(
+      `update sessions set revoked_at = coalesce(revoked_at, now())
+       where user_id = $1 and revoked_at is null and expires_at > now() and id <> $2
+       returning id`,
+      [userId, keepSessionId],
+    );
+    return result.rows.length;
+  } catch (error) {
+    // A malformed keeper id leaves every other session untouched.
+    if (isInvalidIdentifier(error)) return 0;
+    throw error;
+  }
+}
+
 export async function getUserById(
   tx: DbTransaction,
   id: string,
