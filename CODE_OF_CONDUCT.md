@@ -24,7 +24,7 @@ These standards apply to issues, PRs, reviews, discussions, shared project space
 
 For repository discussion or conduct concerns, use GitHub's report or moderation mechanisms where available, or contact a repository maintainer through an appropriate **private** channel. Do not publish sensitive accounts or allegations unnecessarily.
 
-For security vulnerabilities, follow [SECURITY.md](SECURITY.md) and use private vulnerability reporting if it is enabled. A public bug report is not the correct venue for exploit details.
+For security vulnerabilities, follow the security constraints in [SECURITY.md](SECURITY.md) and use private vulnerability reporting if it is enabled. A public bug report is not the correct venue for exploit details.
 
 No external email address or response SLA is claimed by this document; repository maintainers should explicitly configure contact and moderation channels before broad public community onboarding.
 

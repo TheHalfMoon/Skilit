@@ -11,7 +11,7 @@ Skilit is currently a **development-stage, local-first** product. There is no pu
 | How to set up local development | [Contributing](CONTRIBUTING.md) and [clean-install procedure](docs/operations/CLEAN_INSTALL.md) |
 | How browser login and workspaces operate | [Browser workspaces](docs/operations/BROWSER_WORKSPACES.md) |
 | API/MCP design and accepted capabilities | [Product contract](PRODUCT.md) and [architecture](ARCHITECTURE.md) |
-| Security vulnerability or private credentials exposed | Follow [security guidance](SECURITY.md); avoid public issues |
+| Security vulnerability or private credentials exposed | Follow the [security constraints](SECURITY.md); avoid public issues |
 | Contributor conduct or moderation concern | [Community standards](CODE_OF_CONDUCT.md) and platform reporting tools |
 
 ## What to include in a bug report

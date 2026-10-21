@@ -17,7 +17,7 @@ Search existing issues and pull requests before proposing a change. Scope your w
 
 ## Local setup
 
-Use a clean worktree or branch from the **current** canonical `main`. Preserve existing untracked files, including `.ignore`. The [governance rules](GOVERNANCE.md) prescribe `skilit/pXX-gYY-short-name` branches for adopted implementation grains, with a recorded base SHA.
+Use a clean worktree or branch from the **current** canonical `main`. Preserve existing untracked files and any concurrent agent changes. The [governance rules](GOVERNANCE.md) prescribe `skilit/pXX-gYY-short-name` branches for adopted implementation grains, with a recorded base SHA.
 
 The root [package.json](package.json) pins pnpm **9.12.0**, supports Node.js **>=20.9.0**, and CI uses a pinned Node 22 toolchain. CI also pins Python **3.12.14**; the repository declares no Python floor, so use that version. For database and storage prerequisites follow the [clean-install procedure](docs/operations/CLEAN_INSTALL.md); apply database migrations as described in the [runbook](docs/operations/RUNBOOK.md).
 
@@ -47,7 +47,7 @@ python scripts/validate_agent_contract.py
 python scripts/validate_registry.py
 ```
 
-The required hosted checks are defined by [docs/operations/CI.md](docs/operations/CI.md) together with the [CI workflow](.github/workflows/ci.yml).
+The authoritative list of required hosted checks is the [CI workflow](.github/workflows/ci.yml); [docs/operations/CI.md](docs/operations/CI.md) describes the contract behind those jobs.
 
 Some tests need services or fixtures. Clearly label skipped or blocked checks; never infer PASS from a command that was not executed. UI changes should use Chromium-based desktop/mobile interaction tests and accessibility checks. API/MCP changes should test denied requests, stable typed errors, secret handling, and cross-workspace boundaries.
 
@@ -70,7 +70,7 @@ Make focused PRs, preserve other agents' work, and use normal merge commits only
 
 Treat URLs, HTML/SVG, screenshots, imported assets, models, session credentials and MCP arguments as untrusted. Never publish keys, cookies, sensitive workspace material, live private URLs or exploit instructions in issues, logs or test screenshots.
 
-Follow [SECURITY.md](SECURITY.md). If available, use GitHub's **private vulnerability reporting** instead of a public issue. Otherwise arrange a private channel with the repository maintainers before sharing vulnerability details.
+Follow the security constraints in [SECURITY.md](SECURITY.md). If available, use GitHub's **private vulnerability reporting** instead of a public issue. Otherwise arrange a private channel with the repository maintainers before sharing vulnerability details.
 
 ## Source reuse and conduct
 

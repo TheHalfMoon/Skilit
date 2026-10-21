@@ -36,11 +36,13 @@ Record the **actual** commands, evidence URLs and outcomes. Mark a non-applicabl
 
 **Exact-head CI run and conclusion:**
 
+**CI ruleset identifier and required-check list applied at merge:**
+
 **Known risks, missing evidence, unresolved questions:**
 
 ## Merge and release boundaries
 
-- [ ] No unrelated worktree, `.ignore` or concurrent agent changes were overwritten.
+- [ ] No unrelated worktree, untracked file or concurrent agent changes were overwritten.
 - [ ] Synthetic fixtures/logs/screenshots contain no secrets or private user content.
 - [ ] Signed historical releases, tags, and API compatibility were preserved.
 - [ ] No unapproved release, package publish, tag, public deployment or paid service.
