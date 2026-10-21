@@ -7,16 +7,18 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 - Grain: `P00-G18` — let an account see and revoke its own sessions.
 - Branch: `skilit/p00-g18-account-sessions`
 - Canonical base SHA: `2b053d351385e5100f69494247d8aa42fe8a84be`
-- Reviewed candidate HEAD: `a84ceb4bfae59019184ddc2f388155dea9a043f0` — the code state that
-  ships. The first two review rounds ran on `a86565f7b64c341251b2678cb0d34917d22d7532`,
-  and the third round ran on the delta to `a84ceb4`.
+- **Reviewed candidate HEAD: `8ec23c435b742d1404276497cdea768322f6f6a9`** — the code state
+  that ships. The review rounds ran over `a86565f7b64c341251b2678cb0d34917d22d7532`,
+  `a84ceb4bfae59019184ddc2f388155dea9a043f0` and
+  `c5dc98c188475eae930085fcece1e45e01fe0ae6` before it; every commit between the base
+  and the reviewed candidate was covered by one of the PStack rounds.
 - OCR version: `open-code-review v1.12.13 (fabbdb29) darwin/arm64`
 - Provider status: **no OCR LLM provider credential configured**. Provider-backed OCR
   review was therefore not available and was not simulated.
 
 ## Exact-diff preview
 
-`ocr delegate preview --from origin/main --to a84ceb4bfae59019184ddc2f388155dea9a043f0 --format json`
+`ocr delegate preview --from origin/main --to 8ec23c435b742d1404276497cdea768322f6f6a9 --format json`
 
 - `total_files`: 20
 - `reviewable_count`: **14**
@@ -25,7 +27,7 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
   `docs/qualification/DEV_READINESS_2026-10-17.md`,
   `docs/qualification/V1_LOCAL_ACCEPTANCE_CONTRACT.md` and the two review records under
   `docs/reviews/`, all `unsupported_ext`
-- `total_insertions`: 2295, `total_deletions`: 14
+- `total_insertions`: 2482, `total_deletions`: 14
 - `merge_base`: `2b053d351385e5100f69494247d8aa42fe8a84be`
 
 **Reviewable (14):**
@@ -33,7 +35,7 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 | File | Status | +/- |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | modified | +1 / -0 |
-| `apps/web/app/account/page.tsx` | added | +303 / -0 |
+| `apps/web/app/account/page.tsx` | added | +306 / -0 |
 | `apps/web/app/api/v1/auth/sessions/[id]/route.ts` | added | +43 / -0 |
 | `apps/web/app/api/v1/auth/sessions/route.ts` | added | +62 / -0 |
 | `apps/web/app/globals.css` | modified | +24 / -0 |
@@ -41,20 +43,26 @@ per `GOVERNANCE.md` and the founder decision of 2026-10-21.
 | `apps/web/components/skilit-shell.tsx` | modified | +1 / -0 |
 | `apps/web/lib/session.ts` | modified | +165 / -0 |
 | `apps/web/tests/account-sessions.test.mjs` | added | +343 / -0 |
-| `apps/web/tests/account-ui.test.mjs` | added | +109 / -0 |
+| `apps/web/tests/account-ui.test.mjs` | added | +126 / -0 |
 | `apps/web/tests/browser-session.test.mjs` | modified | +5 / -2 |
 | `packages/db/src/auth.ts` | modified | +108 / -0 |
 | `packages/db/tests/account-sessions.test.mjs` | added | +260 / -0 |
 | `scripts/smoke-auth-journey.mjs` | modified | +377 / -6 |
 
-The same preview run against the round-1 and round-2 candidate
-`a86565f7b64c341251b2678cb0d34917d22d7532` gave `total_files` 18, `reviewable_count` 14,
-`excluded_count` 4 and `total_insertions` 1781, `total_deletions` 15. The reviewable
-**set** is the same fourteen files in both; the two files that changed between the
-candidates are `apps/web/app/account/page.tsx` and `apps/web/tests/account-ui.test.mjs`,
-and both were re-reviewed below at their final content. The merge candidate adds only
-excluded Markdown, so its reviewable count and rule groups are the same as the ones
-quoted here.
+The preview run against the earlier candidates gives the same reviewable **set** of
+fourteen files and the same resolved rule groups:
+
+| Candidate | total_files | reviewable_count | excluded_count | insertions | deletions |
+| --- | --- | --- | --- | --- | --- |
+| `a86565f` (rounds 1-2) | 18 | 14 | 4 | 1781 | 15 |
+| `a84ceb4` (round 3) | 20 | 14 | 6 | 2295 | 14 |
+| `8ec23c4` (reviewed candidate) | 20 | 14 | 6 | 2482 | 14 |
+
+Between those candidates the reviewable files that changed were
+`apps/web/app/account/page.tsx` and `apps/web/tests/account-ui.test.mjs`, and both are
+re-reviewed below at their final content. The merge candidate adds only the two
+excluded Markdown records, so its reviewable count, its excluded set and its resolved
+rule groups are the same as the ones quoted here; only the excluded insertions move.
 
 
 ## Resolved rules
@@ -125,29 +133,34 @@ reviewable files changed. They are re-reviewed here at their final content, agai
 same resolved group-2 rules.
 
 **`apps/web/app/account/page.tsx`.** The final content differs from the version
-reviewed in rounds 1 and 2 in five ways: `callJson` is memoised with `useCallback` and
+reviewed in rounds 1 and 2 in six ways: `callJson` is memoised with `useCallback` and
 an empty dependency list; it gained an optional `onFailed` callback, typed
 `(status: number | undefined) => void | Promise<void>`, invoked with the HTTP status on
 a refusal and with `undefined` when the request never completed; the 404 handling moved
 from a dedicated parameter into the revoke action's own `onFailed`; the bulk button's
-handler guard now names the same condition as its `aria-disabled`; and `load` now
-depends on `[callJson]`. Checked against the group-2 rules: no spelling error, no dead
-code — `onFailed` is reached from both the refusal path and the catch path, and the
-`undefined` argument is what distinguishes a request that never completed from one the
-server refused — no duplicated logic, comments that state what the code does, no
-hardcoded business value outside the page's own user-facing strings, no `var`, no `==`,
-no `any`, null checks on every dereference, no nested ternary, hooks called at the top
-level, `useCallback` and `useEffect` dependency arrays correct and stable, no render
-side effect, no inline style, no inner component, every request awaited with error
-handling, and no XSS, `innerHTML`, `eval`, `Function`, `document.write`, browser storage,
-bearer token or prototype modification anywhere in the file. No finding.
+handler guard now names the same condition as its `aria-disabled`; `load` now depends on
+`[callJson]`; and the catch branch reaches the same transition as a refusal, so a
+request that never completed cannot leave a stale table on screen next to the error.
+Checked against the group-2 rules: no spelling error, no dead code — `onFailed` is
+reached from both the refusal path and the catch path, and the `undefined` argument is
+what distinguishes a request that never completed from one the server refused, so a
+transport failure cannot be mistaken for a 404 — no duplicated logic, comments that
+state what the code does, no hardcoded business value outside the page's own user-facing
+strings, no `var`, no `==`, no `any`, null checks on every dereference, no nested ternary,
+hooks called at the top level, `useCallback` and `useEffect` dependency arrays correct
+and stable, no render side effect, no inline style, no inner component, every request
+awaited with error handling, and no XSS, `innerHTML`, `eval`, `Function`,
+`document.write`, browser storage, bearer token or prototype modification anywhere in
+the file. No finding.
 
-**`apps/web/tests/account-ui.test.mjs`.** The final content adds one test, which reads
-the page as text and asserts that the announcement and the guard on the bulk button name
-the same condition, and that both the refusal path and the catch path reach the
-unavailable transition. It contains no business logic, no credential, and no unsafe
-construct; the rules that apply to it are the same code-quality rules as for the
-production files, and it satisfies them. No finding.
+**`apps/web/tests/account-ui.test.mjs`.** The final content adds one test and one
+further assertion to it. The test reads the page as text and asserts that the
+announcement and the guard on the bulk button name the same condition, and that both
+the refusal path and the catch path reach the unavailable transition; the further
+assertion requires the catch path to call the hook with no HTTP status, so that a
+transport failure cannot take the revoke action's 404 branch. It contains no business
+logic, no credential, and no unsafe construct; the rules that apply to it are the same
+code-quality rules as for the production files, and it satisfies them. No finding.
 
 ### Group 3 — the stylesheet and the documents
 
@@ -163,14 +176,14 @@ between the two reviewed candidates, and each candidate's state is described as 
 actually was:
 
 - At the round-1 and round-2 candidate `a86565f`, the acceptance matrix's
-  "Review-stack migration" bullet was intact but the new PR #168 entry had been spliced
-  into the middle of it, leaving an orphaned tail that made a false claim about the pull
-  request and contradicted the same file's own rule that historical entries are
-  preserved. This delegated review did not report that defect; the round-2 product
-  judge found it, and it is fixed in the round-3 candidate, where the matrix is one
-  added line against `origin/main` and the historical bullet is byte-for-byte
-  identical.
-- At the round-3 candidate `a84ceb4`, the matrix carries a correct, separate PR #168
+  "Review-stack migration" bullet had been split in two by the splice that inserted
+  the new PR #168 entry into the middle of it, leaving an orphaned tail that made a
+  false claim about the pull request and contradicted the same file's own rule that
+  historical entries are preserved. This delegated review did not report that defect;
+  the round-2 product judge found it. It is fixed from the round-3 candidate onward,
+  where the matrix is one added line against `origin/main` and the historical bullet is
+  byte-for-byte identical.
+- At the reviewed candidate `8ec23c4`, the matrix carries a correct, separate PR #168
   entry. The readiness record no longer describes the session list/revoke-all UI as
   deferred, and the v1 Local contract's supported-surface list names the account
   surface.

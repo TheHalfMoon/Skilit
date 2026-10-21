@@ -4,11 +4,17 @@
 - Branch: `skilit/p00-g18-account-sessions`
 - Canonical base SHA: `2b053d351385e5100f69494247d8aa42fe8a84be` (the merge of the
   authenticated browser E2E, PR #166)
-- Reviewed candidate HEAD, rounds 1 and 2: `a86565f7b64c341251b2678cb0d34917d22d7532`
-- Reviewed candidate HEAD, round 3: `a84ceb4bfae59019184ddc2f388155dea9a043f0` — the code
-  state that ships
-- Reviewed diff: `origin/main...a84ceb4bfae59019184ddc2f388155dea9a043f0` — 20 files,
-  2295 insertions, 14 deletions.
+- **Reviewed candidate HEAD: `8ec23c435b742d1404276497cdea768322f6f6a9`** — the code state
+  that ships.
+- The review rounds ran over a sequence of candidates: rounds 1 and 2 over
+  `a86565f7b64c341251b2678cb0d34917d22d7532`, round 3 over
+  `a84ceb4bfae59019184ddc2f388155dea9a043f0`, and the final round over
+  `c5dc98c188475eae930085fcece1e45e01fe0ae6` and `8ec23c435b742d1404276497cdea768322f6f6a9`.
+  Every commit between the base and the reviewed candidate was covered by one of those
+  rounds; the table under §Findings and disposition names which round covered which
+  commit.
+- Reviewed diff: `origin/main...8ec23c435b742d1404276497cdea768322f6f6a9` — 20 files,
+  2482 insertions, 14 deletions.
 - Mechanism: upstream PStack `ps-review` workflow from
   `https://github.com/phthomas/pstack`, pinned at commit
   `faa4e9fb22e5cd19ac85ca094f6056ba89eaa701` (v2.3.1, MIT). The panel was run with the
@@ -17,11 +23,11 @@
   authorization denials. Decision §3.4 forbids a degraded self-review for such a grain,
   so the security bar was judged by a dedicated independent fresh-context security judge
   in every round, and the split panel was used rather than the default combined one.
-- Judges: **nine independent fresh-context judge sessions** — five in the first round
+- Judges: **eleven independent fresh-context judge sessions** — five in the first round
   (a dedicated security judge, two correctness judges over the data/REST and UI/test
-  surfaces, a parsimony judge, a product judge), two in the second (a dedicated security
-  delta re-review and a combined correctness/parsimony/product delta re-review) and two in
-  the third (the same two bars again over the last delta). No judge authored the diff.
+  surfaces, a parsimony judge, a product judge), then two in each of three fix cycles (a
+  dedicated security delta re-review and a combined correctness/parsimony/product delta
+  re-review). No judge authored the diff.
 - Degraded level: **none**.
 
 ## Panel manifest
@@ -30,19 +36,18 @@
 panel: full — correctness ✓ (fresh-context judge, data/REST surface) · correctness ✓
 (fresh-context judge, UI/test surface) · parsimony ✓ (fresh-context judge) · product ✓
 (fresh-context judge) · security ✓ (dedicated fresh-context security judge) ·
-deltas: four independent fresh-context delta re-reviews ✓ ·
-base 2b053d351385e5100f69494247d8aa42fe8a84be · rounds 1-2 reviewed candidate
-a86565f7b64c341251b2678cb0d34917d22d7532 · round 3 reviewed candidate
-a84ceb4bfae59019184ddc2f388155dea9a043f0 · merge candidate: the commit carrying this
+deltas: six independent fresh-context delta re-reviews ✓ ·
+base 2b053d351385e5100f69494247d8aa42fe8a84be · reviewed candidate
+8ec23c435b742d1404276497cdea768322f6f6a9 · merge candidate: the commit carrying this
 record
 ```
 
-The merge candidate differs from the round-3 reviewed candidate `a84ceb4` only by the
-two review-record files under `docs/reviews/` — this file and
-`docs/reviews/P00-G18_OCR_DELEGATION.md` — both Markdown, both excluded from Alibaba
-OCR's reviewable set and not indexed by Graft. The code, test and acceptance-matrix
-fixes that `a84ceb4` carries are covered by the round-3 delta re-reviews, not by the
-panel's mechanical evidence, which was produced on the two named reviewed candidates.
+The merge candidate differs from the reviewed candidate `8ec23c4` only by the two
+review-record files under `docs/reviews/` — this file and
+`docs/reviews/P00-G18_OCR_DELEGATION.md`. Both are Markdown, so both are excluded from
+Alibaba OCR's reviewable set and neither is indexed by Graft: the reviewable set, the
+resolved rule groups and every mechanical number quoted in this record are the same for
+the merge candidate as for the reviewed candidate.
 
 One further note on the history: the commit that carries the round-3 code fixes is
 titled `docs(reviews): record the P00-G18 panel and OCR delegation evidence`, which
@@ -339,10 +344,68 @@ refresh discards a still-valid table, which is the restored base behaviour; and 
 `graft build` node count on the merge candidate was not reproduced by this judge
 because `graft build` writes into the tree.
 
+### Fourth cycle — the last fix cycle
+
+Two independent fresh-context delta re-reviews over `a84ceb4..c5dc98c` and
+`c5dc98c..8ec23c4`.
+
+#### Security delta re-review — zero code must-fix, five record-accuracy must-fix
+
+The judge confirmed that the server side is byte-identical to the round-3 candidate,
+that the `undefined` sentinel is type-level distinct from every HTTP status, that the
+revoke action's hook cannot take its 404 branch on a transport failure, that the load
+action's hook clears the stale table on both the refusal and the transport-failure
+paths, that the abort guard still suppresses every state write on unmount, and that no
+token, token hash, foreign session id or raw error is reachable from a failure message.
+**No new hole in the code.**
+
+The judge then found that this record and the OCR record still named `a84ceb4` as the
+shipping state, which `c5dc98c` had overtaken — the same record-accuracy defect class
+the record itself had already fixed once, against the repository's own `P00-G17`
+precedent. **Fixed**: this record now names `8ec23c4` as the reviewed candidate, the
+merge candidate is described as differing from it only by the two Markdown records, and
+every mechanical number is scoped to the candidate it was measured on.
+
+The judge also found a real gap in the new UI contract test: it asserted that the catch
+branch *reached* the failure hook but not what it was called with, so changing
+`onFailed(undefined)` to `onFailed(404)` kept every test green — and would have made a
+request that never completed take the revoke action's 404 branch, clearing the failure
+banner and showing the false "That session is no longer listed" notice. **Fixed**: the
+test now requires the catch branch to call the hook with no HTTP status, and a mutation
+control that changes the call to `onFailed(404)` makes the test fail.
+
+#### Combined correctness, parsimony and product delta re-review — zero code must-fix
+
+The judge confirmed that the catch branch now reaches the unavailable transition, that
+the base behaviour at `36d1113` is restored completely, that the new assertion is a
+real guard, that the OCR record's and this record's claims are now true, and that the
+matrix's historical bullet is still byte-for-byte identical to `origin/main`'s. It
+re-verified the numbers at the candidate it reviewed, and confirmed the Graft figures
+from the tree's own graph artifact, including that the account page's `callJson` is
+absent from the graph's function nodes while the five sibling pages' remain.
+
+It raised one worth-considering finding against the OCR record's description of the
+matrix at `a86565f`: the record said the historical bullet "was intact but the new PR
+#168 entry had been spliced into the middle of it", which is self-contradictory — the
+splice split the bullet in two. **Fixed**: the record now says the bullet was split in
+two by the splice.
+
+#### Coverage of the commits between the base and the reviewed candidate
+
+| Commit | Contents | Round that covered it |
+| --- | --- | --- |
+| `efabf73` | the feature | round 1 |
+| `a3bc2af` | the account page driven in a real browser | round 1 |
+| `36d1113` | inline styles → design system; the vacuous smoke check made real | round 1 |
+| `a86565f` | the thirteen round-1 must-fix findings | rounds 2 and 3 |
+| `a84ceb4` | the round-2 findings, plus the two review records | round 3 |
+| `c5dc98c` | the catch-branch transition, plus the record corrections | round 4 |
+| `8ec23c4` | the UI contract test requires no HTTP status | round 4 |
+
 ## The panel proved the new assertions are not vacuous
 
-Seven mutation controls were run against the product in scratch copies. Six make the
-smoke fail where it previously passed; the seventh makes the new UI contract test fail:
+Nine mutation controls were run against the product in scratch copies. Six make the
+smoke fail where it previously passed; three make the new UI contract test fail:
 
 | Control | Result |
 | --- | --- |
@@ -353,6 +416,8 @@ smoke fail where it previously passed; the seventh makes the new UI contract tes
 | the State-column assertion changed to a word the page never renders | `SMOKE_FAIL the revoked row must say Revoked, saw "…Revoked…"` |
 | the server-output token assertion pointed at a token the fixture mints | the assertion fires |
 | the bulk button's guard no longer matched its `aria-disabled` | the new UI contract test fails |
+| the catch branch stopped calling the failure hook | the new UI contract test fails |
+| the catch branch called the failure hook with `404` instead of no status | the new UI contract test fails |
 
 The sixth control was described in the record before it had actually been run; it was
 then run, and it fires with exactly the documented message.
@@ -364,21 +429,18 @@ announcer Next.js renders outside the page content, and the control proves it fi
 
 ## Mechanical evidence
 
-Graft 0.21.1. On the **reviewed candidate `a86565f`**:
+Graft 0.21.1, on the **reviewed candidate `8ec23c4`**:
 
-- `graft build --no-gitignore --no-ignore .` — exit 0; 2622 nodes (1438 function, 430
-  method, 312 file, 280 interface, 87 class, 75 type), 7609 edges, 312 cards.
+- `graft build --no-gitignore --no-ignore .` — exit 0; 2621 nodes (1437 function, 430
+  method, 312 file, 280 interface, 87 class, 75 type), 7605 edges, 312 cards.
 - `graft check .` — "graph check: OK — the wiring graph is in sync with the code".
 - `graft blast --base origin/main --format markdown` — "5 areas changed → 1 area can be
   affected. 1 dependent symbol, depth 2".
 
-On the **merge candidate**, the same three commands: build exit 0 with 2621 nodes
-(1437 function, 430 method, 312 file, 280 interface, 87 class, 75 type), 7605 edges,
-312 cards — one function fewer than `a86565f`, because `callJson` became a
-`useCallback` binding rather than a function declaration and is no longer counted as
-its own symbol; `graft check .` — "graph check: OK"; `graft blast --base origin/main
---format markdown` — "5 areas changed → 1 area can be affected. 1 dependent symbol,
-depth 2", unchanged.
+The node count is one lower than the first candidate's 2622 because `callJson` became a
+`useCallback` binding rather than a function declaration, and is no longer counted as
+its own symbol; the round-3 judge confirmed that the account page's `callJson` is
+absent from the graph's function nodes while the five sibling pages' remain.
 
 Graft coverage limitation, stated explicitly: the per-area test signal reports 2 areas
 reached and 3 not reached. `internalOpaque` and `listAccountSessions` are reached by
@@ -389,20 +451,13 @@ as a test path into the page module. The account page is nevertheless exercised 
 runtime by a real Chromium browser, and the banner by source-text assertions. This is a
 statement about Graft's reachability analysis, not about the coverage itself.
 
-The mechanical suites on the **reviewed candidate `a86565f`**: 288/288 Python; 239/239
+The mechanical suites on the **reviewed candidate `8ec23c4`**: 288/288 Python; 240/240
 Node across `tests/node/`, `apps/web/tests/` and `apps/worker/tests/`; 156 pass and 15
-pre-existing skips across `packages/db/tests/`; `eslint` clean; `tsc --noEmit` clean;
-the production build clean; `scripts/smoke-auth-journey.mjs` exit 0 with no disposable
-directory left behind; `scripts/ci_hygiene.py`, `scripts/validate_upstreams.py` and
-`scripts/validate_agent_contract.py` all pass.
-
-The **merge candidate's** own gate, produced after the round-3 fixes: 288/288 Python;
-240/240 Node across `tests/node/`, `apps/web/tests/` and `apps/worker/tests/`; 156 pass
-and 15 pre-existing skips across `packages/db/tests/`; `eslint` clean; `tsc --noEmit`
-clean; the production build clean; `scripts/smoke-auth-journey.mjs` exit 0;
-`scripts/ci_hygiene.py` clean at 1069 tracked files;
-`scripts/validate_upstreams.py` and `scripts/validate_agent_contract.py` pass. The one
-extra Node test is the new UI contract test.
+pre-existing skips across `packages/db/tests/` (the five `pg-*.test.mjs` files, which
+skip without a real PostgreSQL); `eslint` clean; `tsc --noEmit` clean; the production
+build clean; `scripts/smoke-auth-journey.mjs` exit 0 with no disposable directory left
+behind; `scripts/ci_hygiene.py` clean at 1069 tracked files;
+`scripts/validate_upstreams.py` and `scripts/validate_agent_contract.py` pass.
 
 ## Known limitations accepted by the panel
 
