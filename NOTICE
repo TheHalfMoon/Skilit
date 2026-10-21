@@ -195,6 +195,15 @@ no donor binary, source, or weight is bundled.
   - Rights: code license-governed; data / assets / models not
     applicable; trademarks restricted.
 
+3o. pstack — https://github.com/phthomas/pstack
+  - Pin: faa4e9fb22e5cd19ac85ca094f6056ba89eaa701
+  - License: MIT
+  - Markdown-only agent workflow skills providing the review panel used as the mandatory
+    pre-merge review gate. The skills are installed at review time from the pinned commit
+    and are never vendored into this candidate, so no PStack source file is distributed.
+  - Rights: code license-governed; data / assets / models / services / trademarks
+    not-applicable.
+
 3n. Separate upstream references (NOT activated, NOT distributed):
   craft-libs (rev 5c874d51eeb3de70e735c8ce87a59a7dedd47675) and
   craft-fonts attribution, referenced by the Rust donors. Activation
@@ -447,7 +456,7 @@ remain under this license.
 --------------------------------------------------------------------------------
   - Root license: LICENSE (Apache-2.0, Skilit original code)
   - Provenance policy: CODE_PROVENANCE.md, DATA_PROVENANCE.md
-  - Source lock: UPSTREAMS.lock.yml (39 sources: 14 ready, 24 planned,
+  - Source lock: UPSTREAMS.lock.yml (40 sources: 15 ready, 24 planned,
     1 imported)
   - Donor pins: imports/craft-suite/donor-pins.json
   - Authorizations: docs/provenance/authorizations/
