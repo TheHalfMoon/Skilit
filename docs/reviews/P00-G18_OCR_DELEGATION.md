@@ -67,14 +67,22 @@ rule groups are the same as the ones quoted here; only the excluded insertions m
 
 ## Resolved rules
 
-`ocr delegate rule` resolved, for this file set, into three groups:
+`ocr delegate rule` resolved, for the reviewed candidate's file set, into three groups:
 
 - **group 1 — system / `.github/workflows/**/*.{yaml,yml}`** for `.github/workflows/ci.yml`.
 - **group 2 — system / `**/*.{ts,js,tsx,jsx,mjs,cjs}`** for the account page, the two
   routes, the banner, the shell, `apps/web/lib/session.ts`, the three test files,
   `packages/db/src/auth.ts` and the smoke.
-- **group 3 — system / `default`** for `apps/web/app/globals.css` and the four excluded
-  Markdown documents.
+- **group 3 — system / `default`** for `apps/web/app/globals.css` and the six Markdown
+  documents.
+
+One distinction worth recording, because the two commands answer different questions:
+`ocr delegate rule` resolves a rule group for every path it is given, so the two review
+records under `docs/reviews/` resolve to the default group; `ocr delegate preview`
+filters the diff by the file types the reviewable set supports, so those same two
+records are excluded with `unsupported_ext` and are not part of the reviewable set.
+The rule groups below therefore govern the fourteen reviewable files, and the six
+excluded Markdown documents were read against the default group's questions by hand.
 
 ## Delegated review executed against the exact diff
 
@@ -170,7 +178,8 @@ the stylesheet's existing scale, no colour token is introduced or changed, and t
 brand-token drift test in `apps/web/tests/brand-identity.test.mjs` still passes, so the
 stylesheet and `docs/brand/tokens.json` have not drifted.
 
-The four excluded Markdown documents were read against the default group's correctness,
+The four excluded Markdown documents that are not review records were read against the
+default group's correctness,
 security, performance, maintainability and test-coverage questions. Their state differs
 between the two reviewed candidates, and each candidate's state is described as it
 actually was:
