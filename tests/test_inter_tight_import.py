@@ -33,7 +33,7 @@ LOCK_PATH = ROOT / "UPSTREAMS.lock.yml"
 WORDMARK_PATH = ROOT / "docs" / "brand" / "wordmark-inter-tight-600.json"
 NOTICE_PATH = ROOT / "NOTICE"
 BUNDLED_LICENCE = ROOT / "apps" / "web" / "public" / "brand" / "Inter-Tight-OFL.txt"
-SERVED_LICENCE = ROOT / "docs" / "brand" / "licenses" / "Inter-Tight-OFL.txt"
+DOCS_LICENCE = ROOT / "docs" / "brand" / "licenses" / "Inter-Tight-OFL.txt"
 BUNDLED_SUBSET = ROOT / "apps" / "web" / "public" / "brand" / "inter-tight-latin-600.woff2"
 SOURCE_ID = "inter-tight-google-fonts"
 
@@ -66,7 +66,7 @@ class InterTightImportTests(unittest.TestCase):
         self.assertIn("Copyright 2022 The Inter Project Authors", licence)
         self.assertNotRegex(licence, re.compile(r"with\s+Reserved\s+Font\s+Name", re.IGNORECASE))
         # The two licence copies in the tree are the same bytes.
-        self.assertEqual(_sha256(BUNDLED_LICENCE), _sha256(SERVED_LICENCE))
+        self.assertEqual(_sha256(BUNDLED_LICENCE), _sha256(DOCS_LICENCE))
 
     def test_bundled_subset_matches_the_recorded_digest(self) -> None:
         self.assertEqual(_sha256(BUNDLED_SUBSET), self.wordmark["subsetSha256"])

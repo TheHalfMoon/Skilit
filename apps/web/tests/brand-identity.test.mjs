@@ -174,11 +174,13 @@ test("brand panel text meets WCAG AA contrast on the approved orange field", () 
   for (const { selector, variable, token } of surfaces) {
     const colour = tokens.colors[token];
     assert.ok(colour, `${token} is a recorded brand colour`);
-    assert.ok(css.toUpperCase().includes(colour.toUpperCase()), `${variable} is declared in the stylesheet`);
+    const declared = css.match(new RegExp(`${variable}:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
+    assert.ok(declared, `${variable} is declared in the stylesheet`);
+    assert.equal(declared.toUpperCase(), colour.toUpperCase(), `${variable} matches the recorded ${token} token`);
     const rule = css.split("\n").find((line) => line.startsWith(selector) && line.includes("{"));
     assert.ok(rule, `${selector} has a rule`);
     assert.ok(rule.includes(`var(${variable})`), `${selector} uses ${variable}`);
-    const ratio = contrast(colour, field);
+    const ratio = contrast(declared, field);
     assert.ok(ratio >= 4.5, `${selector} contrast ${ratio.toFixed(3)}:1 on ${field} is below WCAG AA 4.5:1`);
   }
 });

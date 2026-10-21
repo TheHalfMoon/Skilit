@@ -75,6 +75,8 @@ affected by regenerating or updating the branding source.
 | --- | --- | --- |
 | Orange mark | `#FF6A1F` | Founder-approved Skilit orange on cream |
 | Orange field | `#FF782D` | Reverse-logo background, legible with dark lettering |
+| Brand panel text | `#42301F` | Body text on the orange field, WCAG AA at 4.764:1 |
+| Brand panel text, strong | `#35251C` | Emphasis text on the orange field, WCAG AA at 5.567:1 |
 | Ink | `#0F0F0F` | Reverse mark, text, high contrast |
 | Cream | `#FAF8F5` | Primary mark background |
 | Workspace surface | `#F7F6F3` | Main workspace background |
