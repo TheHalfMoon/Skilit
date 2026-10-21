@@ -47,7 +47,7 @@ Concurrent frontier: PR #7 is an isolated donor screenshot queue under review; i
 
 **Do not replace previously closed P00/G01 work.** The next implementation priorities are:
 
-1. Close or reconcile the independent pending PR #7 using its own exact-HEAD Jev/OCR/CI rules. A planning PR must not merge unrelated code or rewrite PR #7's head.
+1. Close or reconcile the independent pending PR #7 using its own exact-HEAD review-stack/OCR/CI rules. A planning PR must not merge unrelated code or rewrite PR #7's head.
 2. G01-02c: Source import dependency and quarantine resolution plan. Compute each candidate file's imported path dependencies, excluded references, licensing and runtime surface; select *only* the smallest useful module. Never blindly unquarantine.
 3. G01-03a: Skilit-owned minimal Next.js application scaffold with health route, no donor branding or images, pinned pnpm/TypeScript/Node, clean install/build.
 4. G01-03b: Integrate one qualified donor provider or component as a demonstrable app capability; imported/smoke status explicit. Do not claim full Monet parity.
@@ -69,7 +69,7 @@ Each line expands to small PR grains following `GOVERNANCE.md`. Do not commit bo
 | Threats | Auth/data flow, rights, egress, prompt injection, quotas where relevant |
 | Verification | Reproducible local commands with outputs, fixtures and negative tests |
 | Graph | Current Graft `build`, `check`, and exact-base `blast` |
-| Review | Exact-diff TypeSafe Jev judgment/report + real Alibaba OCR or explicit delegate/unsupported status |
+| Review | Exact-diff PStack review-panel report (independent or explicitly degraded) + real Alibaba OCR or explicit delegate/unsupported status |
 | CI | Actual successful CI on immutable PR head (not merely local/previous PR status) |
 | Release | Normal merge commit and successful post-merge check on `main` |
 | Product state | Explicit level: imported / compiled / integrated / reachable / launch-qualified |

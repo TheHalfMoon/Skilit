@@ -27,4 +27,4 @@ the existing signed pre-release as a general-availability announcement.
 
 The implementation plan is implementation-ready and its machine-readable planning review evidence is stored under [docs/reviews/](docs/reviews/).
 
-Implementation work is governed grain-by-grain. Graft, TypeSafe Jev, and Alibaba Open Code Review are mandatory review gates as defined in [GOVERNANCE.md](GOVERNANCE.md).
+Implementation work is governed grain-by-grain. The PStack review panel, Graft, Alibaba Open Code Review, and exact-HEAD GitHub CI are mandatory review gates as defined in [GOVERNANCE.md](GOVERNANCE.md).

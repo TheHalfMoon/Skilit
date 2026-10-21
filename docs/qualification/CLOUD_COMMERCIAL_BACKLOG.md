@@ -5,7 +5,7 @@ Scope: every capability deferred from v1 Local, each with its original requireme
 
 ## Global rules for Track B
 
-1. Nothing here is claimed implemented, qualified, or scheduled. Each item activates only on its stated trigger plus a governed implementation grain (branch, tests, Jev/OCR/PStack/Graft, exact-head CI, normal merge, post-merge CI).
+1. Nothing here is claimed implemented, qualified, or scheduled. Each item activates only on its stated trigger plus a governed implementation grain (branch, tests, PStack/OCR/Graft, exact-head CI, normal merge, post-merge CI).
 2. No paid infrastructure is provisioned without explicit owner permission. No founder-paid customer workload is offered until a costed infrastructure model with tenant-level quotas/limits is approved (AF-00 deployment contract).
 3. Managed SaaS remains explicitly not offered. A hosted offer additionally requires: unit-economics dashboard, margin evidence, RPO/RTO proof beyond the drill, production R2/S3 backup, hosted alerting with threshold tests, and production-scale load proof.
 4. Plans and dispositions cited below are the authorization for deferral, not permission to silently drop: plan §§15/19/24, `P11_SCOPE_DISPOSITION.md`, `P12_APPS_DISPOSITION.md`, `P13_SCOPE_DISPOSITION.md`, `AC-04_POST_LAUNCH_DISPOSITION.md`, `P10_CAPTURE_DISPOSITION.md`, `docs/operations/RELEASE_SIGNING.md`.

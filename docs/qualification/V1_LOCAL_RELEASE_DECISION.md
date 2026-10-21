@@ -3,6 +3,8 @@
 Status: DECISION RECORD (not a publication). Base: `d49ceb8` (PR #146 merge, exact-head CI SUCCESS 15/15, post-merge CI SUCCESS).
 Scope: answer **Is Skelet v1 Local ready for release?** with the 15 mandated fields. All eligible engineering is complete; the candidate ships nothing until OD-01/OD-02/OD-03/OD-05 are explicitly recorded. Machine-checked by `tests/test_release_decision.py` (offline).
 
+Review-stack superseding note (2026-10-21, `GD-2026-10-21-REVIEW-STACK`): the Jev mentions below are historical statements of the reviews that ran for the cited pulls; they are preserved verbatim and are not a current gate.
+
 ## 1. Candidate version
 `v1.0.0-local-rc.1` (proposal only — `package.json` stays `0.1.0`, no git tag exists or is created here).
 

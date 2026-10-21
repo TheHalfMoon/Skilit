@@ -262,6 +262,24 @@ class CIHygieneTests(unittest.TestCase):
             errors = check_files(root, [path], required_paths=None)
         self.assertTrue(any("forbidden generated/cache path" in error for error in errors), errors)
 
+    def test_review_tool_skill_install_fails(self) -> None:
+        with self._temp_root() as tmp:
+            root = Path(tmp)
+            skills = root / ".claude" / "skills"
+            skills.mkdir(parents=True)
+            path = skills / "ps-review.md"
+            path.write_text("# review skill\n", encoding="utf-8")
+            errors = check_files(root, [path], required_paths=None)
+        self.assertTrue(any("forbidden generated/cache path" in error for error in errors), errors)
+
+    def test_local_ignore_file_fails(self) -> None:
+        with self._temp_root() as tmp:
+            root = Path(tmp)
+            path = root / ".ignore"
+            path.write_text("!graft/\n", encoding="utf-8")
+            errors = check_files(root, [path], required_paths=None)
+        self.assertTrue(any("forbidden generated/cache path" in error for error in errors), errors)
+
     def test_python_bytecode_fails(self) -> None:
         with self._temp_root() as tmp:
             root = Path(tmp)

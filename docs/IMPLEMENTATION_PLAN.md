@@ -433,7 +433,7 @@ Required automated gates:
 - no committed large/binary corpus gate
 
 Review gates:
-- TypeSafe Jev exact-diff review with a pinned reviewer/runtime and machine-readable report.
+- PStack review panel over the exact diff with independent fresh-context judges (correctness, parsimony, product, security), or an explicitly recorded degraded review at a level the founder decision permits.
 - Alibaba Open Code Review exact-HEAD review where available.
 - zero unresolved blocking findings before merge.
 
@@ -642,7 +642,7 @@ Exit criteria:
 - restore drill succeeds.
 - launch SLOs and alert thresholds are documented.
 - critical journeys pass E2E on production-like environment.
-- no unresolved Jev/OCR blocking findings.
+- no unresolved PStack-panel or OCR blocking findings.
 
 ## 15. Dependency Graph and Launch Cut
 
@@ -691,7 +691,7 @@ Each implementation grain MUST contain:
 - tests/evidence required before implementation starts
 - implementation
 - local qualification
-- Jev exact-diff report
+- PStack review-panel report (independent or explicitly degraded)
 - Alibaba OCR report where available
 - PR exact-head CI
 - ordinary merge commit
@@ -911,7 +911,7 @@ The core P00–P15 product vision remains unchanged, but the following execution
 5. **Measured quality and costs.** Lexical search and local/offline path before optional embeddings. Relevance judgments, exact model/runtime pins, performance baseline, quotas, browser-minute/storage/egress cost attribution and commercial margin evidence precede scaling; no impossible promise of free public infrastructure.
 6. **Clear product responsibilities.** Skilit owns research/evidence/asset registry and agent retrieval. Lilac/OpenPencil own edit/canvas; Kernux/Deskal provide qualified access capabilities only; Morize/Orcel/Gomrey/Ineractive are optional adapter/consumer relationships, not unverified runtime dependencies.
 7. **Traceable readiness.** Every implementation grain maps to the R0–R7 gate and explicit capability state, and every P0 gap must be actually closed before the corresponding public feature/launch. A passing planning validator never substitutes for full application tests.
-8. **Preserve governance.** Graft, Jev, Alibaba OCR/delegation, exact-HEAD GitHub CI, normal merges and verified post-merge closeouts remain non-waivable.
+8. **Preserve governance.** Graft, the PStack review panel, Alibaba OCR/delegation, exact-HEAD GitHub CI, normal merges and verified post-merge closeouts remain non-waivable.
 
 The detailed decisions, source matrix and prioritized acceptance ledger below are **normative companion documents** for any future implementation PR:
 
@@ -934,6 +934,6 @@ Implementation consequences:
 3. Restore P08/REST/MCP actor-specific object authorization before extending remote read surfaces; global sessions do not grant access to all artifacts. Enforce rights and workspace visibility at canonical retrieval, search, cache, preview, board, export and editor handoff boundaries.
 4. Integrate ArtCraft/Craft capabilities *selectively*: P10 narrow local video frame capture; P12 collections-backed portable Moodboard; optional P14 headless VectorCraft/PhotoCraft or PageDraw primitives. No mandatory ArtCraft API, proprietary media services, GPU, full 3D/film suite, or second datastore. Donor file rights/provenance/commit pins remain separate from third-party assets, datasets, models and trademarks.
 5. Default commercial delivery is local or customer self-hosted with deterministic quotas, no silent egress, recovery/upgrade support and optional offline commercial entitlements. A managed hosting offer is a separate future business decision.
-6. Keep existing P00-P15 sequence, active grain frontier, P09b launch-critical status, R0-R7 gates, P0 gap register, Jev/OCR/PStack/Graft review, exact-head CI, normal merges and post-merge qualification. No completion claim arises from this amendment.
+6. Keep existing P00-P15 sequence, active grain frontier, P09b launch-critical status, R0-R7 gates, P0 gap register, PStack/OCR/Graft review, exact-head CI, normal merges and post-merge qualification. No completion claim arises from this amendment.
 
 Detailed contracts, migration boundaries, cost/security matrices, acceptance tasks and AF-SEC-00 through AF-12 implementation grains are recorded in [Agent-First, Zero Founder Cost Execution Blueprint](architecture/AGENT_FIRST_ZERO_FOUNDER_COST_BLUEPRINT_2026-10-11.md), tracked in issue #62 and the live execution frontier #34.
