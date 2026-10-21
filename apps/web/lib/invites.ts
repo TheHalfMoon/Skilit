@@ -44,7 +44,6 @@ import {
   newRequestId,
   successEnvelope,
 } from "./agent-contract.ts";
-import type { AgentEnvelope } from "./agent-contract.ts";
 import {
   isOriginAllowed,
   requestToken,
