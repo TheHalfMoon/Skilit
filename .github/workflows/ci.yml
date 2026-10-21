@@ -180,7 +180,10 @@ jobs:
   web:
     name: web
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The job also downloads the pinned Chromium headless shell and boots the
+    # production server once per browser-smoke scenario, so it needs more
+    # than the 15-minute timeout the plain build-and-test jobs use.
+    timeout-minutes: 30
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -233,6 +236,9 @@ jobs:
 
       - name: Brand chrome responsive and keyboard smoke
         run: node scripts/smoke-brand-chrome.mjs 3104
+
+      - name: Authenticated browser journey smoke
+        run: node scripts/smoke-auth-journey.mjs 3105
 
       - name: Clean-consumer registry install proof
         run: node scripts/prove_registry_install.mjs

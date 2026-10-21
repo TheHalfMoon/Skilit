@@ -23,6 +23,7 @@ Node-version skew note: a newer local Node (e.g. v26) is acceptable for the inst
 | (none mandatory for install) | frozen install needs no secrets | — |
 | `SKILIT_NO_MODEL=1` | no-model gate (worker health + `check_no_model.py --strict`) | proof step 11 |
 | `SKILIT_TEST_DATABASE_URL=postgresql://skilit_test:local_ci_fixture_only@127.0.0.1:5432/skilit_test` + `SKILIT_DB_TEST_CONFIRM=yes` | real-PostgreSQL suites only (fixture database, CI-identical credentials) | proof step 9 |
+| `SKILIT_MCP_PGLITE_DATA_DIR=<path>` | local PGlite data directory for the web application; use it to keep a service-free local database between restarts. Unset, the web application uses an in-memory PGlite instance. Migrations still have to be applied to the directory first. The directory holds password verifiers and session-token hashes, so point it at a private directory (mode `0700`) and keep it out of version control | local development |
 | `SKILIT_DOCUMENT_BIN` (legacy `SKILIT_OPENPENCIL_BIN`, `SKELET_OPENPENCIL_BIN` accepted) | genuine-binary adapter runs only (absent = 1 labeled skip, still PASS) | proof step 7 |
 
 No AI provider keys, no cloud credentials, no GPU. The proof must pass with all of them absent.
