@@ -100,6 +100,7 @@ const BOB_EMAIL = "bob@skilit.example";
 const SESSIONS_EMAIL = "sessions@skilit.example";
 const INVITES_EMAIL = "guest@skilit.example";
 const INVITES_SECOND_EMAIL = "second-guest@skilit.example";
+const INVITES_THIRD_EMAIL = "third-guest@skilit.example";
 // A second, unrelated account with a real session of its own. The journey
 // tries to revoke that session from the first account's browser: the answer
 // must be indistinguishable from revoking a session id that never existed,
@@ -1251,6 +1252,23 @@ async function invitesJourney({ page, context, base }) {
   const token = inviteLink.slice(inviteLink.lastIndexOf("/invite/") + "/invite/".length);
   check(token.length >= 32, "the invitation link must carry a long token");
 
+  // A second invitation, for an address that is not a member and has no
+  // account yet. It is the one the invited-person journey below walks
+  // through.
+  await page.fill("#workspaces-email", INVITES_THIRD_EMAIL);
+  await page.getByRole("button", { name: "Create invitation" }).click();
+  await page.waitForFunction(
+    (previous) => {
+      const field = document.querySelector("#workspaces-invite-link");
+      return field instanceof HTMLInputElement && field.value !== "" && field.value !== previous;
+    },
+    inviteLink,
+    { timeout: 20_000 },
+  );
+  const thirdLink = (await page.inputValue("#workspaces-invite-link")) ?? "";
+  const thirdToken = thirdLink.slice(thirdLink.lastIndexOf("/invite/") + "/invite/".length);
+  check(thirdToken.length >= 32, "the second invitation must carry a long token");
+
   // The invitation list shows it as pending.
   await page.waitForSelector("section[aria-label='Invitations'] table tbody tr", { timeout: 20_000 });
   const invitationsText =
@@ -1297,6 +1315,95 @@ async function invitesJourney({ page, context, base }) {
       guestSession.status === 200 && guestSession.body?.result?.user?.email === INVITES_EMAIL,
       `the invited person must be signed in as themselves, saw ${guestSession.status}`,
     );
+
+    // The invited person ends up with a workspace of their own, and it
+    // is not called the same thing as the one they were invited to.
+    const guestWorkspaces = guestSession.body?.result?.workspaces ?? [];
+    check(
+      guestWorkspaces.length === 2,
+      `the invited person must have a workspace of their own, saw ${guestWorkspaces.length}`,
+    );
+    const guestNames = guestWorkspaces.map((space) => space?.name);
+    check(
+      new Set(guestNames).size === 2,
+      `the two workspaces must be distinguishable, saw ${guestNames.join(", ")}`,
+    );
+
+    // --- the invitation is bound to the address it names -----------------
+    // The guest is signed in as the first invited address, and opens an
+    // invitation that names another one. The page says why the seat is
+    // not theirs, and offers no control that could take it.
+    await guest.goto(`${base}/invite/${encodeURIComponent(thirdToken)}`, { waitUntil: "load" });
+    await guest.waitForFunction(
+      () => (document.querySelector("main")?.textContent ?? "").includes("You are signed in as"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    const strangerText = (await guest.textContent("main")) ?? "";
+    check(
+      strangerText.includes(INVITES_THIRD_EMAIL),
+      "the page must name the address the invitation is for",
+    );
+    const joinButton = await guest
+      .getByRole("button", { name: "Join this workspace" })
+      .count();
+    check(
+      joinButton === 0,
+      "a signed-in visitor who is somebody else must not be offered the seat",
+    );
+    const strangerAccept = await apiCall(guest, `/api/v1/invites/${encodeURIComponent(thirdToken)}/accept`, {
+      method: "POST",
+    });
+    check(
+      strangerAccept.status === 404,
+      `a signed-in stranger must be refused, saw ${strangerAccept.status}`,
+    );
+
+    // --- an existing account is sent to sign in -------------------------
+    // The guest signs out and comes back to the invitation. The page
+    // offers the sign-in path, and the sign-in page returns to the
+    // invitation afterwards.
+    await apiCall(guest, ROUTES.signout, { method: "POST" });
+    await guest.goto(`${base}/invite/${encodeURIComponent(thirdToken)}`, { waitUntil: "load" });
+    await guest.waitForSelector("#invite-password", { timeout: 20_000 });
+    const signInLink = guest.getByRole("link", { name: "Sign in as" });
+    check(
+      (await signInLink.count()) === 1,
+      "a visitor who may already have an account must be offered the sign-in path",
+    );
+    await signInLink.click();
+    await guest.waitForFunction(
+      () => (document.querySelector("main")?.textContent ?? "").includes("You will be returned to"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    await guest.fill("#login-email", INVITES_EMAIL);
+    await guest.fill("#login-password", PASSWORD);
+    await guest.click("form button[type=submit]");
+    await guest.waitForURL(
+      (url) => url.pathname.startsWith("/invite/"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    await guest.waitForFunction(
+      () => (document.querySelector("main")?.textContent ?? "").includes("You are signed in as"),
+      undefined,
+      { timeout: 20_000 },
+    );
+    const signedBackText = (await guest.textContent("main")) ?? "";
+    check(
+      signedBackText.includes(INVITES_EMAIL),
+      "the signed-in visitor must be named as the account they hold",
+    );
+
+    // --- a spent invitation says it was used ---------------------------
+    await guest.goto(`${base}/invite/${encodeURIComponent(token)}`, { waitUntil: "load" });
+    await guest.waitForFunction(
+      () =>
+        (document.querySelector("main")?.textContent ?? "").includes("already been used"),
+      undefined,
+      { timeout: 20_000 },
+    );
   } finally {
     await guestContext.close();
   }
@@ -1306,6 +1413,17 @@ async function invitesJourney({ page, context, base }) {
   await page.waitForSelector("section[aria-label='Members'] table tbody tr", { timeout: 20_000 });
   const memberRows = await page.locator("section[aria-label='Members'] table tbody tr").count();
   check(memberRows === 2, `the roster must show two members, saw ${memberRows}`);
+  // The roster shows the address behind every membership, not an
+  // identifier: a roster of identifiers is not a roster of people.
+  const rosterText = (await page.textContent("section[aria-label='Members']")) ?? "";
+  check(
+    rosterText.includes(INVITES_EMAIL),
+    "the roster must show the invited address",
+  );
+  check(
+    !/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/.test(rosterText),
+    "the roster must not show a raw user id",
+  );
   await page.waitForFunction(
     () =>
       (document.querySelector("section[aria-label='Invitations']")?.textContent ?? "").includes(

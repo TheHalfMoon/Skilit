@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getSharedDb } from "../../../../../../lib/mcp-db";
-import { checkRateLimit } from "../../../../../../lib/rate-limit";
-import { clientKey } from "../../../../../../lib/http";
 import { acceptInviteRoute } from "../../../../../../lib/invites";
-import { AgentContractError, newRequestId } from "../../../../../../lib/agent-contract";
-
-function requestIdOf(request: Request): string {
-  return newRequestId(request.headers.get("x-request-id"));
-}
+import { guardRequest } from "../../../../../../lib/rest-guard";
 
 /**
  * POST /api/v1/invites/{token}/accept — accept an invitation.
@@ -17,28 +10,15 @@ function requestIdOf(request: Request): string {
  * has none is created an account for exactly the invited address, and the
  * browser is signed in.
  *
- * The method establishes ambient authority, so it is origin checked.
+ * The method establishes ambient authority, so it is origin checked and
+ * it lives in the auth family, which is rate limited by caller.
  */
 export async function POST(
   request: Request,
   context: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
-  const requestId = requestIdOf(request);
-  const limit = checkRateLimit(`auth:${clientKey(request, null)}`);
-  if (!limit.allowed) {
-    const err = new AgentContractError("RATE_LIMITED", { requestId });
-    return NextResponse.json(err.toFailureEnvelope(), {
-      status: err.httpStatus,
-      headers: { "Retry-After": String(limit.retryAfterSeconds) },
-    });
-  }
-  let db;
-  try {
-    db = await getSharedDb();
-  } catch {
-    const err = new AgentContractError("INTERNAL_OPAQUE", { requestId });
-    return NextResponse.json(err.toFailureEnvelope(), { status: err.httpStatus });
-  }
+  const guarded = await guardRequest(request, { scope: "auth", session: "optional" });
+  if (!guarded.ok) return guarded.response;
   let body: unknown = null;
   try {
     body = await request.json();
@@ -47,7 +27,7 @@ export async function POST(
   }
   const { token } = await context.params;
   const result = await acceptInviteRoute(
-    db,
+    guarded.guarded.db,
     body,
     request,
     token,

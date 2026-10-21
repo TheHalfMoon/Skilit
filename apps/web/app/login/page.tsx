@@ -47,6 +47,21 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<AgentFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
+
+  // A destination is only ever a path inside this application. Anything
+  // else — an absolute URL, a protocol-relative URL — is ignored, so the
+  // page cannot be used as a redirect service.
+  const safeDestination = useCallback((raw: string | null): string | null => {
+    if (raw === null) return null;
+    if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+    return raw;
+  }, []);
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("next");
+    setDestination(safeDestination(raw));
+  }, [safeDestination]);
 
   const refreshSession = useCallback(async (): Promise<void> => {
     try {
@@ -95,6 +110,11 @@ export default function LoginPage() {
       setPassword("");
       setNotice("Signed in. Your session is held in a secure cookie, not in this page.");
       await refreshSession();
+      if (destination !== null) {
+        // The session cookie is set by the answer above, so the browser
+        // arrives at the destination already signed in.
+        window.location.assign(destination);
+      }
     } catch {
       setFailure({ code: "UNKNOWN", message: "Sign-in could not reach the server." });
     } finally {
@@ -139,6 +159,11 @@ export default function LoginPage() {
       {initialized === false ? (
         <p>
           No owner account exists yet. <a href="/signup">Create the first owner account</a> first.
+        </p>
+      ) : null}
+      {destination !== null ? (
+        <p>
+          You will be returned to <code>{destination}</code> after signing in.
         </p>
       ) : null}
 

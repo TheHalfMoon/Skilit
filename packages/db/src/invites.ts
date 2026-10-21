@@ -15,9 +15,19 @@
  *   grant directly (owners any role, admins member only), and it is
  *   re-checked against the inviter's authority when the invite is
  *   redeemed, so a demoted inviter's outstanding invites stop working;
- * - redeeming an invite is atomic: the membership and the invite's
- *   acceptance are written in one transaction, so a token cannot be
+ * - an invitation is bound to the address it names, on both redemption
+ *   paths: a signed-in stranger who holds the link is refused, and an
+ *   account may only be created for the invited address;
+ * - redeeming an invite takes a row lock on the invitation, so a
+ *   revocation that is in flight cannot race a redemption into a row that
+ *   is both accepted and revoked;
+ * - the acceptance itself is a guarded write: it lands only while the
+ *   invitation is still pending, un-revoked and un-expired, and the
+ *   membership is written in the same transaction, so a token cannot be
  *   redeemed twice;
+ * - the database clock is the only clock: expiry and state are computed
+ *   by the database, never by the application, so an application clock
+ *   skew cannot make a dead invitation look live;
  * - every failure is one generic denial, so a caller cannot tell an
  *   unknown token from a revoked, expired or already-redeemed one.
  */
@@ -28,6 +38,7 @@ import {
   AuthError,
   createSession,
   hashToken,
+  isUniqueViolation,
   normalizeEmail,
   signUp,
 } from "./auth.ts";
@@ -37,7 +48,6 @@ import {
   canGrantRole,
   createWorkspaceTx,
   getMembership,
-  listMembers,
   workspaceForbidden,
 } from "./workspaces.ts";
 import type { Membership, WorkspaceRole } from "./workspaces.ts";
@@ -74,10 +84,51 @@ export interface InvitePreview {
   state: InviteState;
 }
 
+/**
+ * One roster line: a membership with the address behind it. The address
+ * is what an operator manages a workspace by, so the roster has to carry
+ * it; a bare user id is not a person.
+ */
+export interface RosterEntry {
+  workspaceId: string;
+  userId: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
 export const INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const INVITE_MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
 const INVITE_MIN_TTL_SECONDS = 300;
 const INVITE_TOKEN_BYTES = 32;
+const WORKSPACE_NAME_MAX_LENGTH = 200;
+/**
+ * The personal workspace of an invited person. It carries the account's
+ * address because an invited person sees two workspaces at once — their
+ * own and the one they were invited to — and a fixed name would make the
+ * two indistinguishable whenever the shared workspace happens to be
+ * named "Personal", which is exactly what a fresh installation's only
+ * workspace is called.
+ */
+const PERSONAL_WORKSPACE_PREFIX = "Personal (";
+
+/**
+ * The state of an invitation, computed by the database so the only clock
+ * in the decision is the database clock. Expiry is checked before
+ * revocation: an invitation that died of old age stays "expired" even
+ * after a housekeeping sweep marks it revoked.
+ *
+ * The prefix names the table the columns belong to, so the same
+ * expression works in a join and in an insert's RETURNING clause.
+ */
+function inviteStateExpression(prefix: string): string {
+  return `case
+        when ${prefix}accepted_at is not null then 'accepted'
+        when ${prefix}expires_at <= now() then 'expired'
+        when ${prefix}revoked_at is not null then 'revoked'
+        else 'pending'
+      end`;
+}
 
 function validateRole(role: string): InviteRole {
   if (role !== "owner" && role !== "admin" && role !== "member") {
@@ -94,19 +145,20 @@ function toIsoTimestamp(raw: unknown): string {
   return value.toISOString();
 }
 
-function stateOf(
-  acceptedAt: string | null,
-  revokedAt: string | null,
-  expiresAt: string,
-  now: Date,
-): InviteState {
-  if (acceptedAt !== null) return "accepted";
-  if (revokedAt !== null) return "revoked";
-  if (new Date(expiresAt).getTime() <= now.getTime()) return "expired";
-  return "pending";
+function toState(raw: unknown): InviteState {
+  const state = String(raw);
+  if (
+    state !== "pending" &&
+    state !== "accepted" &&
+    state !== "revoked" &&
+    state !== "expired"
+  ) {
+    throw new Error("Invalid workspace invite state in database");
+  }
+  return state;
 }
 
-function toInvite(row: Record<string, unknown>, now: Date): WorkspaceInvite {
+function toInvite(row: Record<string, unknown>): WorkspaceInvite {
   const acceptedAt =
     row.accepted_at === null || row.accepted_at === undefined
       ? null
@@ -115,7 +167,6 @@ function toInvite(row: Record<string, unknown>, now: Date): WorkspaceInvite {
     row.revoked_at === null || row.revoked_at === undefined
       ? null
       : toIsoTimestamp(row.revoked_at);
-  const expiresAt = toIsoTimestamp(row.expires_at);
   return {
     id: String(row.id),
     workspaceId: String(row.workspace_id),
@@ -123,31 +174,65 @@ function toInvite(row: Record<string, unknown>, now: Date): WorkspaceInvite {
     email: String(row.email),
     role: String(row.role) as InviteRole,
     invitedBy: String(row.invited_by),
-    expiresAt,
+    expiresAt: toIsoTimestamp(row.expires_at),
     acceptedAt,
     revokedAt,
     createdAt: toIsoTimestamp(row.created_at),
-    state: stateOf(acceptedAt, revokedAt, expiresAt, now),
+    state: toState(row.state),
   };
 }
 
 /**
  * The row an invitation names, looked up by its token hash. Only the
  * columns an invitee may see are selected.
+ *
+ * When `lock` is set the invitation row is locked for the rest of the
+ * transaction, so a concurrent revocation cannot interleave with a
+ * redemption and leave a row that is both accepted and revoked.
  */
 async function selectByTokenHash(
   tx: DbTransaction,
   token: string,
+  lock: boolean,
 ): Promise<Record<string, unknown> | undefined> {
   if (typeof token !== "string" || token.length === 0) return undefined;
   const result = await tx.query(
     `select i.id, i.workspace_id, i.email, i.role, i.invited_by,
-            i.expires_at, i.accepted_at, i.revoked_at, w.name as workspace_name
+            i.expires_at, i.accepted_at, i.revoked_at, i.created_at,
+            w.name as workspace_name, ${inviteStateExpression("i.")} as state
      from workspace_invites i join workspaces w on w.id = i.workspace_id
-     where i.token_hash = $1`,
+     where i.token_hash = $1${lock ? " for update of i" : ""}`,
     [hashToken(token)],
   );
   return result.rows[0];
+}
+
+/**
+ * The guarded acceptance. It lands only while the invitation is still
+ * pending, un-revoked and un-expired, and the database clock decides.
+ * Zero rows returned means the invitation was no longer spendable.
+ */
+async function acceptGuarded(
+  tx: DbTransaction,
+  inviteId: string,
+): Promise<boolean> {
+  const accepted = await tx.query(
+    `update workspace_invites set accepted_at = now()
+     where id = $1 and accepted_at is null and revoked_at is null
+       and expires_at > now()
+     returning id`,
+    [inviteId],
+  );
+  return accepted.rows.length > 0;
+}
+
+/**
+ * The personal workspace name of an account, bounded to the workspace
+ * name limit so an over-long address cannot fail the redemption.
+ */
+export function personalWorkspaceName(email: string): string {
+  const room = WORKSPACE_NAME_MAX_LENGTH - PERSONAL_WORKSPACE_PREFIX.length - 1;
+  return `${PERSONAL_WORKSPACE_PREFIX}${email.slice(0, room)})`;
 }
 
 /**
@@ -178,8 +263,14 @@ export async function createInvite(
     throw new AuthError("auth/invalid-invite", "Invite lifetime is invalid.");
   }
   const token = randomBytes(INVITE_TOKEN_BYTES).toString("base64url");
-  const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
   return client.transaction(async (tx) => {
+    // The workspace row is locked for the rest of the transaction, so the
+    // "at most one live invitation per address" check below is decided
+    // against a workspace that no concurrent invitation can change
+    // underneath it.
+    await tx.query("select id from workspaces where id = $1 for update", [
+      input.workspaceId,
+    ]);
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
     if (actorRole === null || !canGrantRole(actorRole, role)) {
       throw workspaceForbidden();
@@ -193,6 +284,15 @@ export async function createInvite(
     if (member.rows.length > 0) {
       throw new AuthError("auth/member-exists", "That person is already a member.");
     }
+    // Housekeeping: an expired invitation is swept to revoked so the
+    // same address can be invited again. The state stays "expired",
+    // because expiry is checked before revocation.
+    await tx.query(
+      `update workspace_invites set revoked_at = now()
+       where workspace_id = $1 and email = $2
+         and accepted_at is null and revoked_at is null and expires_at <= now()`,
+      [input.workspaceId, email],
+    );
     // At most one live invitation per workspace and address.
     const pending = await tx.query(
       `select 1 from workspace_invites
@@ -206,14 +306,32 @@ export async function createInvite(
         "An invite is already pending for that address.",
       );
     }
-    const inserted = await tx.query(
-      `insert into workspace_invites
-         (workspace_id, email, role, token_hash, invited_by, expires_at)
-       values ($1, $2, $3, $4, $5, $6)
-       returning id, workspace_id, email, role, invited_by, expires_at,
-                 accepted_at, revoked_at, created_at`,
-      [input.workspaceId, email, role, hashToken(token), input.actorId, expiresAt],
-    );
+    // The expiry is computed by the database clock, so the invitation is
+    // never measured against a different clock than the one that decides
+    // whether it is still live.
+    let inserted;
+    try {
+      inserted = await tx.query(
+        `insert into workspace_invites as i
+           (workspace_id, email, role, token_hash, invited_by, expires_at)
+         values ($1, $2, $3, $4, $5, now() + ($6::int * interval '1 second'))
+         returning i.id, i.workspace_id, i.email, i.role, i.invited_by, i.expires_at,
+                   i.accepted_at, i.revoked_at, i.created_at,
+                   ${inviteStateExpression("i.")} as state`,
+        [input.workspaceId, email, role, hashToken(token), input.actorId, ttl],
+      );
+    } catch (error) {
+      // The database refuses a second live invitation for the same
+      // workspace and address, so a pair of concurrent issuances cannot
+      // both get one.
+      if (isUniqueViolation(error)) {
+        throw new AuthError(
+          "auth/invite-exists",
+          "An invite is already pending for that address.",
+        );
+      }
+      throw error;
+    }
     const row = inserted.rows[0];
     if (row === undefined) {
       throw new AuthError("auth/invalid-invite", "Invite could not be created.");
@@ -221,10 +339,10 @@ export async function createInvite(
     const workspace = await tx.query("select name from workspaces where id = $1", [
       input.workspaceId,
     ]);
-    const invite = toInvite(
-      { ...row, workspace_name: workspace.rows[0]?.name ?? "" },
-      new Date(),
-    );
+    const invite = toInvite({
+      ...row,
+      workspace_name: workspace.rows[0]?.name ?? "",
+    });
     return { invite, token };
   });
 }
@@ -246,20 +364,20 @@ export async function listInvites(
     const result = await tx.query(
       `select i.id, i.workspace_id, i.email, i.role, i.invited_by,
               i.expires_at, i.accepted_at, i.revoked_at, i.created_at,
-              w.name as workspace_name
+              w.name as workspace_name, ${inviteStateExpression("i.")} as state
        from workspace_invites i join workspaces w on w.id = i.workspace_id
        where i.workspace_id = $1
        order by i.created_at desc, i.id desc`,
       [input.workspaceId],
     );
-    const now = new Date();
-    return result.rows.map((row) => toInvite(row, now));
+    return result.rows.map(toInvite);
   });
 }
 
 /**
- * Revoke a pending invitation. A revoked invitation stops working at once
- * and can never be revoked twice.
+ * Revoke a live invitation. A revoked invitation stops working at once
+ * and can never be revoked twice. An expired invitation is already
+ * terminal: revoking it would only relabel it, so it is refused.
  */
 export async function revokeInvite(
   client: DbClient,
@@ -273,7 +391,7 @@ export async function revokeInvite(
     const result = await tx.query(
       `update workspace_invites set revoked_at = now()
        where id = $1 and workspace_id = $2 and accepted_at is null
-         and revoked_at is null
+         and revoked_at is null and expires_at > now()
        returning id`,
       [input.inviteId, input.workspaceId],
     );
@@ -282,33 +400,24 @@ export async function revokeInvite(
 }
 
 /**
- * What the holder of an invitation token may see before they accept. The
- * invitation itself is not disclosed: an unknown, revoked, expired or
- * already-redeemed token all read as the same absence.
+ * What the holder of an invitation token may see before they accept. An
+ * unknown token is an absence; a token that names a real invitation is
+ * disclosed together with the invitation's state, so the holder is told
+ * whether it is still spendable.
  */
 export async function readInvite(
   client: DbClient,
   token: string,
 ): Promise<InvitePreview | null> {
   return client.transaction(async (tx) => {
-    const row = await selectByTokenHash(tx, token);
+    const row = await selectByTokenHash(tx, token, false);
     if (row === undefined) return null;
-    const now = new Date();
-    const expiresAt = toIsoTimestamp(row.expires_at);
-    const acceptedAt =
-      row.accepted_at === null || row.accepted_at === undefined
-        ? null
-        : toIsoTimestamp(row.accepted_at);
-    const revokedAt =
-      row.revoked_at === null || row.revoked_at === undefined
-        ? null
-        : toIsoTimestamp(row.revoked_at);
     return {
       email: String(row.email),
       role: String(row.role) as InviteRole,
       workspaceName: String(row.workspace_name ?? ""),
-      expiresAt,
-      state: stateOf(acceptedAt, revokedAt, expiresAt, now),
+      expiresAt: toIsoTimestamp(row.expires_at),
+      state: toState(row.state),
     };
   });
 }
@@ -319,33 +428,40 @@ export async function readInvite(
  * be redeemed twice.
  *
  * The inviter's authority is re-checked here: an invitation grants a role
- * only while the inviter may still grant it.
+ * only while the inviter may still grant it. The invitation's address is
+ * re-checked too: only the invited person may take the seat.
  */
 export async function acceptInvite(
   client: DbClient,
   input: { token: string; userId: string },
 ): Promise<{ membership: Membership; workspaceId: string; workspaceName: string }> {
   return client.transaction(async (tx) => {
-    const row = await selectByTokenHash(tx, input.token);
+    const row = await selectByTokenHash(tx, input.token, true);
     if (row === undefined) throw workspaceForbidden();
-    const now = new Date();
-    const expiresAt = toIsoTimestamp(row.expires_at);
-    if (stateOf(
-      row.accepted_at === null || row.accepted_at === undefined
-        ? null
-        : toIsoTimestamp(row.accepted_at),
-      row.revoked_at === null || row.revoked_at === undefined
-        ? null
-        : toIsoTimestamp(row.revoked_at),
-      expiresAt,
-      now,
-    ) !== "pending") {
-      throw workspaceForbidden();
-    }
     const workspaceId = String(row.workspace_id);
     const role = String(row.role) as InviteRole;
+    // The invitation is bound to one address: only that address may take
+    // the seat. A signed-in stranger who has the link is refused.
+    const holder = await tx.query("select email from users where id = $1", [
+      input.userId,
+    ]);
+    const holderEmail = holder.rows[0]?.email;
+    if (
+      typeof holderEmail !== "string" ||
+      holderEmail.trim().toLowerCase() !== String(row.email).trim().toLowerCase()
+    ) {
+      throw workspaceForbidden();
+    }
     const inviterRole = await getMembership(tx, workspaceId, String(row.invited_by));
     if (inviterRole === null || !canGrantRole(inviterRole, role)) {
+      throw workspaceForbidden();
+    }
+    // The guarded acceptance is the only liveness decision, and it comes
+    // first: it lands while the invitation is still pending, un-revoked
+    // and un-expired. When it does not land, nothing else is attempted,
+    // so a spent or withdrawn invitation reads as one generic denial
+    // whatever the caller's own state is.
+    if (!(await acceptGuarded(tx, String(row.id)))) {
       throw workspaceForbidden();
     }
     const member = await tx.query(
@@ -355,22 +471,19 @@ export async function acceptInvite(
     if (member.rows.length > 0) {
       throw new AuthError("auth/member-exists", "That person is already a member.");
     }
-    const added = await tx.query(
-      `insert into workspace_members (workspace_id, user_id, role)
-       values ($1, $2, $3)
-       returning workspace_id, user_id, role, joined_at`,
-      [workspaceId, input.userId, role],
-    );
-    const accepted = await tx.query(
-      `update workspace_invites set accepted_at = now()
-       where id = $1 and accepted_at is null
-       returning id`,
-      [row.id],
-    );
-    if (accepted.rows.length === 0) {
-      // Another redemption won the race; the membership it wrote is
-      // rolled back with this transaction.
-      throw workspaceForbidden();
+    let added;
+    try {
+      added = await tx.query(
+        `insert into workspace_members (workspace_id, user_id, role)
+         values ($1, $2, $3)
+         returning workspace_id, user_id, role, joined_at`,
+        [workspaceId, input.userId, role],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new AuthError("auth/member-exists", "That person is already a member.");
+      }
+      throw error;
     }
     const membershipRow = added.rows[0];
     if (membershipRow === undefined) {
@@ -409,48 +522,40 @@ export async function redeemInvite(
 }> {
   const email = normalizeEmail(input.email);
   return client.transaction(async (tx) => {
-    const row = await selectByTokenHash(tx, input.token);
+    const row = await selectByTokenHash(tx, input.token, true);
     if (row === undefined) throw workspaceForbidden();
-    const now = new Date();
-    const expiresAt = toIsoTimestamp(row.expires_at);
-    const state = stateOf(
-      row.accepted_at === null || row.accepted_at === undefined
-        ? null
-        : toIsoTimestamp(row.accepted_at),
-      row.revoked_at === null || row.revoked_at === undefined
-        ? null
-        : toIsoTimestamp(row.revoked_at),
-      expiresAt,
-      now,
-    );
-    if (state !== "pending") throw workspaceForbidden();
     // The account may only be created for the invited address.
-    if (String(row.email) !== email) throw workspaceForbidden();
+    if (String(row.email).trim().toLowerCase() !== email) throw workspaceForbidden();
     const workspaceId = String(row.workspace_id);
     const role = String(row.role) as InviteRole;
     const inviterRole = await getMembership(tx, workspaceId, String(row.invited_by));
     if (inviterRole === null || !canGrantRole(inviterRole, role)) {
       throw workspaceForbidden();
     }
+    // The guarded acceptance comes before the account is created, so a
+    // spent or withdrawn invitation never reaches the registration step
+    // and never says anything about the address.
+    if (!(await acceptGuarded(tx, String(row.id)))) {
+      throw workspaceForbidden();
+    }
     const user = await signUp(tx, { email, password: input.password });
     // Every account owns a personal workspace, exactly as the first owner
     // does at bootstrap. Without one, an invited person would join a
     // shared workspace with nowhere of their own to keep anything.
-    await createWorkspaceTx(tx, { name: "Personal", ownerId: user.id });
-    const added = await tx.query(
-      `insert into workspace_members (workspace_id, user_id, role)
-       values ($1, $2, $3)
-       returning workspace_id, user_id, role, joined_at`,
-      [workspaceId, user.id, role],
-    );
-    const accepted = await tx.query(
-      `update workspace_invites set accepted_at = now()
-       where id = $1 and accepted_at is null
-       returning id`,
-      [row.id],
-    );
-    if (accepted.rows.length === 0) {
-      throw workspaceForbidden();
+    await createWorkspaceTx(tx, { name: personalWorkspaceName(email), ownerId: user.id });
+    let added;
+    try {
+      added = await tx.query(
+        `insert into workspace_members (workspace_id, user_id, role)
+         values ($1, $2, $3)
+         returning workspace_id, user_id, role, joined_at`,
+        [workspaceId, user.id, role],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new AuthError("auth/member-exists", "That person is already a member.");
+      }
+      throw error;
     }
     const membershipRow = added.rows[0];
     if (membershipRow === undefined) {
@@ -474,13 +579,28 @@ export async function redeemInvite(
 
 /**
  * The roster of one workspace. Any member may read it: the roster is
- * what a workspace is.
+ * what a workspace is. Every line carries the address behind the
+ * membership, because that is what an operator manages a workspace by.
  */
-export async function listWorkspaceMembers(
+export async function listWorkspaceRoster(
   client: DbClient,
   input: { workspaceId: string; actorId: string },
-): Promise<Membership[]> {
-  return client.transaction(async (tx) =>
-    listMembers(tx, input.workspaceId, input.actorId),
-  );
+): Promise<RosterEntry[]> {
+  return client.transaction(async (tx) => {
+    const role = await getMembership(tx, input.workspaceId, input.actorId);
+    if (role === null) throw workspaceForbidden();
+    const result = await tx.query(
+      `select m.workspace_id, m.user_id, u.email, m.role, m.joined_at
+       from workspace_members m join users u on u.id = m.user_id
+       where m.workspace_id = $1 order by m.joined_at, m.user_id`,
+      [input.workspaceId],
+    );
+    return result.rows.map((row) => ({
+      workspaceId: String(row.workspace_id),
+      userId: String(row.user_id),
+      email: String(row.email),
+      role: String(row.role) as WorkspaceRole,
+      joinedAt: toIsoTimestamp(row.joined_at),
+    }));
+  });
 }

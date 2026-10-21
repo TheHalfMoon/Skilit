@@ -1,7 +1,7 @@
 "use client";
 
 import { SessionAccessBanner } from "../../components/session-access-banner";
-import { sessionRequest } from "../../lib/browser-session";
+import { asRecord, fetchJson } from "../../lib/browser-envelope";
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -18,11 +18,6 @@ type LoadState =
   | { status: "ready"; sessions: AccountSession[]; currentSessionId: string }
   | { status: "signed-out" }
   | { status: "unavailable" };
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
 
 function asSessions(value: unknown): AccountSession[] | null {
   if (!Array.isArray(value)) return null;
@@ -43,15 +38,6 @@ function asSessions(value: unknown): AccountSession[] | null {
     out.push({ id, createdAt, expiresAt, revokedAt, live });
   }
   return out;
-}
-
-function readFailure(payload: unknown, fallback: string): { code: string; message: string } {
-  const record = asRecord(payload);
-  const error = record === null ? null : asRecord(record.error);
-  if (error === null) return { code: "UNKNOWN", message: fallback };
-  const code = typeof error.code === "string" ? error.code : "UNKNOWN";
-  const message = typeof error.message === "string" ? error.message : fallback;
-  return { code, message };
 }
 
 function describe(session: AccountSession, current: boolean): string {
@@ -81,37 +67,30 @@ export default function AccountPage() {
     ): Promise<void> => {
       setBusy(label);
       setFailure(null);
+      // A proxy can answer with a body that is not JSON, and a request
+      // can fail outright: the shared reader turns both into a
+      // failure, and the HTTP status is what the failure message
+      // reports.
+      const outcome = await fetchJson(path, init, label);
       try {
-        const response = await sessionRequest(path, init);
-        if (response.status === 401) {
+        if (init.signal?.aborted === true) {
+          // The page went away mid-flight: it neither updates nor waits.
+          return;
+        }
+        if (outcome.status === 401) {
           // The credential was refused, so this browser has no account
           // surface left to show.
           setState({ status: "signed-out" });
           return;
         }
-        // A proxy can answer with a body that is not JSON, so the parse
-        // is guarded: the HTTP status is what the failure message
-        // reports.
-        const payload: unknown = await response.json().catch(() => null);
-        if (!response.ok) {
-          setFailure(readFailure(payload, `${label} failed with HTTP ${response.status}.`));
-          if (onFailed !== undefined) await onFailed(response.status);
-          return;
-        }
-        const record = asRecord(payload);
-        const result = record === null ? null : asRecord(record.result);
-        if (result === null) {
-          setFailure({ code: "UNKNOWN", message: `${label} returned an unrecognized shape.` });
-          return;
-        }
-        await onOk(result);
-      } catch {
-        if (init.signal?.aborted !== true) {
-          setFailure({ code: "UNKNOWN", message: `${label} could not reach the server.` });
-          // A request that never completed is a failure like any other:
+        if (!outcome.ok) {
+          setFailure({ code: outcome.code, message: outcome.message });
+          // A request that did not complete is a failure like any other:
           // the page must not keep a stale table on screen next to it.
-          if (onFailed !== undefined) await onFailed(undefined);
+          if (onFailed !== undefined) await onFailed(outcome.status);
+          return;
         }
+        await onOk(outcome.result);
       } finally {
         if (init.signal?.aborted !== true) setBusy(null);
       }

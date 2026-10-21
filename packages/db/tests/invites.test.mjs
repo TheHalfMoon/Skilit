@@ -4,12 +4,13 @@ import test from "node:test";
 import { openDatabase } from "../src/db.ts";
 import { migrateUp } from "../src/migrate.ts";
 import { createSession, signUp } from "../src/auth.ts";
-import { createWorkspaceTx } from "../src/workspaces.ts";
+import { createWorkspaceTx, listWorkspacesForUser } from "../src/workspaces.ts";
 import {
   acceptInvite,
   createInvite,
   listInvites,
-  listWorkspaceMembers,
+  listWorkspaceRoster,
+  personalWorkspaceName,
   readInvite,
   redeemInvite,
   revokeInvite,
@@ -73,6 +74,31 @@ test("an operator issues an invitation and the token is the only copy", async ()
     assert.equal(preview.role, "member");
     assert.equal(preview.workspaceName, "Operator workspace");
     assert.equal(preview.state, "pending");
+  } finally {
+    await db.close();
+  }
+});
+
+test("the expiry of an invitation is the database's clock", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const ttlSeconds = 3600;
+    const { invite } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+      ttlSeconds,
+    });
+    const clock = await db.query("select now() as at");
+    const databaseNow = new Date(clock.rows[0].at).getTime();
+    const expiresAt = new Date(invite.expiresAt).getTime();
+    const drift = Math.abs(expiresAt - databaseNow - ttlSeconds * 1000);
+    assert.ok(
+      drift < 5000,
+      `the expiry must be the database clock plus the lifetime, drifted ${drift} ms`,
+    );
   } finally {
     await db.close();
   }
@@ -188,6 +214,97 @@ test("one live invitation per address per workspace", async () => {
   }
 });
 
+test("the database itself refuses a second live invitation for one address", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    // The invariant is not only application code: a row written behind
+    // the application's back is refused by the database too.
+    await assert.rejects(
+      () =>
+        db.query(
+          `insert into workspace_invites
+             (workspace_id, email, role, token_hash, invited_by, expires_at)
+           values ($1, $2, 'member', $3, $4, now() + interval '1 hour')`,
+          [
+            workspace.id,
+            "guest@skilit.example",
+            "f".repeat(64),
+            owner.id,
+          ],
+        ),
+      /unique|duplicate/i,
+      "the database refuses the second live invitation",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("an address may be invited again once the first invitation expired", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const first = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+      ttlSeconds: 300,
+    });
+    await db.query(
+      "update workspace_invites set expires_at = now() - interval '1 second' where id = $1",
+      [first.invite.id],
+    );
+    const second = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    assert.equal(second.invite.state, "pending");
+    // The expired invitation is swept to revoked so the address can be
+    // invited again, but it still reads as expired: expiry is checked
+    // before revocation.
+    assert.equal((await readInvite(db, first.token)).state, "expired");
+  } finally {
+    await db.close();
+  }
+});
+
+test("an expired invitation is not revocable and keeps its label", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const { invite, token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+      ttlSeconds: 300,
+    });
+    await db.query(
+      "update workspace_invites set expires_at = now() - interval '1 second' where id = $1",
+      [invite.id],
+    );
+    const revoked = await revokeInvite(db, {
+      workspaceId: workspace.id,
+      inviteId: invite.id,
+      actorId: owner.id,
+    });
+    assert.equal(revoked, false, "an expired invitation is already terminal");
+    assert.equal((await readInvite(db, token)).state, "expired");
+  } finally {
+    await db.close();
+  }
+});
+
 test("an invited person redeems the invitation and joins the workspace", async () => {
   const db = await fixtureDb();
   try {
@@ -220,7 +337,7 @@ test("an invited person redeems the invitation and joins the workspace", async (
       isForbidden,
     );
 
-    const members = await listWorkspaceMembers(db, {
+    const members = await listWorkspaceRoster(db, {
       workspaceId: workspace.id,
       actorId: owner.id,
     });
@@ -281,6 +398,113 @@ test("a signed-in person accepts an invitation for an existing account", async (
       isForbidden,
       "the invitation is spent",
     );
+  } finally {
+    await db.close();
+  }
+});
+
+test("a signed-in stranger may not take the seat of an invited address", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const stranger = await signUp(db, {
+      email: "stranger@skilit.example",
+      password: "correct-horse-01",
+    });
+    const { token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "owner",
+      actorId: owner.id,
+    });
+    // The link alone is not the authority: only the invited address may
+    // take the seat, so a signed-in stranger is refused.
+    await assert.rejects(
+      () => acceptInvite(db, { token, userId: stranger.id }),
+      isForbidden,
+      "a signed-in stranger cannot take the seat",
+    );
+    const members = await listWorkspaceRoster(db, {
+      workspaceId: workspace.id,
+      actorId: owner.id,
+    });
+    assert.equal(members.length, 1, "no membership was written");
+    const listed = await listInvites(db, {
+      workspaceId: workspace.id,
+      actorId: owner.id,
+    });
+    assert.equal(listed[0].state, "pending", "the invitation is still spendable");
+  } finally {
+    await db.close();
+  }
+});
+
+test("a revoked invitation cannot be accepted afterwards", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const guest = await signUp(db, {
+      email: "guest@skilit.example",
+      password: "correct-horse-01",
+    });
+    const { invite, token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    await revokeInvite(db, {
+      workspaceId: workspace.id,
+      inviteId: invite.id,
+      actorId: owner.id,
+    });
+    // The acceptance is guarded on the revocation, so the row can never
+    // end up accepted and revoked at the same time.
+    await assert.rejects(
+      () => acceptInvite(db, { token, userId: guest.id }),
+      isForbidden,
+      "a revoked invitation cannot be accepted",
+    );
+    const row = await db.query(
+      "select accepted_at, revoked_at from workspace_invites where id = $1",
+      [invite.id],
+    );
+    assert.equal(row.rows[0].accepted_at, null, "the invitation was not accepted");
+    assert.notEqual(row.rows[0].revoked_at, null, "the revocation stands");
+  } finally {
+    await db.close();
+  }
+});
+
+test("an expired invitation cannot be accepted afterwards", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const guest = await signUp(db, {
+      email: "guest@skilit.example",
+      password: "correct-horse-01",
+    });
+    const { invite, token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+      ttlSeconds: 300,
+    });
+    await db.query(
+      "update workspace_invites set expires_at = now() - interval '1 second' where id = $1",
+      [invite.id],
+    );
+    await assert.rejects(
+      () => acceptInvite(db, { token, userId: guest.id }),
+      isForbidden,
+      "an expired invitation cannot be accepted",
+    );
+    const row = await db.query(
+      "select accepted_at from workspace_invites where id = $1",
+      [invite.id],
+    );
+    assert.equal(row.rows[0].accepted_at, null, "the invitation was not accepted");
   } finally {
     await db.close();
   }
@@ -407,6 +631,67 @@ test("only an operator may read the invitations of a workspace", async () => {
       () => listInvites(db, { workspaceId: workspace.id, actorId: guest.id }),
       isForbidden,
       "a plain member cannot read the invitation list",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("the roster carries the address behind every membership", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const guest = await signUp(db, {
+      email: "guest@skilit.example",
+      password: "correct-horse-01",
+    });
+    await db.query(
+      "insert into workspace_members (workspace_id, user_id, role) values ($1, $2, 'member')",
+      [workspace.id, guest.id],
+    );
+    const roster = await listWorkspaceRoster(db, {
+      workspaceId: workspace.id,
+      actorId: owner.id,
+    });
+    assert.equal(roster.length, 2);
+    const addresses = roster.map((entry) => entry.email);
+    assert.ok(addresses.includes("owner@skilit.example"));
+    assert.ok(addresses.includes("guest@skilit.example"));
+    // A plain member may read the roster of their own workspace.
+    const asMember = await listWorkspaceRoster(db, {
+      workspaceId: workspace.id,
+      actorId: guest.id,
+    });
+    assert.equal(asMember.length, 2);
+  } finally {
+    await db.close();
+  }
+});
+
+test("an invited person ends up with a workspace of their own that is not named Personal", async () => {
+  const db = await fixtureDb();
+  try {
+    const { owner, workspace } = await ownerWithWorkspace(db);
+    const { token } = await createInvite(db, {
+      workspaceId: workspace.id,
+      email: "guest@skilit.example",
+      role: "member",
+      actorId: owner.id,
+    });
+    const redeemed = await redeemInvite(db, {
+      token,
+      email: "guest@skilit.example",
+      password: "correct-horse-01",
+    });
+    const spaces = await listWorkspacesForUser(db, redeemed.user.id);
+    assert.equal(spaces.length, 2, "the invited person has a workspace of their own");
+    const names = spaces.map((space) => space.name);
+    // Two workspaces of the same name would be indistinguishable in the
+    // workspace picker, so the personal one names its owner.
+    assert.equal(new Set(names).size, 2, `the two workspaces must differ: ${names.join(", ")}`);
+    assert.ok(
+      names.includes(personalWorkspaceName("guest@skilit.example")),
+      `the personal workspace must carry its owner's address: ${names.join(", ")}`,
     );
   } finally {
     await db.close();

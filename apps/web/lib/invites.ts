@@ -1,7 +1,7 @@
 /**
  * G00-G19: the workspace invitation REST surface.
  *
- * Five routes:
+ * Six routes:
  * - POST   /api/v1/workspaces/{id}/invites      — an operator issues an invitation
  * - GET    /api/v1/workspaces/{id}/invites      — an operator reads the invitations
  * - DELETE /api/v1/workspaces/{id}/invites/{id} — an operator revokes an invitation
@@ -17,7 +17,10 @@
  * - the invitation token is returned once, in the response that creates
  *   it, and never again;
  * - every access failure is one generic denial, so a caller cannot tell
- *   an unknown token from a revoked, expired or already-spent one.
+ *   an unknown token from a revoked, expired or already-spent one;
+ * - no failure answers whether an address already has an account: the
+ *   answer for a refused registration is the same as for any other
+ *   refused registration, and the way forward is to sign in instead.
  */
 
 import { AuthError } from "../../../packages/db/src/auth.ts";
@@ -25,13 +28,14 @@ import {
   acceptInvite,
   createInvite,
   listInvites,
-  listWorkspaceMembers,
+  listWorkspaceRoster,
   readInvite,
   redeemInvite,
   revokeInvite,
 } from "../../../packages/db/src/invites.ts";
 import type { InvitePreview, InviteRole, WorkspaceInvite } from "../../../packages/db/src/invites.ts";
-import type { Membership } from "../../../packages/db/src/workspaces.ts";
+import type { RosterEntry } from "../../../packages/db/src/invites.ts";
+import type { WorkspaceRole } from "../../../packages/db/src/workspaces.ts";
 import type { DbClient } from "../../../packages/db/src/db.ts";
 import {
   AgentContractError,
@@ -87,10 +91,20 @@ function toFailure(error: unknown, requestId: string): InviteRouteResult {
     if (error.code === "auth/invite-exists") {
       return invalidInput(requestId, "An invite is already pending for that address.");
     }
+    if (error.code === "auth/invalid-email") {
+      return invalidInput(requestId, "Email address is invalid.");
+    }
+    if (error.code === "auth/invalid-password") {
+      return invalidInput(requestId, "Password must be 8 to 128 characters.");
+    }
     if (error.code === "auth/email-taken") {
+      // The answer never says whether the address has an account: a
+      // refused registration reads exactly like any other refused
+      // registration. Signing in is the way forward for somebody who
+      // already has one.
       return invalidInput(
         requestId,
-        "That address already has an account. Sign in to accept the invitation.",
+        "That address could not be used to create an account. If you already have one, sign in and accept the invitation instead.",
       );
     }
     if (error.code === "auth/invalid-role" || error.code === "auth/invalid-invite") {
@@ -117,12 +131,13 @@ function toInviteView(invite: WorkspaceInvite) {
   };
 }
 
-function toMembershipView(membership: Membership) {
+function toRosterView(entry: RosterEntry) {
   return {
-    workspaceId: membership.workspaceId,
-    userId: membership.userId,
-    role: membership.role,
-    joinedAt: membership.joinedAt,
+    workspaceId: entry.workspaceId,
+    userId: entry.userId,
+    email: entry.email,
+    role: entry.role,
+    joinedAt: entry.joinedAt,
   };
 }
 
@@ -144,7 +159,8 @@ function checkUuid(value: string): boolean {
  * POST /api/v1/workspaces/{id}/invites — issue an invitation.
  *
  * The body carries the address and the role. The token is returned once:
- * it is the only copy, because the stored value is a hash.
+ * it is the only copy, because the stored value is a hash. An optional
+ * lifetime is accepted in seconds and is range-checked by the domain.
  */
 export async function createInviteRoute(
   db: DbClient,
@@ -164,12 +180,17 @@ export async function createInviteRoute(
   if (role !== "owner" && role !== "admin" && role !== "member") {
     return invalidInput(requestId, "Invitation request is invalid.");
   }
+  const ttlSeconds = record?.ttlSeconds;
+  if (ttlSeconds !== undefined && typeof ttlSeconds !== "number") {
+    return invalidInput(requestId, "Invitation request is invalid.");
+  }
   try {
     const created = await createInvite(db, {
       workspaceId,
       email,
       role: role as InviteRole,
       actorId,
+      ...(ttlSeconds === undefined ? {} : { ttlSeconds }),
     });
     return {
       status: 201,
@@ -235,6 +256,10 @@ export async function revokeInviteRoute(
 
 /**
  * GET /api/v1/workspaces/{id}/members — the roster of one workspace.
+ *
+ * Any member may read it. The answer also carries the caller's own role
+ * in the workspace, so the interface knows whether this person may issue
+ * invitations without asking the server a second time.
  */
 export async function listMembersRoute(
   db: DbClient,
@@ -245,10 +270,15 @@ export async function listMembersRoute(
   const requestId = newRequestId(providedRequestId);
   if (!checkUuid(actorId) || !checkUuid(workspaceId)) return notFound(requestId);
   try {
-    const members = await listWorkspaceMembers(db, { workspaceId, actorId });
+    const members = await listWorkspaceRoster(db, { workspaceId, actorId });
+    const viewer = members.find((entry) => entry.userId === actorId);
+    const viewerRole: WorkspaceRole | null = viewer === undefined ? null : viewer.role;
     return {
       status: 200,
-      body: successEnvelope(requestId, { members: members.map(toMembershipView) }),
+      body: successEnvelope(requestId, {
+        members: members.map(toRosterView),
+        viewerRole,
+      }),
     };
   } catch (error) {
     return toFailure(error, requestId);
@@ -260,8 +290,9 @@ export async function listMembersRoute(
  * before they accept it.
  *
  * The token is the credential, so this route needs none of its own. An
- * unknown, revoked, expired or spent token all read as the same
- * absence.
+ * unknown token is an absence; a token that names a real invitation is
+ * disclosed together with its state, so the holder is told whether it is
+ * still spendable.
  */
 export async function readInviteRoute(
   db: DbClient,
@@ -284,9 +315,10 @@ export async function readInviteRoute(
 /**
  * POST /api/v1/invites/{token}/accept — accept an invitation.
  *
- * A holder who already has an account joins the workspace. A holder who
- * has none is created an account for exactly the invited address, and
- * the browser is signed in.
+ * A holder who already has an account joins the workspace as themselves,
+ * and only if that account carries the invited address. A holder who has
+ * none is created an account for exactly the invited address, and the
+ * browser is signed in.
  *
  * The method establishes ambient authority, so it is origin checked.
  */
@@ -321,7 +353,12 @@ export async function acceptInviteRoute(
         body: successEnvelope(requestId, {
           workspaceId: accepted.workspaceId,
           workspaceName: accepted.workspaceName,
-          membership: toMembershipView(accepted.membership),
+          membership: {
+            workspaceId: accepted.membership.workspaceId,
+            userId: accepted.membership.userId,
+            role: accepted.membership.role,
+            joinedAt: accepted.membership.joinedAt,
+          },
         }),
       };
     }
@@ -339,7 +376,12 @@ export async function acceptInviteRoute(
         user: { id: redeemed.user.id, email: redeemed.user.email },
         workspaceId: redeemed.workspaceId,
         workspaceName: redeemed.workspaceName,
-        membership: toMembershipView(redeemed.membership),
+        membership: {
+          workspaceId: redeemed.membership.workspaceId,
+          userId: redeemed.membership.userId,
+          role: redeemed.membership.role,
+          joinedAt: redeemed.membership.joinedAt,
+        },
       }),
       setCookie: sessionCookieHeader(redeemed.session.token, request),
     };

@@ -129,10 +129,69 @@ test("a plain member may not create an invitation or read the invitation list", 
     assert.equal(listed.status, 404);
     assert.equal(listed.body.error.code, "FORBIDDEN_OR_NOT_FOUND");
 
-    // The roster is readable by any member.
+    // The roster is readable by any member, and it says which role the
+    // caller holds, so the interface knows what the caller may do.
     const members = await listMembersRoute(fx.db, member.id, workspace.id, "rid-invite-7");
     assert.equal(members.status, 200);
     assert.equal(members.body.result.members.length, 2);
+    assert.equal(members.body.result.viewerRole, "member");
+    const addresses = members.body.result.members.map((entry) => entry.email);
+    assert.ok(addresses.includes("owner@skilit.example"));
+    assert.ok(addresses.includes("member@skilit.example"));
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("an operator is told its own role on the roster", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const members = await listMembersRoute(fx.db, owner.id, workspace.id, "rid-invite-7b");
+    assert.equal(members.status, 200);
+    assert.equal(members.body.result.viewerRole, "owner");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("an operator may choose how long an invitation lives", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member", ttlSeconds: 3600 },
+      owner.id,
+      workspace.id,
+      "rid-invite-7c",
+    );
+    assert.equal(created.status, 201);
+    const expiresAt = new Date(created.body.result.invite.expiresAt).getTime();
+    const now = Date.now();
+    const lifetime = (expiresAt - now) / 1000;
+    assert.ok(
+      lifetime > 3000 && lifetime <= 3600,
+      `the invitation must live for the requested hour, saw ${lifetime} seconds`,
+    );
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("an invitation request that names an impossible lifetime is refused", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const refused = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member", ttlSeconds: 10 },
+      owner.id,
+      workspace.id,
+      "rid-invite-7d",
+    );
+    assert.equal(refused.status, 400);
+    assert.equal(refused.body.error.code, "INVALID_INPUT");
   } finally {
     await fx.db.close();
   }
@@ -334,6 +393,147 @@ test("accepting an invitation from another origin is refused", async () => {
     );
     assert.equal(refused.status, 400);
     assert.equal(refused.body.error.code, "INVALID_INPUT");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("a malformed address or a short password is a bad request, not an absence", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member" },
+      owner.id,
+      workspace.id,
+      "rid-invite-24",
+    );
+    const token = created.body.result.token;
+    const badEmail = await acceptInviteRoute(
+      fx.db,
+      { email: "not-an-address", password: "guest-password-01" },
+      jsonRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
+      token,
+      "rid-invite-25",
+    );
+    assert.equal(badEmail.status, 400, "a malformed address is the caller's fault");
+    assert.equal(badEmail.body.error.code, "INVALID_INPUT");
+
+    const badPassword = await acceptInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", password: "short" },
+      jsonRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
+      token,
+      "rid-invite-26",
+    );
+    assert.equal(badPassword.status, 400, "a short password is the caller's fault");
+    assert.equal(badPassword.body.error.code, "INVALID_INPUT");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("an address that already has an account is refused without saying so", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    await signUp(fx.db, {
+      email: "guest@skilit.example",
+      password: "guest-password-01",
+    });
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member" },
+      owner.id,
+      workspace.id,
+      "rid-invite-27",
+    );
+    const token = created.body.result.token;
+    const refused = await acceptInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", password: "another-password-01" },
+      jsonRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
+      token,
+      "rid-invite-28",
+    );
+    assert.equal(refused.status, 400);
+    assert.equal(refused.body.error.code, "INVALID_INPUT");
+    // The answer never confirms that the address has an account.
+    const message = String(refused.body.error.message ?? "").toLowerCase();
+    assert.ok(
+      !message.includes("already registered") && !message.includes("already exists"),
+      `the answer must not confirm that the address has an account: ${message}`,
+    );
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("a signed-in stranger may not take the seat of an invited address", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const stranger = await signUp(fx.db, {
+      email: "stranger@skilit.example",
+      password: "stranger-password-01",
+    });
+    const session = await fx.db.transaction((tx) => createSession(tx, stranger.id));
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "owner" },
+      owner.id,
+      workspace.id,
+      "rid-invite-29",
+    );
+    const token = created.body.result.token;
+    const refused = await acceptInviteRoute(
+      fx.db,
+      {},
+      cookieRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, session.token, {
+        method: "POST",
+      }),
+      token,
+      "rid-invite-30",
+    );
+    assert.equal(refused.status, 404, "a stranger is refused as an absence");
+    assert.equal(refused.body.error.code, "FORBIDDEN_OR_NOT_FOUND");
+    const roster = await listMembersRoute(fx.db, owner.id, workspace.id, "rid-invite-31");
+    assert.equal(roster.body.result.members.length, 2, "no membership was written");
+  } finally {
+    await fx.db.close();
+  }
+});
+
+test("a spent invitation reads as an absence, whatever the caller is", async () => {
+  const fx = await fixture();
+  try {
+    const { owner, workspace } = await operator(fx.db);
+    const created = await createInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", role: "member" },
+      owner.id,
+      workspace.id,
+      "rid-invite-32",
+    );
+    const token = created.body.result.token;
+    const first = await acceptInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", password: "guest-password-01" },
+      jsonRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
+      token,
+      "rid-invite-33",
+    );
+    assert.equal(first.status, 201);
+    const again = await acceptInviteRoute(
+      fx.db,
+      { email: "guest@skilit.example", password: "guest-password-01" },
+      jsonRequest(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
+      token,
+      "rid-invite-34",
+    );
+    assert.equal(again.status, 404, "a spent invitation is an absence");
+    assert.equal(again.body.error.code, "FORBIDDEN_OR_NOT_FOUND");
   } finally {
     await fx.db.close();
   }

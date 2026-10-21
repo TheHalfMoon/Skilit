@@ -2,13 +2,14 @@
 
 import { SessionAccessBanner } from "../../components/session-access-banner";
 import { WorkspaceSelector } from "../../components/workspace-selector";
-import { sessionRequest } from "../../lib/browser-session";
+import { asRecord, fetchJson } from "../../lib/browser-envelope";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Member {
   workspaceId: string;
   userId: string;
+  email: string;
   role: string;
   joinedAt: string;
 }
@@ -22,45 +23,61 @@ interface Invite {
   createdAt: string;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
+type ViewStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "denied"
+  | "unavailable"
+  | "signed-out";
+
+type InviteStatus = "hidden" | "loading" | "ready" | "unavailable";
+
+interface WorkspaceView {
+  status: ViewStatus;
+  members: Member[];
+  viewerRole: string | null;
+  invites: Invite[];
+  invitesStatus: InviteStatus;
 }
 
-function readFailure(payload: unknown, fallback: string): { code: string; message: string } {
-  const record = asRecord(payload);
-  const error = record === null ? null : asRecord(record.error);
-  if (error === null) return { code: "UNKNOWN", message: fallback };
-  const code = typeof error.code === "string" ? error.code : "UNKNOWN";
-  const message = typeof error.message === "string" ? error.message : fallback;
-  return { code, message };
-}
+const IDLE_VIEW: WorkspaceView = {
+  status: "idle",
+  members: [],
+  viewerRole: null,
+  invites: [],
+  invitesStatus: "hidden",
+};
 
-function readMembers(result: unknown): Member[] | null {
-  const record = asRecord(result);
-  const list = record === null ? null : record.members;
+function readMembers(result: Record<string, unknown>): Member[] | null {
+  const list = result.members;
   if (!Array.isArray(list)) return null;
   const out: Member[] = [];
   for (const item of list) {
     const row = asRecord(item);
     if (row === null) return null;
-    const { workspaceId, userId, role, joinedAt } = row;
+    const { workspaceId, userId, email, role, joinedAt } = row;
     if (
       typeof workspaceId !== "string" ||
       typeof userId !== "string" ||
+      typeof email !== "string" ||
       typeof role !== "string" ||
       typeof joinedAt !== "string"
     ) {
       return null;
     }
-    out.push({ workspaceId, userId, role, joinedAt });
+    out.push({ workspaceId, userId, email, role, joinedAt });
   }
   return out;
 }
 
-function readInvites(result: unknown): Invite[] | null {
-  const record = asRecord(result);
-  const list = record === null ? null : record.invites;
+function readViewerRole(result: Record<string, unknown>): string | null {
+  const role = result.viewerRole;
+  return typeof role === "string" ? role : null;
+}
+
+function readInvites(result: Record<string, unknown>): Invite[] | null {
+  const list = result.invites;
   if (!Array.isArray(list)) return null;
   const out: Invite[] = [];
   for (const item of list) {
@@ -84,132 +101,168 @@ function readInvites(result: unknown): Invite[] | null {
 
 export default function WorkspacesPage() {
   const [workspaceId, setWorkspaceId] = useState("");
-  const [members, setMembers] = useState<Member[] | null>(null);
-  const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [view, setView] = useState<WorkspaceView>(IDLE_VIEW);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
+  const [lifetime, setLifetime] = useState("604800");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
+  const request = useRef<AbortController | null>(null);
 
-  const callJson = useCallback(
-    async (
-      label: string,
-      path: string,
-      init: RequestInit,
-      onOk: (result: Record<string, unknown>) => void | Promise<void>,
-    ): Promise<void> => {
-      setBusy(label);
-      setFailure(null);
-      try {
-        const response = await sessionRequest(path, init);
-        if (response.status === 401) {
-          setMembers(null);
-          setInvites(null);
-          setNotice("You are signed out.");
-          return;
-        }
-        const payload: unknown = await response.json().catch(() => null);
-        if (!response.ok) {
-          setFailure(readFailure(payload, `${label} failed with HTTP ${response.status}.`));
-          return;
-        }
-        const record = asRecord(payload);
-        const result = record === null ? null : asRecord(record.result);
-        if (result === null) {
-          setFailure({ code: "UNKNOWN", message: `${label} returned an unrecognized shape.` });
-          return;
-        }
-        await onOk(result);
-      } catch {
-        setFailure({ code: "UNKNOWN", message: `${label} could not reach the server.` });
-      } finally {
-        setBusy(null);
+  const load = useCallback(
+    async (id: string, signal: AbortSignal): Promise<void> => {
+      // The previous workspace's roster and invitations are dropped
+      // before the new ones arrive, so a stale table can never sit next
+      // to a fresh workspace, or next to a failure.
+      setView({ ...IDLE_VIEW, status: "loading" });
+      const membersOutcome = await fetchJson(
+        `/api/v1/workspaces/${encodeURIComponent(id)}/members`,
+        { signal },
+        "Load members",
+      );
+      if (signal.aborted) return;
+      if (membersOutcome.status === 401) {
+        setView({ ...IDLE_VIEW, status: "signed-out" });
+        setNotice("You are signed out.");
+        return;
       }
+      if (!membersOutcome.ok) {
+        setView({
+          ...IDLE_VIEW,
+          status: membersOutcome.status === 404 ? "denied" : "unavailable",
+        });
+        return;
+      }
+      const members = readMembers(membersOutcome.result);
+      const viewerRole = readViewerRole(membersOutcome.result);
+      if (members === null || viewerRole === null) {
+        setView({ ...IDLE_VIEW, status: "unavailable" });
+        return;
+      }
+      const operator = viewerRole === "owner" || viewerRole === "admin";
+      setView({
+        status: "ready",
+        members,
+        viewerRole,
+        invites: [],
+        invitesStatus: operator ? "loading" : "hidden",
+      });
+      if (!operator) return;
+      const invitesOutcome = await fetchJson(
+        `/api/v1/workspaces/${encodeURIComponent(id)}/invites`,
+        { signal },
+        "Load invitations",
+      );
+      if (signal.aborted) return;
+      if (!invitesOutcome.ok) {
+        setView((previous) => ({ ...previous, invitesStatus: "unavailable" }));
+        return;
+      }
+      const invites = readInvites(invitesOutcome.result);
+      if (invites === null) {
+        setView((previous) => ({ ...previous, invitesStatus: "unavailable" }));
+        return;
+      }
+      setView((previous) => ({
+        ...previous,
+        invites,
+        invitesStatus: "ready",
+      }));
     },
     [],
   );
 
-  const loadMembers = useCallback(
-    (id: string) =>
-      callJson("Load members", `/api/v1/workspaces/${encodeURIComponent(id)}/members`, {}, (result) => {
-        const listed = readMembers(result);
-        if (listed === null) {
-          setFailure({ code: "UNKNOWN", message: "Listing members returned an unrecognized shape." });
-          return;
-        }
-        setMembers(listed);
-      }),
-    [callJson],
-  );
-
-  const loadInvites = useCallback(
-    (id: string) =>
-      callJson("Load invitations", `/api/v1/workspaces/${encodeURIComponent(id)}/invites`, {}, (result) => {
-        const listed = readInvites(result);
-        if (listed === null) {
-          setFailure({ code: "UNKNOWN", message: "Listing invitations returned an unrecognized shape." });
-          return;
-        }
-        setInvites(listed);
-      }),
-    [callJson],
-  );
-
   useEffect(() => {
+    request.current?.abort();
     if (workspaceId === "") {
-      setMembers(null);
-      setInvites(null);
+      setView(IDLE_VIEW);
       return;
     }
-    void loadMembers(workspaceId);
-    void loadInvites(workspaceId);
-  }, [workspaceId, loadMembers, loadInvites]);
+    const controller = new AbortController();
+    request.current = controller;
+    void load(workspaceId, controller.signal);
+    return () => controller.abort();
+  }, [workspaceId, load]);
 
-  function createInvite(): void {
+  async function createInvite(): Promise<void> {
     if (busy !== null || workspaceId === "") return;
+    setBusy("Create invitation");
+    setFailure(null);
     setNotice(null);
-    setInviteLink(null);
-    void callJson(
-      "Create invitation",
+    setCopied(false);
+    const outcome = await fetchJson(
       `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/invites`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email, role, ttlSeconds: Number(lifetime) }),
       },
-      (result) => {
-        const token = result.token;
-        if (typeof token !== "string" || token.length === 0) {
-          setFailure({ code: "UNKNOWN", message: "The invitation was created without a token." });
-          return;
-        }
-        setNotice("Invitation created. Share the link below with the person you invited.");
-        setInviteLink(
-          typeof window === "undefined" ? token : `${window.location.origin}/invite/${token}`,
-        );
-        setEmail("");
-        void loadInvites(workspaceId);
-      },
+      "Create invitation",
     );
+    setBusy(null);
+    if (!outcome.ok) {
+      setFailure({ code: outcome.code, message: outcome.message });
+      return;
+    }
+    const token = outcome.result.token;
+    if (typeof token !== "string" || token.length === 0) {
+      setFailure({ code: "UNKNOWN", message: "The invitation was created without a token." });
+      return;
+    }
+    setNotice("Invitation created. Share the link below with the person you invited.");
+    setInviteLink(
+      typeof window === "undefined" ? token : `${window.location.origin}/invite/${token}`,
+    );
+    setEmail("");
+    void refresh();
   }
 
-  function revokeInvite(inviteId: string): void {
+  async function revokeInvite(inviteId: string): Promise<void> {
     if (busy !== null || workspaceId === "") return;
+    setBusy("Revoke invitation");
+    setFailure(null);
     setNotice(null);
-    void callJson(
-      "Revoke invitation",
+    const outcome = await fetchJson(
       `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(inviteId)}`,
       { method: "DELETE" },
-      () => {
-        setNotice("Invitation revoked.");
-        void loadInvites(workspaceId);
-      },
+      "Revoke invitation",
     );
+    setBusy(null);
+    if (!outcome.ok) {
+      setFailure({ code: outcome.code, message: outcome.message });
+      return;
+    }
+    setNotice("Invitation revoked.");
+    void refresh();
+  }
+
+  async function refresh(): Promise<void> {
+    if (workspaceId === "") return;
+    const controller = new AbortController();
+    request.current?.abort();
+    request.current = controller;
+    await load(workspaceId, controller.signal);
+  }
+
+  async function copyInviteLink(): Promise<void> {
+    if (inviteLink === null) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setNotice("Invitation link copied.");
+    } catch {
+      setFailure({
+        code: "UNKNOWN",
+        message: "The link could not be copied. Copy it from the field instead.",
+      });
+    }
   }
 
   const canAct = workspaceId !== "" && busy === null;
+  const operator = view.viewerRole === "owner" || view.viewerRole === "admin";
 
   return (
     <main>
@@ -236,60 +289,111 @@ export default function WorkspacesPage() {
           <label htmlFor="workspaces-picker">Workspace</label>
           <WorkspaceSelector id="workspaces-picker" value={workspaceId} onChange={setWorkspaceId} />
         </div>
+        <div className="sk-account-actions">
+          <button
+            type="button"
+            aria-disabled={busy !== null || workspaceId === ""}
+            onClick={() => {
+              if (busy !== null || workspaceId === "") return;
+              void refresh();
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </section>
 
-      <section aria-label="Invite someone">
-        <h2>2. Invite someone</h2>
-        <div>
-          <label htmlFor="workspaces-email">Email address</label>
-          <input
-            id="workspaces-email"
-            type="email"
-            autoComplete="off"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            style={{ width: "100%" }}
-          />
-        </div>
-        <div>
-          <label htmlFor="workspaces-role">Role</label>
-          <select
-            id="workspaces-role"
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-          >
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <button type="button" disabled={!canAct} onClick={() => createInvite()}>
-          Create invitation
-        </button>
-        {inviteLink !== null ? (
+      {operator ? (
+        <section aria-label="Invite someone">
+          <h2>2. Invite someone</h2>
           <div>
-            <label htmlFor="workspaces-invite-link">Invitation link</label>
+            <label htmlFor="workspaces-email">Email address</label>
             <input
-              id="workspaces-invite-link"
-              type="text"
-              readOnly
-              value={inviteLink}
-              style={{ width: "100%" }}
+              id="workspaces-email"
+              type="email"
+              autoComplete="off"
+              className="sk-field-wide"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
-            <p>
-              This link is shown once. Anyone who has it can accept the invitation
-              until it is revoked or it expires.
-            </p>
           </div>
-        ) : null}
-      </section>
+          <div>
+            <label htmlFor="workspaces-role">Role</label>
+            <select
+              id="workspaces-role"
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="workspaces-lifetime">Valid for</label>
+            <select
+              id="workspaces-lifetime"
+              value={lifetime}
+              onChange={(event) => setLifetime(event.target.value)}
+            >
+              <option value="3600">One hour</option>
+              <option value="86400">One day</option>
+              <option value="604800">Seven days</option>
+              <option value="2592000">Thirty days</option>
+            </select>
+          </div>
+          <button type="button" disabled={!canAct} onClick={() => void createInvite()}>
+            Create invitation
+          </button>
+          {inviteLink !== null ? (
+            <div>
+              <label htmlFor="workspaces-invite-link">Invitation link</label>
+              <input
+                id="workspaces-invite-link"
+                type="text"
+                readOnly
+                className="sk-field-wide"
+                value={inviteLink}
+              />
+              <button type="button" onClick={() => void copyInviteLink()}>
+                {copied ? "Copied" : "Copy link"}
+              </button>
+              <p>
+                This link is shown once. Anyone who has it can accept the invitation
+                until it is revoked or it expires.
+              </p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {view.status === "ready" && !operator ? (
+        <p>
+          You are a member of this workspace. Only owners and admins can invite
+          people into it.
+        </p>
+      ) : null}
 
       <section aria-label="Invitations">
         <h2>3. Invitations</h2>
-        {invites === null ? <p>No workspace is selected.</p> : null}
-        {invites !== null && invites.length === 0 ? (
+        {view.status === "idle" ? <p>Select a workspace to see its invitations.</p> : null}
+        {view.status === "loading" ? <p>Loading…</p> : null}
+        {view.status === "denied" ? (
+          <p>You are not a member of this workspace.</p>
+        ) : null}
+        {view.status === "unavailable" ? (
+          <p>The invitations for this workspace could not be loaded.</p>
+        ) : null}
+        {view.status === "signed-out" ? <p>You are signed out.</p> : null}
+        {view.invitesStatus === "hidden" && view.status === "ready" ? (
+          <p>Invitations are readable by owners and admins only.</p>
+        ) : null}
+        {view.invitesStatus === "unavailable" ? (
+          <p>The invitations for this workspace could not be loaded.</p>
+        ) : null}
+        {view.invitesStatus === "ready" && view.invites.length === 0 ? (
           <p>No invitation has been issued for this workspace.</p>
         ) : null}
-        {invites !== null && invites.length > 0 ? (
+        {view.invitesStatus === "ready" && view.invites.length > 0 ? (
           <table className="sk-account-table">
             <thead>
               <tr>
@@ -301,7 +405,7 @@ export default function WorkspacesPage() {
               </tr>
             </thead>
             <tbody>
-              {invites.map((invite) => (
+              {view.invites.map((invite) => (
                 <tr key={invite.id}>
                   <td>{invite.email}</td>
                   <td>{invite.role}</td>
@@ -311,7 +415,7 @@ export default function WorkspacesPage() {
                     <button
                       type="button"
                       disabled={busy !== null || invite.state !== "pending"}
-                      onClick={() => revokeInvite(invite.id)}
+                      onClick={() => void revokeInvite(invite.id)}
                     >
                       Revoke
                     </button>
@@ -325,11 +429,17 @@ export default function WorkspacesPage() {
 
       <section aria-label="Members">
         <h2>4. Members</h2>
-        {members === null ? <p>No workspace is selected.</p> : null}
-        {members !== null && members.length === 0 ? (
+        {view.status === "idle" ? <p>Select a workspace to see its roster.</p> : null}
+        {view.status === "loading" ? <p>Loading…</p> : null}
+        {view.status === "denied" ? <p>You are not a member of this workspace.</p> : null}
+        {view.status === "unavailable" ? (
+          <p>The roster for this workspace could not be loaded.</p>
+        ) : null}
+        {view.status === "signed-out" ? <p>You are signed out.</p> : null}
+        {view.status === "ready" && view.members.length === 0 ? (
           <p>This workspace has no members.</p>
         ) : null}
-        {members !== null && members.length > 0 ? (
+        {view.status === "ready" && view.members.length > 0 ? (
           <table className="sk-account-table">
             <thead>
               <tr>
@@ -339,11 +449,9 @@ export default function WorkspacesPage() {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
+              {view.members.map((member) => (
                 <tr key={member.userId}>
-                  <td>
-                    <code>{member.userId}</code>
-                  </td>
+                  <td>{member.email}</td>
                   <td>{member.role}</td>
                   <td>{new Date(member.joinedAt).toLocaleString()}</td>
                 </tr>
@@ -352,6 +460,10 @@ export default function WorkspacesPage() {
           </table>
         ) : null}
       </section>
+
+      <p>
+        <a href="/account">Manage your own sessions</a>
+      </p>
     </main>
   );
 }

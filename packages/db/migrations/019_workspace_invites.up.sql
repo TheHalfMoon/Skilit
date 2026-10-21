@@ -13,7 +13,10 @@ create table workspace_invites (
   workspace_id uuid not null references workspaces(id) on delete cascade,
   email text not null check(length(trim(email)) > 0 and length(email) <= 320),
   role text not null check(role in ('owner','admin','member')),
-  token_hash text not null unique,
+  -- The stored secret is a sha-256 hex digest, so it is always 64
+  -- characters. A row that holds anything else is not a token this
+  -- application can redeem.
+  token_hash text not null unique check(length(token_hash) = 64),
   invited_by uuid not null references users(id) on delete cascade,
   expires_at timestamptz not null,
   accepted_at timestamptz,
@@ -23,3 +26,13 @@ create table workspace_invites (
 
 create index workspace_invites_workspace_idx on workspace_invites(workspace_id);
 create index workspace_invites_email_idx on workspace_invites(email);
+
+-- At most one live invitation per workspace and address. The uniqueness is
+-- enforced by the database, not only by the application, so a concurrent
+-- pair of issuances cannot both pass an application-level check. An
+-- expired invitation is swept to revoked before a new one is issued, and
+-- it reads as expired anyway because expiry is checked before
+-- revocation.
+create unique index workspace_invites_live_idx
+  on workspace_invites(workspace_id, email)
+  where accepted_at is null and revoked_at is null;
