@@ -1,0 +1,762 @@
+{
+  "schema_version": "skilit-competitive-tasks/1",
+  "as_of": "2026-10-22",
+  "description": "Fifty original, product-neutral design research tasks. This file is NOT completed benchmark evidence.",
+  "products": [
+    "skilit",
+    "mobbin",
+    "refero"
+  ],
+  "tasks": [
+    {
+      "task_id": "CB01-01",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "fintech",
+      "prompt": "Find at least three authentic interface-screen references for An identity-verification onboarding flow that explains sensitive document permissions. Explain how each handles privacy consent, progress, and failure recovery.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-02",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "healthcare",
+      "prompt": "Find at least three authentic interface-screen references for A patient appointment-booking experience with clinician selection. Explain how each handles provider filters, availability, and confirmation.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-03",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "commerce",
+      "prompt": "Find at least three authentic interface-screen references for An online checkout that handles delivery selection and payment failure. Explain how each handles trust cues, form errors, and retry.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-04",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "productivity",
+      "prompt": "Find at least three authentic interface-screen references for A team workspace invitation and role-management experience. Explain how each handles member roles, pending invitations, and revocation.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-05",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "travel",
+      "prompt": "Find at least three authentic interface-screen references for A trip-booking confirmation and cancellation journey. Explain how each handles fee disclosure, date selection, and cancellation policy.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-06",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "education",
+      "prompt": "Find at least three authentic interface-screen references for An online course enrollment flow with placement and payment. Explain how each handles course prerequisites, progress, and enrollment confirmation.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-07",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "creator",
+      "prompt": "Find at least three authentic interface-screen references for A creator subscription paywall with feature comparison. Explain how each handles plan presentation, price transparency, and cancellation.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-08",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "customer_support",
+      "prompt": "Find at least three authentic interface-screen references for A refund-request or dispute-resolution journey. Explain how each handles status visibility, evidence upload, and follow-up.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-09",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "developer_tools",
+      "prompt": "Find at least three authentic interface-screen references for An API-key creation and rotation interface. Explain how each handles scoped permissions, secret handling, and revocation.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB01-10",
+      "lane": "reference_discovery",
+      "comparison": "shared",
+      "domain": "community",
+      "prompt": "Find at least three authentic interface-screen references for A community safety report and moderation appeal workflow. Explain how each handles report reasons, privacy, and appeal status.",
+      "expected_artifacts": "At least three source-identifiable UI screen references and a concise relevance rationale.",
+      "pass_criteria": "References are verifiable, relevant to the request, and not mistaken for invented designs.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-01",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "fintech",
+      "prompt": "Locate an authentic user flow illustrating An identity-verification onboarding flow that explains sensitive document permissions. Describe the ordered states, the decision points, and at least one error/recovery path involving privacy consent, progress, and failure recovery.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-02",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "healthcare",
+      "prompt": "Locate an authentic user flow illustrating A patient appointment-booking experience with clinician selection. Describe the ordered states, the decision points, and at least one error/recovery path involving provider filters, availability, and confirmation.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-03",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "commerce",
+      "prompt": "Locate an authentic user flow illustrating An online checkout that handles delivery selection and payment failure. Describe the ordered states, the decision points, and at least one error/recovery path involving trust cues, form errors, and retry.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-04",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "productivity",
+      "prompt": "Locate an authentic user flow illustrating A team workspace invitation and role-management experience. Describe the ordered states, the decision points, and at least one error/recovery path involving member roles, pending invitations, and revocation.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-05",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "travel",
+      "prompt": "Locate an authentic user flow illustrating A trip-booking confirmation and cancellation journey. Describe the ordered states, the decision points, and at least one error/recovery path involving fee disclosure, date selection, and cancellation policy.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-06",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "education",
+      "prompt": "Locate an authentic user flow illustrating An online course enrollment flow with placement and payment. Describe the ordered states, the decision points, and at least one error/recovery path involving course prerequisites, progress, and enrollment confirmation.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-07",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "creator",
+      "prompt": "Locate an authentic user flow illustrating A creator subscription paywall with feature comparison. Describe the ordered states, the decision points, and at least one error/recovery path involving plan presentation, price transparency, and cancellation.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-08",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "customer_support",
+      "prompt": "Locate an authentic user flow illustrating A refund-request or dispute-resolution journey. Describe the ordered states, the decision points, and at least one error/recovery path involving status visibility, evidence upload, and follow-up.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-09",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "developer_tools",
+      "prompt": "Locate an authentic user flow illustrating An API-key creation and rotation interface. Describe the ordered states, the decision points, and at least one error/recovery path involving scoped permissions, secret handling, and revocation.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB02-10",
+      "lane": "flow_investigation",
+      "comparison": "shared",
+      "domain": "community",
+      "prompt": "Locate an authentic user flow illustrating A community safety report and moderation appeal workflow. Describe the ordered states, the decision points, and at least one error/recovery path involving report reasons, privacy, and appeal status.",
+      "expected_artifacts": "A source-identified sequence of UI steps with failure/recovery analysis.",
+      "pass_criteria": "Ordered states correspond to the cited flow; missing steps or unsupported transitions are declared.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-01",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "fintech",
+      "prompt": "Compare two independently sourced design examples addressing An identity-verification onboarding flow that explains sensitive document permissions. Contrast choices for privacy consent, progress, and failure recovery and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-02",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "healthcare",
+      "prompt": "Compare two independently sourced design examples addressing A patient appointment-booking experience with clinician selection. Contrast choices for provider filters, availability, and confirmation and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-03",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "commerce",
+      "prompt": "Compare two independently sourced design examples addressing An online checkout that handles delivery selection and payment failure. Contrast choices for trust cues, form errors, and retry and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-04",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "productivity",
+      "prompt": "Compare two independently sourced design examples addressing A team workspace invitation and role-management experience. Contrast choices for member roles, pending invitations, and revocation and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-05",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "travel",
+      "prompt": "Compare two independently sourced design examples addressing A trip-booking confirmation and cancellation journey. Contrast choices for fee disclosure, date selection, and cancellation policy and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-06",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "education",
+      "prompt": "Compare two independently sourced design examples addressing An online course enrollment flow with placement and payment. Contrast choices for course prerequisites, progress, and enrollment confirmation and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-07",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "creator",
+      "prompt": "Compare two independently sourced design examples addressing A creator subscription paywall with feature comparison. Contrast choices for plan presentation, price transparency, and cancellation and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-08",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "customer_support",
+      "prompt": "Compare two independently sourced design examples addressing A refund-request or dispute-resolution journey. Contrast choices for status visibility, evidence upload, and follow-up and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-09",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "developer_tools",
+      "prompt": "Compare two independently sourced design examples addressing An API-key creation and rotation interface. Contrast choices for scoped permissions, secret handling, and revocation and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB03-10",
+      "lane": "pattern_comparison",
+      "comparison": "shared",
+      "domain": "community",
+      "prompt": "Compare two independently sourced design examples addressing A community safety report and moderation appeal workflow. Contrast choices for report reasons, privacy, and appeal status and identify one transferable pattern and one tradeoff.",
+      "expected_artifacts": "Two attributable design references, a justified comparison, and transferable design guidance.",
+      "pass_criteria": "Comparative claims cite each reference and clearly distinguish observation from recommendation.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-01",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "fintech",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for An identity-verification onboarding flow that explains sensitive document permissions without manually transcribing screenshots. Return usable records with IDs, source links, and privacy consent, progress, and failure recovery notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-02",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "healthcare",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A patient appointment-booking experience with clinician selection without manually transcribing screenshots. Return usable records with IDs, source links, and provider filters, availability, and confirmation notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-03",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "commerce",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for An online checkout that handles delivery selection and payment failure without manually transcribing screenshots. Return usable records with IDs, source links, and trust cues, form errors, and retry notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-04",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "productivity",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A team workspace invitation and role-management experience without manually transcribing screenshots. Return usable records with IDs, source links, and member roles, pending invitations, and revocation notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-05",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "travel",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A trip-booking confirmation and cancellation journey without manually transcribing screenshots. Return usable records with IDs, source links, and fee disclosure, date selection, and cancellation policy notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-06",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "education",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for An online course enrollment flow with placement and payment without manually transcribing screenshots. Return usable records with IDs, source links, and course prerequisites, progress, and enrollment confirmation notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-07",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "creator",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A creator subscription paywall with feature comparison without manually transcribing screenshots. Return usable records with IDs, source links, and plan presentation, price transparency, and cancellation notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-08",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "customer_support",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A refund-request or dispute-resolution journey without manually transcribing screenshots. Return usable records with IDs, source links, and status visibility, evidence upload, and follow-up notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-09",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "developer_tools",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for An API-key creation and rotation interface without manually transcribing screenshots. Return usable records with IDs, source links, and scoped permissions, secret handling, and revocation notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB04-10",
+      "lane": "agent_research",
+      "comparison": "differentiator",
+      "domain": "community",
+      "prompt": "As an AI agent, retrieve structured, source-grounded design references for A community safety report and moderation appeal workflow without manually transcribing screenshots. Return usable records with IDs, source links, and report reasons, privacy, and appeal status notes.",
+      "expected_artifacts": "Agent-readable structured output, explicit source IDs, and a repeatable invocation trace.",
+      "pass_criteria": "Programmatic capability is demonstrated end-to-end; absence, access restrictions, or unsupported APIs are recorded, never simulated.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-01",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "fintech",
+      "prompt": "Starting from permitted reference designs for An identity-verification onboarding flow that explains sensitive document permissions, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering privacy consent, progress, and failure recovery.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-02",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "healthcare",
+      "prompt": "Starting from permitted reference designs for A patient appointment-booking experience with clinician selection, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering provider filters, availability, and confirmation.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-03",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "commerce",
+      "prompt": "Starting from permitted reference designs for An online checkout that handles delivery selection and payment failure, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering trust cues, form errors, and retry.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-04",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "productivity",
+      "prompt": "Starting from permitted reference designs for A team workspace invitation and role-management experience, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering member roles, pending invitations, and revocation.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-05",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "travel",
+      "prompt": "Starting from permitted reference designs for A trip-booking confirmation and cancellation journey, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering fee disclosure, date selection, and cancellation policy.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-06",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "education",
+      "prompt": "Starting from permitted reference designs for An online course enrollment flow with placement and payment, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering course prerequisites, progress, and enrollment confirmation.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-07",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "creator",
+      "prompt": "Starting from permitted reference designs for A creator subscription paywall with feature comparison, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering plan presentation, price transparency, and cancellation.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-08",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "customer_support",
+      "prompt": "Starting from permitted reference designs for A refund-request or dispute-resolution journey, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering status visibility, evidence upload, and follow-up.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-09",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "developer_tools",
+      "prompt": "Starting from permitted reference designs for An API-key creation and rotation interface, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering scoped permissions, secret handling, and revocation.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    },
+    {
+      "task_id": "CB05-10",
+      "lane": "design_to_build",
+      "comparison": "differentiator",
+      "domain": "community",
+      "prompt": "Starting from permitted reference designs for A community safety report and moderation appeal workflow, derive a provenance-linked design specification and a reproducible implementation starter or Build Kit covering report reasons, privacy, and appeal status.",
+      "expected_artifacts": "Evidence-to-design mapping and a runnable or independently checkable handoff artifact.",
+      "pass_criteria": "The artifact can be checked against citations and run/validate as claimed; unsupported capabilities are marked rather than invented.",
+      "target_platforms": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "fixture_class": "research_only_no_third_party_asset_storage"
+    }
+  ]
+}
