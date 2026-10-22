@@ -548,8 +548,9 @@ statement about Graft's reachability analysis, not about the coverage itself.
 
 The mechanical suites, on the **merge candidate's tree** (the reviewed
 candidate plus the enumerated delta, whose code changes touch three source
-files and no test file, and no schema, no migration and no route): 288/288 Python; 277/277 Node across `tests/node/`,
-`apps/web/tests/` and `apps/worker/tests/`; 179/179 database tests; 20/20
+files and no test file, and no schema, no migration and no route): 288/288
+Python; 277/277 Node across `tests/node/`, `apps/web/tests/` and
+`apps/worker/tests/`; 179/179 database tests; 20/20
 real-PostgreSQL tests across the six `pg-*.test.mjs` files; `eslint` clean in
 every package; `tsc --noEmit` clean in every package; the production build
 clean; the bundle budget clean at 103 kB shared and 113 kB for the heaviest

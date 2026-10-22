@@ -108,9 +108,10 @@ only copied their input's fields (`apps/web/lib/invites.ts`), the comment the
 roster type's move left dangling in `packages/db/src/invites.ts`, the claim in
 that module's header that the final judge found overstated, the two review
 records' own corrections, and the acceptance matrix's P04 row's pointer to
-this grain's Post-Audit Delta entry. `ocr delegate preview --from origin/main --to <merge
-candidate> --format json` reports **53 total files, 47 reviewable, 6
-excluded**: one reviewable file more than the reviewed candidate's 46,
+this grain's Post-Audit Delta entry. `ocr delegate preview --from origin/main
+--to <merge candidate> --format json` reports **53 total files, 47
+reviewable, 6 excluded**: one reviewable file more than the reviewed
+candidate's 46,
 because `apps/web/lib/rest.ts` enters the reviewable set when the failure
 answers move into it, and the same six excluded documents. The two
 qualification records that name the merge candidate and its CI runs are not
@@ -118,10 +119,10 @@ part of this pull request; the closeout pull request that follows this one
 adds them, which is why the excluded set does not grow here. The resolved
 rule groups below therefore govern the merge candidate's 47 reviewable
 files, and the merge candidate's file set is 53 files — 47 reviewable and 6
-excluded. The insertion and deletion
-counts are not quoted for the merge candidate: they move with this record's
-own edits, so quoting them would pin a number to a tree that is not the one
-that ships. The table above is scoped to the reviewed candidate.
+excluded. The insertion and deletion counts are not quoted for the merge
+candidate: they move with this record's own edits, so quoting them would pin
+a number to a tree that is not the one that ships. The table above is scoped
+to the reviewed candidate.
 
 ## Resolved rules
 
