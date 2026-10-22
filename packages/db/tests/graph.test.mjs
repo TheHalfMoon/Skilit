@@ -24,14 +24,14 @@ async function context() {
 test("migration 002 creates canonical graph entities and is reversible", async () => {
   const db = await openDatabase();
   try {
-    assert.deepEqual(await migrateUp(db), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename"]);
+    assert.deepEqual(await migrateUp(db), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename", "019_workspace_invites"]);
     assert.deepEqual(await migrateUp(db), []);
     for (const table of ["artifacts", "assets", "relations", "patterns"]) {
       const result = await db.query("select to_regclass($1) as id", ["public." + table]);
       assert.ok(result.rows[0].id !== null, "missing " + table);
     }
-    assert.deepEqual(await migrateDown(db), ["018_skilit_rename", "017_replay_sessions", "016_corpus_flow_import", "015_collection_handoffs", "014_collection_item_order", "013_lens_build_kit_purge", "012_asset_search_fts", "011_pack_idempotency", "010_artifact_actor_scope", "009_lens_build_kit_runs", "008_jobs", "007_billing", "006_collections_auth", "005_workspaces", "004_auth", "003_workflows", "002_design_graph", "001_sources_products"]);
-    assert.deepEqual(await migrateUp(db), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename"]);
+    assert.deepEqual(await migrateDown(db), ["019_workspace_invites", "018_skilit_rename", "017_replay_sessions", "016_corpus_flow_import", "015_collection_handoffs", "014_collection_item_order", "013_lens_build_kit_purge", "012_asset_search_fts", "011_pack_idempotency", "010_artifact_actor_scope", "009_lens_build_kit_runs", "008_jobs", "007_billing", "006_collections_auth", "005_workspaces", "004_auth", "003_workflows", "002_design_graph", "001_sources_products"]);
+    assert.deepEqual(await migrateUp(db), ["001_sources_products", "002_design_graph", "003_workflows", "004_auth", "005_workspaces", "006_collections_auth", "007_billing", "008_jobs", "009_lens_build_kit_runs", "010_artifact_actor_scope", "011_pack_idempotency", "012_asset_search_fts", "013_lens_build_kit_purge", "014_collection_item_order", "015_collection_handoffs", "016_corpus_flow_import", "017_replay_sessions", "018_skilit_rename", "019_workspace_invites"]);
   } finally {
     await db.close();
   }

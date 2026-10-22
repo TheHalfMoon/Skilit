@@ -31,7 +31,7 @@ const ACCESS_DENIED = "Access denied.";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function isUuid(value: string): boolean {
+export function isUuid(value: string): boolean {
   return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
@@ -49,6 +49,22 @@ export interface Membership {
   role: WorkspaceRole;
   joinedAt: string;
 }
+
+/**
+ * One roster line: a membership with the address behind it. The address
+ * is what an operator manages a workspace by, so the roster carries it:
+ * a roster of identifiers is not a roster of people.
+ */
+export interface RosterEntry {
+  workspaceId: string;
+  userId: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+/** The longest a workspace name may be. */
+export const WORKSPACE_NAME_MAX_LENGTH = 200;
 
 function toIsoTimestamp(raw: unknown): string {
   const value = raw instanceof Date ? raw : new Date(String(raw));
@@ -88,11 +104,11 @@ function requireRow(rows: Record<string, unknown>[]): Record<string, unknown> {
 }
 
 function validateWorkspaceName(name: string): string {
-  if (typeof name !== "string" || name.length > 200) {
+  if (typeof name !== "string" || name.length > WORKSPACE_NAME_MAX_LENGTH) {
     throw new AuthError("auth/invalid-workspace", "Workspace name is invalid.");
   }
   const trimmed = name.trim();
-  if (trimmed.length === 0 || trimmed.length > 200) {
+  if (trimmed.length === 0 || trimmed.length > WORKSPACE_NAME_MAX_LENGTH) {
     throw new AuthError("auth/invalid-workspace", "Workspace name is invalid.");
   }
   return trimmed;
@@ -105,7 +121,11 @@ function validateRole(role: string): WorkspaceRole {
   return role;
 }
 
-function forbidden(): AuthError {
+/**
+ * One generic denial for every access failure, so a caller cannot tell a
+ * missing resource from a forbidden one. Shared with the invitation flow.
+ */
+export function workspaceForbidden(): AuthError {
   return new AuthError("auth/forbidden", ACCESS_DENIED);
 }
 
@@ -183,7 +203,7 @@ export async function requireRole(
 ): Promise<WorkspaceRole> {
   const role = await getMembership(tx, workspaceId, userId);
   if (role === null || ROLE_RANK[role] < ROLE_RANK[minimum]) {
-    throw forbidden();
+    throw workspaceForbidden();
   }
   return role;
 }
@@ -208,7 +228,12 @@ async function lockRoster(tx: DbTransaction, workspaceId: string): Promise<void>
   );
 }
 
-function canGrant(actorRole: WorkspaceRole, role: WorkspaceRole): boolean {
+/**
+ * Whether an actor holding `actorRole` may grant `role`. Owners may grant
+ * any role; admins may grant member only. Shared with the invitation
+ * flow, which grants exactly the roles an operator could add directly.
+ */
+export function canGrantRole(actorRole: WorkspaceRole, role: WorkspaceRole): boolean {
   if (actorRole === "owner") return true;
   return actorRole === "admin" && role === "member";
 }
@@ -224,8 +249,8 @@ export async function addMember(
   const role = validateRole(input.role);
   return client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
-    if (actorRole === null || !canGrant(actorRole, role)) {
-      throw forbidden();
+    if (actorRole === null || !canGrantRole(actorRole, role)) {
+      throw workspaceForbidden();
     }
     if (!isUuid(input.userId)) {
       throw new AuthError("auth/user-not-found", "User was not found.");
@@ -264,7 +289,7 @@ export async function setMemberRole(
   return client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
     if (actorRole !== "owner") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (role !== "owner") {
       const current = await getMembership(tx, input.workspaceId, input.userId);
@@ -301,16 +326,16 @@ export async function removeMember(
   await client.transaction(async (tx) => {
     const actorRole = await getMembership(tx, input.workspaceId, input.actorId);
     if (actorRole === null) {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     const targetRole = await getMembership(tx, input.workspaceId, input.userId);
     if (targetRole === null) return;
     const selfRemoval = input.userId === input.actorId;
     if (!selfRemoval && actorRole === "member") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (!selfRemoval && actorRole === "admin" && targetRole !== "member") {
-      throw forbidden();
+      throw workspaceForbidden();
     }
     if (targetRole === "owner") {
       await lockRoster(tx, input.workspaceId);
@@ -325,22 +350,32 @@ export async function removeMember(
   });
 }
 
-/** List roster entries; any membership grants read, non-members are denied. */
+/**
+ * The roster of one workspace. Any membership grants read, non-members are
+ * denied. Every line carries the address behind the membership.
+ */
 export async function listMembers(
   tx: DbTransaction,
   workspaceId: string,
   callerId: string,
-): Promise<Membership[]> {
+): Promise<RosterEntry[]> {
   const role = await getMembership(tx, workspaceId, callerId);
   if (role === null) {
-    throw forbidden();
+    throw workspaceForbidden();
   }
   const result = await tx.query(
-    `select workspace_id, user_id, role, joined_at from workspace_members
-     where workspace_id = $1 order by joined_at, user_id`,
+    `select m.workspace_id, m.user_id, u.email, m.role, m.joined_at
+     from workspace_members m join users u on u.id = m.user_id
+     where m.workspace_id = $1 order by m.joined_at, m.user_id`,
     [workspaceId],
   );
-  return result.rows.map(toMembership);
+  return result.rows.map((row) => ({
+    workspaceId: String(row.workspace_id),
+    userId: String(row.user_id),
+    email: String(row.email),
+    role: String(row.role) as WorkspaceRole,
+    joinedAt: toIsoTimestamp(row.joined_at),
+  }));
 }
 
 /**

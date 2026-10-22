@@ -176,7 +176,12 @@ function verifyPassword(password: string, stored: string): boolean {
   );
 }
 
-function hashToken(token: string): string {
+/**
+ * Hash an opaque bearer secret for storage. Session tokens and invitation
+ * tokens use the same function, so neither can be recovered from a database
+ * read.
+ */
+export function hashToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 

@@ -36,12 +36,19 @@ test("browser session transport rejects remote URLs and accidental bearer header
 });
 
 test("each Skilit human workspace renders session status without token inputs", () => {
-  for (const view of ["gallery", "patterns", "flows", "boards", "lens", "account"]) {
+  for (const view of ["gallery", "patterns", "flows", "boards", "lens", "account", "workspaces"]) {
     const source = readFileSync(new URL(`../app/${view}/page.tsx`, import.meta.url), "utf8");
-    assert.match(source, /sessionRequest\(/, `${view} uses cookie-aware transport`);
+    // The cookie-aware transport, directly or through the shared
+    // envelope reader that owns it.
+    assert.match(source, /sessionRequest\(|fetchJson\(/, `${view} uses cookie-aware transport`);
     assert.match(source, /<SessionAccessBanner \/>/, `${view} communicates session state`);
     assert.doesNotMatch(source, /htmlFor="[^"]*-token"|setToken|Authorization:|authHeaders/, `${view} must not request credentials from users`);
   }
+  // The shared reader that pages use instead of the transport itself
+  // still goes through it, and never asks for a bearer token.
+  const envelope = readFileSync(new URL("../lib/browser-envelope.ts", import.meta.url), "utf8");
+  assert.match(envelope, /sessionRequest\(path, init\)/);
+  assert.doesNotMatch(envelope, /Authorization:/, "the shared reader must not send bearer tokens");
   const banner = readFileSync(new URL("../components/session-access-banner.tsx", import.meta.url), "utf8");
   assert.match(banner, /\/api\/v1\/auth\/session/);
   assert.match(banner, /skilit:session-expired/);

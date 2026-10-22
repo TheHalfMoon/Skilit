@@ -338,6 +338,9 @@ button, input, select, textarea { font: inherit; }
   line-height: 1.6;
 }
 
+/* A form field that fills the column it sits in. */
+.sk-field-wide { width: 100%; }
+
 /* The account surface lists the sessions a signed-in holder may revoke. */
 .sk-account-actions {
   display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0;

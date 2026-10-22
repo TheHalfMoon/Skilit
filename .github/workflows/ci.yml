@@ -660,6 +660,7 @@ jobs:
           packages/db/tests/replay.test.mjs
           packages/db/tests/auth.test.mjs
           packages/db/tests/account-sessions.test.mjs
+          packages/db/tests/invites.test.mjs
           packages/db/tests/workspaces.test.mjs
           packages/db/tests/collections.test.mjs
           packages/db/tests/billing.test.mjs
@@ -675,6 +676,7 @@ jobs:
           node --experimental-strip-types --test packages/db/tests/pg-graph.test.mjs
           node --experimental-strip-types --test packages/db/tests/pg-workflows.test.mjs
           node --experimental-strip-types --test packages/db/tests/pg-build-kit.test.mjs
+          node --experimental-strip-types --test packages/db/tests/pg-invites.test.mjs
           node --experimental-strip-types --test packages/db/tests/pg-backup-restore.test.mjs
 
   storage:

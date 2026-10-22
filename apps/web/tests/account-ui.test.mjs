@@ -6,8 +6,11 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("the account page lists sessions and offers revocation without touching browser storage", () => {
   const page = read("../app/account/page.tsx");
-  // The page talks to the API through the cookie-aware transport.
-  assert.match(page, /sessionRequest\(path, init\)/);
+  const envelope = read("../lib/browser-envelope.ts");
+  // The page talks to the API through the cookie-aware transport, which
+  // the shared envelope reader owns.
+  assert.match(page, /fetchJson\(path, init, label\)/);
+  assert.match(envelope, /sessionRequest\(path, init\)/);
   assert.match(page, /"Load sessions",\s*"\/api\/v1\/auth\/sessions"/);
   assert.match(page, /aria-live="polite"/);
   assert.match(page, /role="alert"/);
@@ -107,20 +110,21 @@ test("a control that is announced as unavailable never acts", () => {
     /\(\) => \{\s*setState\(\{ status: "unavailable" \}\);\s*\}/,
     "a refused list must put the page in the unavailable state",
   );
-  const catchAt = page.indexOf("} catch {");
-  assert.ok(catchAt > 0, "the account page must handle a request that never completed");
-  const catchBlock = page.slice(catchAt, page.indexOf("} finally {", catchAt));
+  // A request that never completed must reach the same transition as
+  // one the server refused, so the shared reader reports it as a
+  // failure the page acts on.
   assert.match(
-    catchBlock,
-    /onFailed/,
-    "a request that never completed must reach the same transition as one the server refused",
+    page,
+    /if \(onFailed !== undefined\) await onFailed\(outcome\.status\);/,
+    "a failed list must reach the same transition as a refused one",
   );
-  // It must be reported without an HTTP status. A status of 404 would be
-  // taken by the revoke action as "that session is no longer listed",
+  // It must be reported without an HTTP status. A status of 404 would
+  // be taken by the revoke action as "that session is no longer listed",
   // which a request that never completed cannot mean.
+  const envelope = read("../lib/browser-envelope.ts");
   assert.match(
-    catchBlock,
-    /onFailed\(undefined\)/,
+    envelope,
+    /status: 0, code: "UNKNOWN", message: `\$\{label\} could not reach the server\./,
     "a request that never completed must be reported without an HTTP status",
   );
 });

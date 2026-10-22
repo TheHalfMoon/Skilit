@@ -75,12 +75,18 @@ function agentAssetView(record: {
 
 const REGISTRY_KINDS = ["icon", "logo", "font"] as const;
 
-function invalidInput(requestId: string, message: string): RestResult {
+/** The three failure answers every REST route returns, in one place. */
+export function invalidInput(requestId: string, message: string): RestResult {
   const err = new AgentContractError("INVALID_INPUT", { message, requestId });
   return { status: err.httpStatus, body: err.toFailureEnvelope() };
 }
 
-function opaque(requestId: string): RestResult {
+export function notFound(requestId: string): RestResult {
+  const err = new AgentContractError("FORBIDDEN_OR_NOT_FOUND", { requestId });
+  return { status: err.httpStatus, body: err.toFailureEnvelope() };
+}
+
+export function opaque(requestId: string): RestResult {
   const err = new AgentContractError("INTERNAL_OPAQUE", { requestId });
   return { status: err.httpStatus, body: err.toFailureEnvelope() };
 }
