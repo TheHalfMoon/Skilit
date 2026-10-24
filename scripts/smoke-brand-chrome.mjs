@@ -37,7 +37,8 @@ const VIEWPORTS = [
   { name: "tablet", width: 768, height: 1024 },
   { name: "desktop", width: 1440, height: 900 },
 ];
-const PAGES = ["/", "/login", "/signup"];
+const GALLERY_FLOW_VERSION = "12345678-1234-4234-9234-1234567890ab";
+const PAGES = ["/", "/login", "/signup", `/flows?productVersionId=${GALLERY_FLOW_VERSION}`];
 // The approved outline geometry bakes tracking into the glyph advances; the
 // sidebar wordmark must use the same tracking ratio. The expectation is read
 // from the brand source of truth rather than duplicated here, so the smoke
@@ -124,6 +125,20 @@ try {
           () => document.documentElement.scrollWidth - window.innerWidth,
         );
         check(overflow <= 1, `${label}: horizontal overflow of ${overflow}px`);
+
+        if (route.startsWith("/flows?productVersionId=")) {
+          // Real Chromium hydration contract: a gallery link must land on
+          // the flow explorer with the same version selected. It does not
+          // authorize a flow read, or invent a real product-version record.
+          await page.waitForFunction(
+            (id) => document.querySelector("#flows-version")?.value === id,
+            GALLERY_FLOW_VERSION,
+            { timeout: 10000 },
+          );
+          const selected = await page.inputValue("#flows-version");
+          check(selected === GALLERY_FLOW_VERSION,
+                `${label}: gallery version filter lost across route transition`);
+        }
 
         const brand = await page.evaluate(() => {
           const link = document.querySelector(".sk-brand");
