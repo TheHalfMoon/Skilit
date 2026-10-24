@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 import { SessionAccessBanner } from "../../components/session-access-banner";
+import { flowExplorerHref } from "../../lib/gallery-flow-navigation";
 import { sessionRequest } from "../../lib/browser-session";
 
 import { useState } from "react";
@@ -254,14 +257,22 @@ export default function GalleryPage() {
         {versions === null ? <p>No versions listed yet.</p> : null}
         {versions !== null && versions.length === 0 ? <p>No versions in this product.</p> : null}
         <ul>
-          {(versions ?? []).map((version) => (
-            <li key={version.uri}>
-              <span>
-                v{version.versionNo} (artifacts {version.artifactCount})
-              </span>{" "}
-              <span>{version.uri}</span>
-            </li>
-          ))}
+          {(versions ?? []).map((version) => {
+            const href = flowExplorerHref(version.uri);
+            return (
+              <li key={version.uri}>
+                <span>
+                  v{version.versionNo} (artifacts {version.artifactCount})
+                </span>{" "}
+                <span>{version.uri}</span>{" "}
+                {href !== null ? (
+                  <Link href={href} aria-label={`Explore flows for version ${version.versionNo}`}>
+                    Explore flows
+                  </Link>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
         {versionsCursor !== null ? (
           <button type="button" onClick={() => void inspectVersions(productId, versionsCursor)}>
