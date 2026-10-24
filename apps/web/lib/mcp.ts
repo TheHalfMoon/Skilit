@@ -3,6 +3,7 @@ import { validateSession } from "../../../packages/db/src/auth.ts";
 import { getArtifactForActor } from "../../../packages/db/src/artifact-access.ts";
 import { deleteCollection, saveReference } from "../../../packages/db/src/collections.ts";
 import { resolveAssetForActor, searchAssetsForActorDetailed } from "../../../packages/assets/src/registry.ts";
+import type { AssetSearchKind } from "../../../packages/assets/src/registry.ts";
 import { SIMILARITY_KINDS, compareArtifactsForActor, findSimilarForActor } from "../../../packages/assets/src/similarity.ts";
 import type { ComparedSide } from "../../../packages/assets/src/similarity.ts";
 import { getFlowStepsForActor, listFlowsForActor } from "../../../packages/ingest/src/corpus.ts";
@@ -160,12 +161,12 @@ function toolSchemas(): unknown[] {
   return [
     {
       name: "search_assets",
-      description: "Search Skilit icons, logos, and fonts with rights metadata.",
+      description: "Search icons, logos, fonts, and optionally actor-readable research screens with rights metadata.",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string", maxLength: 200 },
-          kinds: { type: "array", items: { type: "string", enum: ["icon", "logo", "font"] } },
+          kinds: { type: "array", items: { type: "string", enum: ["icon", "logo", "font", "screen"] } },
           rights: { type: "array", items: { type: "string", enum: ["unknown", "metadata_only", "permitted", "restricted"] } },
           licenses: { type: "array", items: { type: "string", maxLength: 64 } },
           trademarkFree: { type: "boolean" },
@@ -599,7 +600,7 @@ function toAgentAsset(record: {
   };
 }
 
-const REGISTRY_KINDS = ["icon", "logo", "font"] as const;
+const REGISTRY_KINDS = ["icon", "logo", "font", "screen"] as const;
 
 function invalidInput(message: string, requestId?: string): AgentContractError {
   return new AgentContractError("INVALID_INPUT", { message, requestId });
@@ -756,7 +757,7 @@ async function callTool(
     const actorId = requireUser(ctx);
     const search: {
       query: string;
-      kinds?: ("icon" | "logo" | "font")[];
+      kinds?: AssetSearchKind[];
       rights?: string[];
       licenses?: string[];
       trademarkFree?: boolean;
@@ -775,7 +776,7 @@ async function callTool(
       ) {
         throw invalidInput("search_assets.kinds is invalid.", requestId);
       }
-      search.kinds = params.kinds as ("icon" | "logo" | "font")[];
+      search.kinds = params.kinds as AssetSearchKind[];
     }
     {
       const value = params.rights;

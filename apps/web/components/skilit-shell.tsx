@@ -9,6 +9,7 @@ const items: { label: string; href: string; icon: SkilitIconName }[] = [
   { label: "Overview", href: "/", icon: "overview" },
   { label: "Lens", href: "/lens", icon: "lens" },
   { label: "Gallery", href: "/gallery", icon: "gallery" },
+  { label: "Research", href: "/research", icon: "gallery" },
   { label: "Patterns", href: "/patterns", icon: "patterns" },
   { label: "Flows", href: "/flows", icon: "flows" },
   { label: "Boards", href: "/boards", icon: "boards" },
