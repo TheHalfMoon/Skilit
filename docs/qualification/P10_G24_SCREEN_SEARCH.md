@@ -4,6 +4,8 @@
 
 The `search_assets` MCP tool and `GET /api/v1/assets` support an **explicit** `kinds=["screen"]` (MCP) or `kinds=screen` (REST) filter. With this filter, the existing deterministic PostgreSQL lexical search can locate actor-readable research screen records already imported by the Skilit corpus path.
 
+The **/research** page makes this capability accessible from the Skilit navigation. It provides a labeled search form, a responsive screen-metadata list, a clear serving/rights notice, an accessible error state, and cursor-based "Load more screens". The page reuses `sessionRequest` and does not fetch images or send tokens in query strings.
+
 **Backward compatibility:** omitted `kinds` still means icons, logos, fonts; `registerAsset` continues to accept *only* those three registry kinds. This feature adds no new MCP tool, API endpoint, schema migration, external embedding service, or paid model. Screen search and `get_asset` yield *metadata only* unless the normal serving policy independently authorizes bytes. This grain does not add or redistribute image bytes.
 
 ## Privacy and rights boundary
@@ -23,10 +25,14 @@ No claims about relevance@K on production-like licensed screen corpora can be dr
 ## Local verification
 
 ```sh
-node --experimental-strip-types --test apps/web/tests/screen-search.test.mjs
+node --experimental-strip-types --test apps/web/tests/screen-search.test.mjs apps/web/tests/research-search-ui.test.mjs
 node --experimental-strip-types --test packages/assets/tests/search.test.mjs apps/web/tests/search.test.mjs
 pnpm --dir packages/assets typecheck
 pnpm --dir apps/web typecheck
+pnpm --dir apps/web build
+node scripts/smoke-research-search.mjs 3197
 ```
 
 The first suite asserts default behavior, explicit screen retrieval, REST/MCP parity, owner-only workspace visibility, global legacy/private denial, metadata-only resolution, filtered facets and unchanged registry write validation. Tests use an ephemeral PGlite database and contain only invented synthetic data. Retain the existing CI, PStack, OCR and Graft requirements; this document does not approve a merge or release.
+
+The Chromium smoke drives the **actual Next.js /research page** at 390px, 768px and 1440px using synthetic intercepted REST envelopes. It verifies URL encoding and the explicit screen-kind filter, visible metadata-only labels, clearing stale results, and denial-state behavior; the real PGlite actor authorization is established by the separate search tests. The smoke was mutation-tested: when the expected screen kind was intentionally changed to `font`, it failed with exit code 1 and the expected error, then the correct script was restored.
