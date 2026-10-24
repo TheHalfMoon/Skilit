@@ -236,6 +236,87 @@ try {
       }
     }
   }
+
+  // Genuine UI journey across the gallery and flow explorer. Fake only the
+  // REST *responses* (synthetic, visible-only fixtures), not navigation or
+  // browser behavior. Server actor authorization remains covered by existing
+  // database/REST tests; this test never claims an authenticated backend.
+  {
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    const productId = "22222222-2222-4222-9222-222222222222";
+    const seenFlowFilters = [];
+    const reply = (route, result) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ result, request_id: "synthetic-ui-fixture", cursor: null }),
+    });
+    try {
+      await page.route("**/api/v1/auth/session", (route) => reply(route, {
+        user: { email: "test-only@skilit.invalid" },
+      }));
+      await page.route("**/api/v1/products?*", (route) => reply(route, {
+        products: [{
+          uri: `skilit://product/${productId}`,
+          title: "Synthetic test product",
+          versionCount: 1,
+          artifactCount: 1,
+        }],
+      }));
+      await page.route(`**/api/v1/products/${productId}/versions?*`, (route) => reply(route, {
+        versions: [{
+          uri: `skilit://version/${GALLERY_FLOW_VERSION}`,
+          productId,
+          versionNo: 2,
+          artifactCount: 1,
+        }],
+      }));
+      await page.route("**/api/v1/flows?*", (route) => {
+        seenFlowFilters.push(new URL(route.request().url()).searchParams.get("productVersionId"));
+        return reply(route, {
+          flows: [{
+            uri: "skilit://flow/33333333-3333-4333-9333-333333333333",
+            productVersionId: GALLERY_FLOW_VERSION,
+            title: "Synthetic evidence flow",
+            stepCount: 2,
+          }],
+        });
+      });
+
+      await page.goto(base + "/gallery", { waitUntil: "load" });
+      await page.getByRole("button", { name: "List products" }).click();
+      await page.getByText("Synthetic test product", { exact: false }).waitFor();
+      await page.getByRole("button", { name: "Inspect versions" }).last().click();
+      const link = page.getByRole("link", { name: "Explore flows for version 2" });
+      await link.waitFor();
+      check(
+        await link.getAttribute("href") === `/flows?productVersionId=${GALLERY_FLOW_VERSION}`,
+        "synthetic gallery row must point to a validated local flow explorer URL",
+      );
+      await link.click();
+      await page.waitForURL((url) =>
+        url.pathname === "/flows" && url.searchParams.get("productVersionId") === GALLERY_FLOW_VERSION,
+      );
+      await page.waitForFunction(
+        (id) => document.querySelector("#flows-version")?.value === id,
+        GALLERY_FLOW_VERSION,
+      );
+      check(!/token|secret|auth|bearer/i.test(new URL(page.url()).search),
+        "cross-page URL must not carry auth/secret parameters");
+
+      await page.getByRole("button", { name: "List flows" }).click();
+      await page.getByText("Synthetic evidence flow", { exact: false }).waitFor();
+      check(
+        seenFlowFilters.length === 1 && seenFlowFilters[0] === GALLERY_FLOW_VERSION,
+        "flow explorer must send the selected version UUID to the existing REST listing",
+      );
+    } catch (error) {
+      failures.push(`synthetic gallery-to-flows Chromium journey: ${error?.message ?? error}`);
+    } finally {
+      await page.close();
+    }
+  }
 } catch (error) {
   failures.push(`smoke error: ${error?.message ?? error}`);
 } finally {
@@ -249,5 +330,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `SMOKE_PASSED brand chrome responsive and keyboard smoke (${VIEWPORTS.length} viewports x ${PAGES.length} routes)`,
+  `SMOKE_PASSED brand chrome responsive/keyboard (${VIEWPORTS.length} viewports x ${PAGES.length} routes), synthetic gallery-to-flows Chromium click journey`,
 );
