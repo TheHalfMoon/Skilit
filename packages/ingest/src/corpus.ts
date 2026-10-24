@@ -81,6 +81,72 @@ export interface CorpusFlowInput {
   steps: CorpusStepInput[];
 }
 
+/**
+ * Source-owner attestation recorded on a research corpus artifact.
+ *
+ * This is evidence *submitted by the curator*, not legal verification.
+ * The identity of the real licensor and the applicability of permission
+ * must be reviewed outside this schema. Source-code licensing alone
+ * does not confer screenshot, logo or product-screen rights.
+ */
+export interface CorpusRightsEvidence {
+  originUrl: string;
+  sourceRevision: string;
+  rightsHolder: string;
+  rightsBasis: "author-owned" | "open-license" | "explicit-permission";
+  licenseId: string;
+  licenseEvidenceUrl: string;
+  reviewRef: string;
+}
+
+const REVISION = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
+const LICENCE = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/;
+const REVIEW_REF = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+
+function evidenceUrl(raw: unknown): raw is string {
+  if (typeof raw !== "string" || raw.length > 2048 ||
+      /[\u0000-\u001f\u007f]/.test(raw)) return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && url.hostname !== "" &&
+      url.username === "" && url.password === "" &&
+      url.search === "" && url.hash === "" &&
+      url.href === raw;
+  } catch {
+    return false;
+  }
+}
+
+function validateRightsEvidence(value: unknown): CorpusRightsEvidence {
+  if (!isRecord(value) ||
+      !evidenceUrl(value.originUrl) ||
+      !evidenceUrl(value.licenseEvidenceUrl) ||
+      typeof value.sourceRevision !== "string" || !REVISION.test(value.sourceRevision) ||
+      typeof value.rightsHolder !== "string" ||
+      value.rightsHolder.trim().length < 2 || value.rightsHolder.length > 180 ||
+      !["author-owned", "open-license", "explicit-permission"].includes(String(value.rightsBasis)) ||
+      typeof value.licenseId !== "string" || !LICENCE.test(value.licenseId) ||
+      typeof value.reviewRef !== "string" || !REVIEW_REF.test(value.reviewRef) ||
+      Object.keys(value).some((key) => ![
+        "originUrl", "sourceRevision", "rightsHolder", "rightsBasis",
+        "licenseId", "licenseEvidenceUrl", "reviewRef",
+      ].includes(key))) {
+    fail("corpus/invalid-input", "Corpus rights evidence is invalid.");
+  }
+  const evidence = value as unknown as CorpusRightsEvidence;
+  // Canonical order/casing avoids false ledger conflicts caused by
+  // a JSON producer reordering keys (or spelling a SHA in uppercase).
+  return {
+    originUrl: evidence.originUrl,
+    sourceRevision: evidence.sourceRevision.toLowerCase(),
+    rightsHolder: evidence.rightsHolder.trim(),
+    rightsBasis: evidence.rightsBasis,
+    licenseId: evidence.licenseId,
+    licenseEvidenceUrl: evidence.licenseEvidenceUrl,
+    reviewRef: evidence.reviewRef,
+  };
+}
+
 export interface CorpusArtifactInput {
   externalId: string;
   kind: string;
@@ -88,6 +154,7 @@ export interface CorpusArtifactInput {
   summary?: string | undefined;
   tags?: string[] | undefined;
   rightsClassification: string;
+  rightsEvidence?: CorpusRightsEvidence | undefined;
   workspaceId?: string | undefined;
   ownerSubject?: string | undefined;
 }
@@ -187,6 +254,9 @@ export function validateCorpusInput(raw: unknown): CorpusInput {
           fail("corpus/invalid-input", "Corpus artifact summary is invalid.");
         }
         validateTags(artifact.tags);
+        if (artifact.rightsEvidence !== undefined) {
+          validateRightsEvidence(artifact.rightsEvidence);
+        }
         if (typeof artifact.rightsClassification !== "string" ||
             !(RIGHTS as readonly string[]).includes(artifact.rightsClassification)) {
           fail("corpus/invalid-input", "Corpus rights classification is invalid.");
@@ -238,6 +308,29 @@ export function validateCorpusInput(raw: unknown): CorpusInput {
     }
   }
   return raw as unknown as CorpusInput;
+}
+
+/** Fail-closed before *any* database writes for externally sourced research.
+ *
+ * The fixture importer intentionally remains usable by deterministic tests.
+ * Curators of real screen/product collections must use the qualified entry
+ * point below. A syntactically valid provenance assertion is NOT a legal
+ * opinion, rights transfer, screenshot authorization or source verification.
+ */
+export function validateQualifiedCorpusInput(raw: unknown): CorpusInput {
+  const input = validateCorpusInput(raw);
+  for (const product of input.products) {
+    for (const version of product.versions) {
+      for (const artifact of version.artifacts) {
+        if (artifact.rightsClassification === "unknown" ||
+            artifact.rightsEvidence === undefined) {
+          fail("corpus/invalid-input", "Qualified research artifact needs reviewed rights evidence.");
+        }
+        validateRightsEvidence(artifact.rightsEvidence);
+      }
+    }
+  }
+  return input;
 }
 
 function fingerprint(value: unknown): string {
@@ -348,6 +441,8 @@ export async function importCorpusFixture(
       const artifactIds = new Map<string, string>();
       for (const artifact of version.artifacts) {
         const tags = validateTags(artifact.tags);
+        const rightsEvidence = artifact.rightsEvidence === undefined
+          ? undefined : validateRightsEvidence(artifact.rightsEvidence);
         const artifactKey = `artifact:${product.externalId}:${version.versionNo}:${artifact.externalId}`;
         const artifactPrint = fingerprint({
           kind: artifact.kind,
@@ -355,6 +450,8 @@ export async function importCorpusFixture(
           summary: artifact.summary ?? null,
           tags,
           rights: artifact.rightsClassification,
+          // Preserve the exact historical fingerprint for fixture-only data.
+          ...(rightsEvidence === undefined ? {} : { rightsEvidence }),
           versionId,
         });
         const knownArtifact = await findLedgerEntry(tx, input.sourceId, artifactKey, input.sourceVersion);
@@ -372,7 +469,10 @@ export async function importCorpusFixture(
             visibility: artifact.workspaceId === undefined ? "public" : "private",
             workspaceId: artifact.workspaceId,
             ownerSubject: artifact.ownerSubject,
-            metadata: { tags, corpus: true },
+            metadata: {
+              tags, corpus: true,
+              ...(rightsEvidence === undefined ? {} : { rightsEvidence }),
+            },
           });
           artifactIds.set(artifact.externalId, created.id);
           await registerImport(tx, {
@@ -433,6 +533,19 @@ export async function importCorpusFixture(
     }
   }
   return summary;
+}
+
+/** Curator-only admission path for externally sourced product/design data.
+ * Require the rights/provenance record on every artifact before the existing
+ * idempotent transactional importer can write any rows. This does not fetch,
+ * crawl, or independently verify external web sites or legal permissions.
+ */
+export async function importQualifiedResearchCorpus(
+  tx: DbTransaction,
+  input: { sourceId: string; sourceVersion: string; corpus: unknown },
+): Promise<CorpusImportSummary> {
+  validateQualifiedCorpusInput(input.corpus);
+  return importCorpusFixture(tx, input);
 }
 
 export interface CorpusFlowEntry {
