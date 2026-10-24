@@ -49,6 +49,10 @@ python3 scripts/score_competitive_benchmark.py \
 
 The empty template contains **no fake observations**. The scorecard must say `insufficient-comparable-evidence` and `NOT ESTABLISHED`. Do not commit a report asserting market performance until there is genuine trial evidence.
 
+The parser rejects nonfinite scores/times, duplicate judge IDs for the same product/task, unscored cases carrying a quality rubric, completed cases with blocked/unknown access, credential-bearing/non-HTTPS evidence URLs, and blocked status with an inconsistent access tier. These checks enforce **format consistency**, not whether a linked external claim is true; a human still needs to verify evidence and reviewer independence. No network fetch occurs when scoring.
+
+The scorecard's `exploratory_matched_subset` field provides per-product metrics **only** for task IDs with at least two scored evaluations per product under equal confirmed access tiers. Each task contributes once, regardless of extra grader count. Until all 30 shared tasks have comparable observations, these numbers are explicitly **exploratory**, not a leaderboard or a win claim.
+
 A completed observation uses:
 
 ```json

@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import json
+import math
+from urllib.parse import urlsplit
 from pathlib import Path
 import statistics
 from typing import Any
@@ -31,8 +33,33 @@ def _required(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def read_strict_json(path: Path) -> Any:
+    # JSON permits only finite numeric values; Python's default parser also
+    # accepts NaN/Infinity, which would corrupt benchmarks and reports.
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON number rejected: {value}")
+
+    return json.loads(path.read_text(encoding="utf-8"), parse_constant=reject_constant)
+
+
+def evidence_url_allowed(value: Any) -> bool:
+    # Evidence is a reference only; this tool never fetches it. Disallow
+    # credentials in URL authority and insecure links in shared records.
+    if not isinstance(value, str) or not value.startswith("https://"):
+        return False
+    try:
+        url = urlsplit(value)
+        return (
+            url.scheme == "https" and bool(url.hostname)
+            and url.username is None and url.password is None
+            and not any(ord(ch) < 32 for ch in value)
+        )
+    except ValueError:
+        return False
+
+
 def load_manifest(path: Path) -> dict[str, Any]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = read_strict_json(path)
     _required(isinstance(data, dict), "manifest must be an object")
     _required(data.get("schema_version") == "skilit-competitive-tasks/1", "unknown manifest version")
     _required(data.get("products") == list(PRODUCTS), "product set/order changed")
@@ -61,7 +88,7 @@ def load_manifest(path: Path) -> dict[str, Any]:
 def load_observations(path: Path | None, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     if path is None:
         return []
-    obj = json.loads(path.read_text(encoding="utf-8"))
+    obj = read_strict_json(path)
     _required(isinstance(obj, dict) and obj.get("schema_version") == "skilit-competitive-observations/1",
               "unknown observation schema")
     records = obj.get("observations")
@@ -85,20 +112,24 @@ def load_observations(path: Path | None, manifest: dict[str, Any]) -> list[dict[
         _required(isinstance(rec.get("method"), str) and bool(rec["method"].strip()),
                   f"record {i}: method not documented")
         if status == "completed":
+            _required(rec["access_tier"] in ("free", "existing_entitlement"),
+                      f"record {i}: completed trials require confirmed usable access")
             score = rec.get("rubric")
             _required(isinstance(score, dict) and set(score) == set(RUBRIC), f"record {i}: incomplete rubric")
             _required(all(type(score[k]) is int and 0 <= score[k] <= 4 for k in RUBRIC),
                       f"record {i}: scores must be integers 0..4")
-            _required(isinstance(rec.get("evidence_url"), str)
-                      and rec["evidence_url"].startswith(("https://", "http://")),
-                      f"record {i}: missing auditable evidence URL")
+            _required(evidence_url_allowed(rec.get("evidence_url")),
+                      f"record {i}: invalid or credential-bearing HTTPS evidence URL")
             seconds = rec.get("elapsed_seconds")
-            _required(type(seconds) in (int, float) and seconds >= 0,
-                      f"record {i}: invalid elapsed_seconds")
+            _required(type(seconds) in (int, float) and math.isfinite(seconds) and seconds >= 0,
+                      f"record {i}: elapsed_seconds must be finite and nonnegative")
             steps = rec.get("human_steps")
             _required(type(steps) is int and steps >= 0, f"record {i}: invalid human_steps")
         else:
             _required("rubric" not in rec, f"record {i}: blocked/partial/error cases cannot carry scored quality")
+            if status == "access_blocked":
+                _required(rec["access_tier"] == "blocked",
+                          f"record {i}: access-blocked trials need access_tier=blocked")
     return records
 
 
@@ -133,6 +164,31 @@ def summarize(manifest: dict[str, Any], records: list[dict[str, Any]]) -> dict[s
         if len(access) != 1 or "unknown" in access or "blocked" in access:
             continue
         complete_pairs.append(tid)
+    # Matched subset is explicitly exploratory unless all 30 shared cases
+    # were independently completed under equal access conditions.
+    paired_by_product: dict[str, dict[str, Any]] = {}
+    for product in PRODUCTS:
+        per_task = [
+            [r for r in by_task[tid][product] if r["status"] == "completed"]
+            for tid in complete_pairs
+        ]
+        # Each task weighs once even if more evaluators graded it.
+        task_quality = [
+            statistics.mean(statistics.mean(r["rubric"].values()) for r in group)
+            for group in per_task
+        ]
+        task_times = [
+            statistics.median(r["elapsed_seconds"] for r in group)
+            for group in per_task
+        ]
+        paired_by_product[product] = {
+            "matched_task_mean_quality_0_to_4": (
+                round(statistics.mean(task_quality), 3) if task_quality else None
+            ),
+            "matched_task_median_elapsed_seconds": (
+                round(statistics.median(task_times), 2) if task_times else None
+            ),
+        }
     full_coverage = len(complete_pairs) == len(shared_ids)
     return {
         "schema_version": "skilit-competitive-scorecard/1",
@@ -141,6 +197,7 @@ def summarize(manifest: dict[str, Any], records: list[dict[str, Any]]) -> dict[s
         "differentiator_task_count": len(manifest["tasks"]) - len(shared_ids),
         "paired_shared_tasks_with_two_raters_each": len(complete_pairs),
         "paired_task_ids": complete_pairs,
+        "exploratory_matched_subset": paired_by_product,
         "measurement_state": ("shared-lane-fully-observed-descriptive-only" if full_coverage
                               else "insufficient-comparable-evidence"),
         "superiority_claim": "NOT ESTABLISHED — independent analysis is required",

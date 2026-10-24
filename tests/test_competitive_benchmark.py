@@ -57,6 +57,10 @@ class CompetitiveBenchmarkTests(unittest.TestCase):
                 for e in ("blind-rater-A", "blind-rater-B")]
         summary = score.summarize(self.manifest, rows)
         self.assertEqual(summary["paired_shared_tasks_with_two_raters_each"], 1)
+        self.assertEqual(
+            summary["exploratory_matched_subset"]["skilit"]["matched_task_mean_quality_0_to_4"],
+            3.25,
+        )
         self.assertIn("NOT ESTABLISHED", summary["superiority_claim"])
 
     def test_different_access_tiers_not_paired(self):
@@ -73,6 +77,53 @@ class CompetitiveBenchmarkTests(unittest.TestCase):
             row["access_tier"] = "unknown"
         summary = score.summarize(self.manifest, rows)
         self.assertEqual(summary["paired_shared_tasks_with_two_raters_each"], 0)
+
+    def test_nonfinite_times_and_nonfinite_json_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "obs.json"
+            record = example()
+            record["elapsed_seconds"] = float("inf")
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "non-finite JSON"):
+                score.load_observations(p, self.manifest)
+            record["elapsed_seconds"] = float("nan")
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "non-finite JSON"):
+                score.load_observations(p, self.manifest)
+
+    def test_completed_trial_rejects_blocked_access_or_bad_evidence_link(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "obs.json"
+            record = example()
+            record["access_tier"] = "blocked"
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "confirmed usable access"):
+                score.load_observations(p, self.manifest)
+            record["access_tier"] = "free"
+            record["evidence_url"] = "https://user:secret@example.invalid/hidden"
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "credential-bearing"):
+                score.load_observations(p, self.manifest)
+            record["evidence_url"] = "http://example.invalid/unsafe"
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "HTTPS"):
+                score.load_observations(p, self.manifest)
+
+    def test_blocked_status_requires_blocked_tier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "obs.json"
+            record = example()
+            record["status"] = "access_blocked"
+            record.pop("rubric")
+            p.write_text(json.dumps({"schema_version": "skilit-competitive-observations/1",
+                                     "observations": [record]}))
+            with self.assertRaisesRegex(ValueError, "access_tier=blocked"):
+                score.load_observations(p, self.manifest)
 
     def test_invalid_score_and_unscored_failure_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
