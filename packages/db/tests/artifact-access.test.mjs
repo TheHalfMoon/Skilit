@@ -100,6 +100,76 @@ test("workspace-visible artifact admits members but denies outsiders", async () 
   }
 });
 
+test("P10-G25 workspace-bound public metadata requires membership before all reads", async () => {
+  const { db, ownerA, ownerB, spaceA, spaceB, source } = await setup();
+  try {
+    const member = await signUp(db, {
+      email: "af-public-member@skilit.example", password: "af-password-01",
+    });
+    await addMember(db, {
+      workspaceId: spaceA.workspace.id, userId: member.id,
+      role: "member", actorId: ownerA.id,
+    });
+    const record = await createArtifact(db, {
+      kind: "screen",
+      title: "AF Public Workspace Membership Boundary",
+      sourceId: source.id,
+      contentHash: freshHash(),
+      rightsClassification: "permitted",
+      visibility: "public",
+      workspaceId: spaceA.workspace.id,
+      ownerSubject: ownerA.id,
+    });
+    // Every authorized workspace role reads the record, despite visibility
+    // being public *inside* that workspace.
+    assert.equal((await getArtifactForActor(db, record.id, ownerA.id))?.id, record.id);
+    assert.equal((await getArtifactForActor(db, record.id, member.id))?.id, record.id);
+    // An authenticated user who owns a DIFFERENT workspace must not read
+    // even title/rights metadata. Null also matches missing object semantics.
+    assert.equal(await getArtifactForActor(db, record.id, ownerB.id), null);
+    assert.equal(await getArtifactForActor(db,
+      "11111111-2222-4333-8444-555555555555", ownerB.id), null);
+    const externalBoard = await createCollection(db, {
+      workspaceId: spaceB.workspace.id,
+      title: "Outside Public Board",
+      visibility: "workspace",
+      actorId: ownerB.id,
+    });
+    await assert.rejects(
+      () => saveReference(db, {
+        collectionId: externalBoard.id, artifactId: record.id, actorId: ownerB.id,
+      }),
+      (error) => error instanceof AuthError && error.code === "auth/artifact-not-found",
+      "unrelated workspace cannot import a public-labeled workspace artifact",
+    );
+    assert.deepEqual(await listReferences(db, externalBoard.id, ownerB.id), []);
+
+    // The find_similar SQL candidate gate used to have a second public
+    // shortcut. Even if get_object denies the workspace artifact, leaking
+    // its title/score/count in similarity is a metadata disclosure.
+    const { findSimilarForActor } = await import("../../assets/src/similarity.ts");
+    const globalReference = await createArtifact(db, {
+      kind: "screen", title: "AF Public Workspace Membership Boundary",
+      sourceId: source.id, contentHash: freshHash(),
+      rightsClassification: "permitted", visibility: "public",
+    });
+    const outsiderSimilarity = await findSimilarForActor(db, {
+      artifactId: globalReference.id, actorId: ownerB.id,
+      kinds: ["screen"],
+    });
+    assert.equal(outsiderSimilarity.total, 0, "similarity count must not expose a foreign workspace");
+    assert.deepEqual(outsiderSimilarity.similar, []);
+    const memberSimilarity = await findSimilarForActor(db, {
+      artifactId: globalReference.id, actorId: member.id,
+      kinds: ["screen"],
+    });
+    assert.equal(memberSimilarity.total, 1);
+    assert.equal(memberSimilarity.similar[0].artifactId, record.id);
+  } finally {
+    await db.close();
+  }
+});
+
 test("non-public global screen is denied by ID to every actor", async () => {
   const { db, ownerA, ownerB } = await setup();
   try {
