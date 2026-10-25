@@ -1,6 +1,6 @@
-# P10-G26 — Seven-PR consolidated integration qualification (Draft only)
+# P10-G26 — Eight-PR consolidated integration qualification (Draft only)
 
-**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177 and #179. No release, tag, deployment, publication, external dataset import or paid model/service.
+**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177, #179 and #181. No release, tag, deployment, publication, external dataset import or paid model/service.
 
 ## Immutable ancestry
 - Base main: `157ace7fc57aae9e135a368b7bbe1829ae7111ae`
@@ -11,6 +11,7 @@
 - #174 Compare UI: `79fc3be1080a36605e4b6dcd150de46201931f4e`
 - #172 competitive benchmark: `e6af1b1fdfd0a88733e9c044be90ebfbcdbd3856`
 - #179 Bearer header ReDoS hardening: `69e06fa915e73f7803921c51b8c4134735e058b8`
+- #181 linear SVG guard hardening: `f9017c3cde12198916df870ea338945d0234d325`
 
 ## Rehearsal and conflict resolution
 Applied these branches in the order above in a detached, disposable Mac worktree. All applied without conflict except #174 after #176. Preserve **both** Research and Compare navigation links in `apps/web/components/skilit-shell.tsx`, preserve both page-specific CSS blocks with separate closed responsive media queries in `apps/web/app/globals.css`, and preserve both Chromium smoke steps in `.github/workflows/ci.yml`. Dropping either navigation entry or one smoke would be an unacceptable resolution.
@@ -44,3 +45,9 @@ GitHub native CodeQL default setup was enabled for this **public** repository on
 ## CodeQL findings / follow-up
 
 As of 2026-10-25, CodeQL discovered 32 open, pre-existing baseline alerts on protected main (`157ace7`): 1 tool-labeled critical, 31 tool-labeled high. These findings are tracked in [Issue #180](https://github.com/TheHalfMoon/Skilit/issues/180) and are **not** 32 verified exploits. The focused #179 fix addresses `js/polynomial-redos` alert #10, whose exact PR head has no corresponding CodeQL instance. The integration candidate must be scanned again on **its new exact head**; prior scans of six-PR code must not be reused.
+
+## Latest eight-source integration hardening
+
+Integrated PR #181 with a separate local merge, without conflicts. The combined PGlite research admission/search/compare and vector/OpenPencil security suites produced **49 passed / 1 pre-existing genuine-binary skip / 0 failed**. Strict Editor Adapters and Web TypeScript checks passed.
+
+CodeQL six inherited `js/polynomial-redos` alerts #11–#16 have **zero instances on `refs/pull/181/head`**, but remain visible on protected `main` until a qualified merge. Latest consolidated HEAD requires **new** CI and CodeQL results; successful scans for the prior seven-source HEAD do not apply to it. Remaining CodeQL baseline alerts remain tracked by Issue #180, and independent PStack security review remains mandatory.
