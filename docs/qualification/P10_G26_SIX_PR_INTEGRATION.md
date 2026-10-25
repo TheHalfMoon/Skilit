@@ -1,6 +1,6 @@
-# P10-G26 — Consolidated integration qualification (Draft only)
+# P10-G26 — Seven-PR consolidated integration qualification (Draft only)
 
-**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177. No release, tag, deployment, publication, external dataset import or paid model/service.
+**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177 and #179. No release, tag, deployment, publication, external dataset import or paid model/service.
 
 ## Immutable ancestry
 - Base main: `157ace7fc57aae9e135a368b7bbe1829ae7111ae`
@@ -10,11 +10,14 @@
 - #173 Gallery→Flows: `82a7e7b453be2748ac9ed6459f93f280c8d250e8`
 - #174 Compare UI: `79fc3be1080a36605e4b6dcd150de46201931f4e`
 - #172 competitive benchmark: `e6af1b1fdfd0a88733e9c044be90ebfbcdbd3856`
+- #179 Bearer header ReDoS hardening: `69e06fa915e73f7803921c51b8c4134735e058b8`
 
 ## Rehearsal and conflict resolution
 Applied these branches in the order above in a detached, disposable Mac worktree. All applied without conflict except #174 after #176. Preserve **both** Research and Compare navigation links in `apps/web/components/skilit-shell.tsx`, preserve both page-specific CSS blocks with separate closed responsive media queries in `apps/web/app/globals.css`, and preserve both Chromium smoke steps in `.github/workflows/ci.yml`. Dropping either navigation entry or one smoke would be an unacceptable resolution.
 
-This integration branch contains temporary local merge commits joining the six PR heads. **Do not treat its composition as independent review or acceptance of any source PR.** Treat source PRs and this consolidated Draft as alternatives for an eventual qualified integration path; do not merge both the consolidated candidate and all source PRs redundantly.
+After the initial six-PR qualification, added #179 as another local merge commit, without conflicts. Rechecked the combined MCP parser and qualified import→search→compare test suite: **13/13 PASS**. All seven source-PR HEADs are now in this Draft branch.
+
+This integration branch contains temporary local merge commits joining the seven PR heads. **Do not treat its composition as independent review or acceptance of any source PR.** Treat source PRs and this consolidated Draft as alternatives for an eventual qualified integration path; do not merge both the consolidated candidate and all source PRs redundantly.
 
 ## Evidence
 - Every source PR completed its own exact-head GitHub CI successfully (15/15 jobs). This does not by itself guarantee compatibility on the consolidated HEAD.
@@ -37,3 +40,7 @@ The integration candidate is a testing aid, not a shipping artifact.
 ## Supplemental free static security analysis
 
 GitHub native CodeQL default setup was enabled for this **public** repository on 2026-10-25, using the `extended` query suite for GitHub Actions, JavaScript/TypeScript and Python. GitHub setup run `40171063239` completed successfully. CodeQL is a distinct machine-generated static analyzer; a successful setup **does not** mean that an analysis of this candidate has completed, detected no alerts, or satisfied PStack. The candidate requires its own scan and a human-quality independent PStack review under the existing governance. Public-repo scanning is available without a paid GitHub Code Security entitlement.
+
+## CodeQL findings / follow-up
+
+As of 2026-10-25, CodeQL discovered 32 open, pre-existing baseline alerts on protected main (`157ace7`): 1 tool-labeled critical, 31 tool-labeled high. These findings are tracked in [Issue #180](https://github.com/TheHalfMoon/Skilit/issues/180) and are **not** 32 verified exploits. The focused #179 fix addresses `js/polynomial-redos` alert #10, whose exact PR head has no corresponding CodeQL instance. The integration candidate must be scanned again on **its new exact head**; prior scans of six-PR code must not be reused.
