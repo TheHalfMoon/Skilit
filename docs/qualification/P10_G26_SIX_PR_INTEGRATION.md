@@ -1,6 +1,6 @@
-# P10-G26 — Nine-PR consolidated integration qualification (Draft only)
+# P10-G26 — Ten-PR consolidated integration qualification (Draft only)
 
-**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177, #179, #181 and #182. No release, tag, deployment, publication, external dataset import or paid model/service.
+**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177, #179, #181, #182 and #183. No release, tag, deployment, publication, external dataset import or paid model/service.
 
 ## Immutable ancestry
 - Base main: `157ace7fc57aae9e135a368b7bbe1829ae7111ae`
@@ -13,13 +13,14 @@
 - #179 Bearer header ReDoS hardening: `69e06fa915e73f7803921c51b8c4134735e058b8`
 - #181 linear SVG guard hardening: `f9017c3cde12198916df870ea338945d0234d325`
 - #182 content-addressed temp inode/storage hardening: `79cf7b27d8011ff491e6bffb9041ffe5f9111ea8`
+- #183 PGlite local directory symlink/permission hardening: `740589b6a5a54680fdb01d5616e3b15902000806`
 
 ## Rehearsal and conflict resolution
 Applied these branches in the order above in a detached, disposable Mac worktree. All applied without conflict except #174 after #176. Preserve **both** Research and Compare navigation links in `apps/web/components/skilit-shell.tsx`, preserve both page-specific CSS blocks with separate closed responsive media queries in `apps/web/app/globals.css`, and preserve both Chromium smoke steps in `.github/workflows/ci.yml`. Dropping either navigation entry or one smoke would be an unacceptable resolution.
 
-After the initial six-PR qualification, added #179 as another local merge commit, without conflicts. Rechecked the combined MCP parser and qualified import→search→compare test suite: **13/13 PASS**. All seven source-PR HEADs are now in this Draft branch.
+After the initial six-PR qualification, added #179 as another local merge commit, without conflicts. Rechecked the combined MCP parser and qualified import→search→compare test suite: **13/13 PASS**. This was the initial seven-source stage; later security changes have been integrated subsequently.
 
-This integration branch contains temporary local merge commits joining the seven PR heads. **Do not treat its composition as independent review or acceptance of any source PR.** Treat source PRs and this consolidated Draft as alternatives for an eventual qualified integration path; do not merge both the consolidated candidate and all source PRs redundantly.
+This integration branch contains temporary local merge commits joining the respective source-PR histories. **Do not treat its composition as independent review or acceptance of any source PR.** Treat source PRs and this consolidated Draft as alternatives for an eventual qualified integration path; do not merge both the consolidated candidate and all source PRs redundantly.
 
 ## Evidence
 - Every source PR completed its own exact-head GitHub CI successfully (15/15 jobs). This does not by itself guarantee compatibility on the consolidated HEAD.
@@ -58,3 +59,7 @@ CodeQL six inherited `js/polynomial-redos` alerts #11–#16 have **zero instance
 Integrated Draft PR #182 without conflicts into the consolidated candidate. The combined real-filesystem storage, source→search→compare PGlite and SVG safety tests **18/18 PASS**, with strict Storage TypeScript and ESLint passing. Storage regression proves a source callback substituting a symlink under a temporary upload pathname fails closed, and the published target must remain the verified inode.
 
 **The ninth-source candidate must run its own CI and CodeQL.** The previous eight-source 15/15 and 3/3 results do not apply to this new HEAD. Independent PStack review remains incomplete, as do remaining baseline CodeQL triage and real rights-qualified corpus and competitor trials. No deployment, publication, release or paid provider.
+
+## Tenth source: PGlite local data-directory symlink protection
+
+Integrated Draft PR #183 with a Git tree-based, two-parent commit, preserving both the existing nine-source integrated history and the exact #183 source commit. The two changed web files matched protected main exactly before this integration; no functional conflict was discarded. On the source PR's exact head, GitHub CI **15/15 SUCCESS** and CodeQL **3/3 SUCCESS**. New POSIX regression refuses a final-component symlink to an unrelated directory without modifying its permissions; real private directories still initialize and tighten to owner-only. A fresh exact-head CI/CodeQL run on this ten-source candidate is **required**; source PR green results do not substitute. Windows retains a guarded but weaker path-based chmod fallback and requires separate review. No paid tools, release, deployment, or merge to main.
