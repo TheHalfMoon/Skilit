@@ -61,6 +61,7 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, lstat, realpath, readFile, stat } from "node:fs/promises";
 import { isAbsolute, resolve, sep, extname } from "node:path";
+import { hasSvgEventHandlerAttribute, inspectSvgDimensionsLinear } from "./svg-guard.ts";
 
 export const OPENPENCIL_ADAPTER_ID = "skilit-document" as const;
 export const OPENPENCIL_CAPABILITY = "editable-document" as const;
@@ -982,7 +983,7 @@ export function validateOpenpencilSvgOutput(svg: string, maxBytes: number): void
   ) {
     fail("document/malformed-output", "OpenPencil SVG output carries unsafe content.");
   }
-  if (/on[a-z]+\s*=/i.test(svg)) {
+  if (hasSvgEventHandlerAttribute(svg)) {
     fail("document/malformed-output", "OpenPencil SVG output carries unsafe content.");
   }
 }
@@ -996,10 +997,7 @@ export interface OpenpencilSvgInspection {
 /** Deterministic reopen check: parse dimensions and count basic shapes. */
 export function inspectOpenpencilSvg(svg: string): OpenpencilSvgInspection {
   validateOpenpencilSvgOutput(svg, MAX_MAX_OUTPUT_BYTES);
-  const widthMatch = svg.match(/<svg[^>]*\bwidth="([0-9]+(?:\.[0-9]+)?)"/i);
-  const heightMatch = svg.match(/<svg[^>]*\bheight="([0-9]+(?:\.[0-9]+)?)"/i);
-  const width = widthMatch?.[1] !== undefined ? Number(widthMatch[1]) : NaN;
-  const height = heightMatch?.[1] !== undefined ? Number(heightMatch[1]) : NaN;
+  const { width, height } = inspectSvgDimensionsLinear(svg);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     fail("document/malformed-output", "OpenPencil SVG dimensions are invalid.");
   }
