@@ -51,6 +51,7 @@ async function publish(fx, options = {}) {
     kind: "screen",
     title: "Checkout image",
     rightsClassification: "permitted",
+    storageMaxBytes: 4 * 1024 * 1024,
     visibility: "private",
     workspaceId: fx.workspace.workspace.id,
     ownerSubject: fx.owner.id,
