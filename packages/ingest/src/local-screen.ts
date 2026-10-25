@@ -64,7 +64,8 @@ export function validateLocalScreenManifest(input: unknown, bytes: Uint8Array): 
     throw new LocalScreenError("Unknown local screen manifest field");
   }
   for (const key of ["sourceId", "workspaceId", "ownerSubject"]) {
-    if (typeof fields[key] !== "string" || !isUuid(fields[key])) {
+    const value = fields[key];
+    if (typeof value !== "string" || !isUuid(value)) {
       throw new LocalScreenError("Invalid local screen identity");
     }
   }
@@ -114,7 +115,7 @@ export async function publishLocalResearchScreen(
     sourceId: manifest.sourceId,
     kind: "screen",
     title: manifest.title,
-    summary: manifest.summary,
+    ...(manifest.summary === undefined ? {} : { summary: manifest.summary }),
     rightsClassification: "permitted",
     visibility: "private",
     workspaceId: manifest.workspaceId,
