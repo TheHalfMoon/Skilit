@@ -163,7 +163,8 @@ test("G32 documented operator CLI writes to persistent local PGlite + media root
       SKILIT_MCP_PGLITE_DATA_DIR: dbDir,
       SKILIT_RESEARCH_MEDIA_ROOT: mediaDir,
     };
-    delete env.SKILIT_MCP_DATABASE_URL;
+    // A database URL in the parent shell must never divert the local CLI to a server.
+    env.SKILIT_MCP_DATABASE_URL = "postgresql://ignored:ignored@127.0.0.1:1/blocked";
     delete env.SKELET_MCP_DATABASE_URL;
     const child = spawnSync(process.execPath, [
       "--experimental-strip-types",

@@ -20,6 +20,7 @@ existing PGlite database, byte store, and authenticated preview gate.
 - Authorization is rechecked **within the publication database transaction**
   before content-addressed storage and the artifact row are created.
 - The manifest may choose private or workspace visibility only.
+- CLI always selects local PGlite, ignoring any remote PostgreSQL URL in the shell.
 - No network fetching, remote APIs, models, paid resources, public upload,
   release, tag or deployment.
 

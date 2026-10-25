@@ -4,7 +4,8 @@ import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { getSharedDb } from "../apps/web/lib/mcp-db.ts";
+import { prepareDataDir } from "../apps/web/lib/mcp-db.ts";
+import { openDatabase } from "../packages/db/src/db.ts";
 import { LocalContentAddressedStorage } from "../packages/storage/src/storage.ts";
 import { publishCuratedResearchImage } from "../packages/ingest/src/research-image.ts";
 import { RESEARCH_IMAGE_MAX_BYTES } from "../packages/ingest/src/research-media.ts";
@@ -40,7 +41,7 @@ async function main() {
   if (!manifestPath || !imagePath || !isAbsolute(manifestPath) || !isAbsolute(imagePath) ||
       !process.env.SKILIT_RESEARCH_MEDIA_ROOT ||
       !isAbsolute(process.env.SKILIT_RESEARCH_MEDIA_ROOT) ||
-      !(process.env.SKILIT_MCP_PGLITE_DATA_DIR || process.env.SKILIT_MCP_DATABASE_URL)) {
+      !process.env.SKILIT_MCP_PGLITE_DATA_DIR) {
     throw new Error("Usage: SKILIT_MCP_PGLITE_DATA_DIR=/absolute/db SKILIT_RESEARCH_MEDIA_ROOT=/absolute/media node --experimental-strip-types scripts/import_curated_image.mjs /absolute/manifest.json /absolute/screen.png");
   }
   const manifestHandle = await open(manifestPath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
@@ -62,7 +63,10 @@ async function main() {
     rootDir: process.env.SKILIT_RESEARCH_MEDIA_ROOT,
     maxBytes: RESEARCH_IMAGE_MAX_BYTES,
   });
-  const db = await getSharedDb();
+  // Explicit local PGlite: never inherit a configured remote PostgreSQL URL.
+  const db = await openDatabase({
+    dataDir: prepareDataDir(process.env.SKILIT_MCP_PGLITE_DATA_DIR),
+  });
   try {
     const published = await publishCuratedResearchImage(db, storage, {
       ...manifest, imageBytes: bytes,
