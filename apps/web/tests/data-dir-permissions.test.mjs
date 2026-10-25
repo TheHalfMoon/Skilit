@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -47,5 +47,23 @@ test("a nested data directory is created owner-only", () => {
     const target = path.join(root, "a", "b", "c");
     prepareDataDir(target);
     assert.equal(statSync(target).mode & 0o777, 0o700);
+  });
+});
+
+test("symlinked PGlite path fails closed without chmodding its target", {
+  skip: process.platform === "win32",
+}, () => {
+  withTemp((root) => {
+    const unrelated = path.join(root, "another-workspace");
+    mkdirSync(unrelated, { mode: 0o700 });
+    chmodSync(unrelated, 0o755);
+    const pointer = path.join(root, "pglite-symlink");
+    symlinkSync(unrelated, pointer, "dir");
+
+    assert.throws(() => prepareDataDir(pointer),
+      /symbolic link|ELOOP|ENOTDIR|directory/i);
+    assert.equal(lstatSync(pointer).isSymbolicLink(), true);
+    assert.equal(statSync(unrelated).mode & 0o777, 0o755,
+      "rejecting the symlink must not modify an unrelated directory");
   });
 });

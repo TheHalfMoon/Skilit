@@ -3,6 +3,7 @@ import { validateSession } from "../../../packages/db/src/auth.ts";
 import { getArtifactForActor } from "../../../packages/db/src/artifact-access.ts";
 import { deleteCollection, saveReference } from "../../../packages/db/src/collections.ts";
 import { resolveAssetForActor, searchAssetsForActorDetailed } from "../../../packages/assets/src/registry.ts";
+import type { AssetSearchKind } from "../../../packages/assets/src/registry.ts";
 import { SIMILARITY_KINDS, compareArtifactsForActor, findSimilarForActor } from "../../../packages/assets/src/similarity.ts";
 import type { ComparedSide } from "../../../packages/assets/src/similarity.ts";
 import { getFlowStepsForActor, listFlowsForActor } from "../../../packages/ingest/src/corpus.ts";
@@ -160,12 +161,12 @@ function toolSchemas(): unknown[] {
   return [
     {
       name: "search_assets",
-      description: "Search Skilit icons, logos, and fonts with rights metadata.",
+      description: "Search icons, logos, fonts, and optionally actor-readable research screens with rights metadata.",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string", maxLength: 200 },
-          kinds: { type: "array", items: { type: "string", enum: ["icon", "logo", "font"] } },
+          kinds: { type: "array", items: { type: "string", enum: ["icon", "logo", "font", "screen"] } },
           rights: { type: "array", items: { type: "string", enum: ["unknown", "metadata_only", "permitted", "restricted"] } },
           licenses: { type: "array", items: { type: "string", maxLength: 64 } },
           trademarkFree: { type: "boolean" },
@@ -599,7 +600,7 @@ function toAgentAsset(record: {
   };
 }
 
-const REGISTRY_KINDS = ["icon", "logo", "font"] as const;
+const REGISTRY_KINDS = ["icon", "logo", "font", "screen"] as const;
 
 function invalidInput(message: string, requestId?: string): AgentContractError {
   return new AgentContractError("INVALID_INPUT", { message, requestId });
@@ -756,7 +757,7 @@ async function callTool(
     const actorId = requireUser(ctx);
     const search: {
       query: string;
-      kinds?: ("icon" | "logo" | "font")[];
+      kinds?: AssetSearchKind[];
       rights?: string[];
       licenses?: string[];
       trademarkFree?: boolean;
@@ -775,7 +776,7 @@ async function callTool(
       ) {
         throw invalidInput("search_assets.kinds is invalid.", requestId);
       }
-      search.kinds = params.kinds as ("icon" | "logo" | "font")[];
+      search.kinds = params.kinds as AssetSearchKind[];
     }
     {
       const value = params.rights;
@@ -1914,12 +1915,21 @@ export async function dispatchMcp(
   return handleOne(db, ctx, body);
 }
 
+const MAX_BEARER_HEADER_CHARS = 8192;
+
+/** Parse the authentication scheme without ambiguous, backtracking regexes.
+ * Incoming HTTP headers are untrusted; length is bounded before trimming.
+ */
 export function bearerToken(header: string | null): string | null {
-  if (typeof header !== "string") return null;
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  if (match === null) return null;
-  const token = (match[1] ?? "").trim();
-  return token.length > 0 ? token : null;
+  if (typeof header !== "string" || header.length > MAX_BEARER_HEADER_CHARS) return null;
+  if (header.includes("\r") || header.includes("\n")) return null;
+  const normalized = header.trim();
+  if (normalized.length < 8 || normalized.slice(0, 6).toLowerCase() !== "bearer") return null;
+  const separator = normalized[6];
+  if (separator === undefined || separator.trim() !== "") return null;
+  const token = normalized.slice(7).trim();
+  if (token.length === 0) return null;
+  return token;
 }
 
 /**

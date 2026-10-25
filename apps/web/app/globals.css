@@ -359,3 +359,36 @@ button, input, select, textarea { font: inherit; }
 }
 .sk-account-table tbody tr:last-child td { border-bottom: none; }
 .sk-account-table code { overflow-wrap: anywhere; }
+
+/* Accessible, metadata-only research screen search. No remote thumbnails. */
+.sk-research-page .sk-research-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; gap: 14px; list-style: none; }
+.sk-research-page .sk-research-list > li { min-width: 0; padding: 18px; border: 1px solid #dedbd5; border-radius: 12px; background: #faf9f7; }
+.sk-research-page .sk-research-list h3 { margin: 0 0 9px; font-size: 17px; }
+.sk-research-page .sk-research-uri { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; }
+.sk-research-page .sk-research-list dl { margin: 12px 0; }
+.sk-research-page .sk-research-list dl > div { display: flex; gap: 12px; justify-content: space-between; border-bottom: 1px solid #ebe8e3; padding: 7px 0; }
+.sk-research-page .sk-research-list dt { color: #59544e; }
+.sk-research-page .sk-research-list dd { margin: 0; font-weight: 650; overflow-wrap: anywhere; text-align: right; }
+.sk-research-page .sk-research-disclaimer { color: #6a4e2a; font-size: 12px; }
+@media (max-width: 760px) {
+  .sk-research-page .sk-research-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Actor-scoped comparison: two readable records, one shared vocabulary. */
+.sk-compare-page .sk-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 19px 0; }
+.sk-compare-page .sk-compare-side { margin: 0; padding: 20px; border: 1px solid var(--sk-line); border-radius: 12px; background: #faf9f7; min-width: 0; }
+.sk-compare-page .sk-compare-side h2 { margin: 7px 0; font-size: 19px; }
+.sk-compare-page .sk-compare-side h3, .sk-compare-page .sk-compare-terms h3 { font-size: 13px; margin: 18px 0 8px; }
+.sk-compare-page .sk-compare-artifact-uri { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; overflow-wrap: anywhere; }
+.sk-compare-page .sk-compare-side dl { margin: 13px 0; }
+.sk-compare-page .sk-compare-side dl div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #e9e6df; }
+.sk-compare-page .sk-compare-side dt { color: #67635e; }
+.sk-compare-page .sk-compare-side dd { margin: 0; font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+.sk-compare-page .sk-compare-terms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 6px 0 18px; }
+.sk-compare-page .sk-compare-table-wrap { max-width: 100%; overflow-x: auto; }
+.sk-compare-page .sk-compare-table-wrap table { border-collapse: collapse; width: 100%; min-width: 490px; text-align: left; }
+.sk-compare-page .sk-compare-table-wrap th, .sk-compare-page .sk-compare-table-wrap td { border-bottom: 1px solid #e9e6df; padding: 11px 9px; overflow-wrap: anywhere; max-width: 270px; }
+.sk-compare-page .sk-compare-table-wrap caption { text-align: left; color: #67635e; padding-bottom: 10px; }
+@media (max-width: 760px) {
+  .sk-compare-page .sk-compare-grid, .sk-compare-page .sk-compare-terms { grid-template-columns: minmax(0, 1fr); }
+}

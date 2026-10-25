@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { DbClient } from "../../db/src/db.ts";
+import type { DbClient, DbTransaction } from "../../db/src/db.ts";
 import {
   ARTIFACT_KINDS,
   RIGHTS,
@@ -95,6 +95,8 @@ export interface PublishInput {
   enrichers?: Array<ProviderDefinition<unknown, unknown>>;
   enricherTimeoutMs?: number;
   storageMaxBytes?: number;
+  /** Internal trusted caller hook, executed within the publication transaction before any write. */
+  authorizeInTransaction?: (tx: DbTransaction) => Promise<void>;
 }
 
 export type { StorageProvider };
@@ -263,6 +265,7 @@ export async function publishArtifact(
   }
 
   const published = await db.transaction(async (tx) => {
+    if (input.authorizeInTransaction) await input.authorizeInTransaction(tx);
     const source = await tx.query("select id from sources where id = $1", [input.sourceId]);
     if (source.rows.length === 0) {
       throw new PublishError("publish/unknown-reference", "Source was not found.");

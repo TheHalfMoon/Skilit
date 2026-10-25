@@ -1,5 +1,6 @@
 import type { DbClient } from "../../../packages/db/src/db.ts";
 import { resolveAssetForActor, searchAssetsForActorDetailed } from "../../../packages/assets/src/registry.ts";
+import type { AssetSearchKind } from "../../../packages/assets/src/registry.ts";
 import { SIMILARITY_KINDS, compareArtifactsForActor, findSimilarForActor } from "../../../packages/assets/src/similarity.ts";
 import type { ComparedSide } from "../../../packages/assets/src/similarity.ts";
 import { getFlowStepsForActor, listFlowsForActor } from "../../../packages/ingest/src/corpus.ts";
@@ -73,7 +74,7 @@ function agentAssetView(record: {
   };
 }
 
-const REGISTRY_KINDS = ["icon", "logo", "font"] as const;
+const REGISTRY_KINDS = ["icon", "logo", "font", "screen"] as const;
 
 /** The three failure answers every REST route returns, in one place. */
 export function invalidInput(requestId: string, message: string): RestResult {
@@ -209,7 +210,7 @@ export async function searchAssetsRoute(
   try {
     const search: {
       query: string;
-      kinds?: ("icon" | "logo" | "font")[];
+      kinds?: AssetSearchKind[];
       rights?: string[];
       licenses?: string[];
       trademarkFree?: boolean;
@@ -218,7 +219,7 @@ export async function searchAssetsRoute(
       limit: number;
       offset: number;
     } = { query: rawQuery.trim(), limit: limit + 1, offset };
-    if (kinds !== undefined) search.kinds = kinds as ("icon" | "logo" | "font")[];
+    if (kinds !== undefined) search.kinds = kinds as AssetSearchKind[];
     if (rights !== undefined) search.rights = rights;
     if (licenses !== undefined) search.licenses = licenses;
     if (trademarkFree !== undefined) search.trademarkFree = trademarkFree;
