@@ -230,7 +230,9 @@ export class LocalContentAddressedStorage implements StorageProvider {
     const temporary = join(tempDir, randomUUID() + ".part");
     let file: FileHandle | undefined;
     try {
-      file = await open(temporary, "wx", 0o600);
+      // Exclusive creation plus read/write access allows verification on
+      // this very descriptor, without reopening the pathname after fsync.
+      file = await open(temporary, "wx+", 0o600);
       const hash = createHash("sha256");
       let bytes = 0;
       const iterator = source[Symbol.asyncIterator]();
@@ -271,37 +273,50 @@ export class LocalContentAddressedStorage implements StorageProvider {
       }
       if (signal.aborted) throwAborted(signal, timeoutSignal.aborted);
       await file.sync();
+      const digest = hash.digest("hex");
+      // Verify through the SAME exclusively created descriptor before closing.
+      // Reopening the name after close allowed a swapped symlink/pathname to
+      // influence verification between the initial creation and the reread.
+      const actual = createHash("sha256");
+      const readBuffer = Buffer.allocUnsafe(CHUNK_SIZE);
+      let offset = 0;
+      while (offset < bytes) {
+        const { bytesRead } = await file.read(
+          readBuffer, 0, Math.min(CHUNK_SIZE, bytes - offset), offset,
+        );
+        if (bytesRead === 0) break;
+        offset += bytesRead;
+        actual.update(readBuffer.subarray(0, bytesRead));
+      }
+      const verifiedStat = await file.stat();
+      if (!verifiedStat.isFile() || verifiedStat.size !== bytes ||
+          offset !== bytes || actual.digest("hex") !== digest) {
+        throw new StorageError("CORRUPT_OBJECT", "Temporary bytes disagree with SHA-256");
+      }
+      // Checking only bytes on the open descriptor is not sufficient:
+      // a source-controlled callback or local peer might rename its entry
+      // before the name-based link() publication. Require the same inode.
+      const pathnameStat = await lstat(temporary);
+      if (!pathnameStat.isFile() || pathnameStat.isSymbolicLink() ||
+          pathnameStat.dev !== verifiedStat.dev || pathnameStat.ino !== verifiedStat.ino) {
+        throw new StorageError("UNSAFE_PATH", "Temporary filename no longer identifies verified bytes");
+      }
       await file.close();
       file = undefined;
-      const digest = hash.digest("hex");
-      // Re-read the fsynced temporary file through the filesystem cache.
-      // This detects code/write mismatches, not physical-media faults.
-      const verifyTemp = await open(temporary, "r");
-      try {
-        const actual = createHash("sha256");
-        const readBuffer = Buffer.allocUnsafe(CHUNK_SIZE);
-        let offset = 0;
-        for (;;) {
-          const { bytesRead } = await verifyTemp.read(
-            readBuffer, 0, readBuffer.length, offset,
-          );
-          if (bytesRead === 0) break;
-          offset += bytesRead;
-          if (offset > allowedBytes) {
-            throw new StorageError("SIZE_LIMIT", "Temporary file exceeded byte budget");
-          }
-          actual.update(readBuffer.subarray(0, bytesRead));
-        }
-        if (offset !== bytes || actual.digest("hex") !== digest) {
-          throw new StorageError("CORRUPT_OBJECT", "Temporary bytes disagree with SHA-256");
-        }
-      } finally { await verifyTemp.close(); }
       const target = await this.target(digest);
       let created = false;
       try {
         // Same-volume hardlink is atomic and NEVER overwrites existing hashes.
         await link(temporary, target);
         created = true;
+        // Detect a second substitution between the pathname check and link.
+        // The published inode must still be the one we just verified.
+        const publishedStat = await lstat(target);
+        if (!publishedStat.isFile() || publishedStat.isSymbolicLink() ||
+            publishedStat.dev !== verifiedStat.dev || publishedStat.ino !== verifiedStat.ino) {
+          await rm(target, { force: true });
+          throw new StorageError("UNSAFE_PATH", "Published inode differs from verified bytes");
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
         const existingSize = await this.verify(digest);
