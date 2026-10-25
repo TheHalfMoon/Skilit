@@ -1,6 +1,6 @@
-# P10-G26 — Eight-PR consolidated integration qualification (Draft only)
+# P10-G26 — Nine-PR consolidated integration qualification (Draft only)
 
-**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177, #179 and #181. No release, tag, deployment, publication, external dataset import or paid model/service.
+**Scope:** Local-only integration rehearsal of Skilit PRs #172–#177, #179, #181 and #182. No release, tag, deployment, publication, external dataset import or paid model/service.
 
 ## Immutable ancestry
 - Base main: `157ace7fc57aae9e135a368b7bbe1829ae7111ae`
@@ -12,6 +12,7 @@
 - #172 competitive benchmark: `e6af1b1fdfd0a88733e9c044be90ebfbcdbd3856`
 - #179 Bearer header ReDoS hardening: `69e06fa915e73f7803921c51b8c4134735e058b8`
 - #181 linear SVG guard hardening: `f9017c3cde12198916df870ea338945d0234d325`
+- #182 content-addressed temp inode/storage hardening: `79cf7b27d8011ff491e6bffb9041ffe5f9111ea8`
 
 ## Rehearsal and conflict resolution
 Applied these branches in the order above in a detached, disposable Mac worktree. All applied without conflict except #174 after #176. Preserve **both** Research and Compare navigation links in `apps/web/components/skilit-shell.tsx`, preserve both page-specific CSS blocks with separate closed responsive media queries in `apps/web/app/globals.css`, and preserve both Chromium smoke steps in `.github/workflows/ci.yml`. Dropping either navigation entry or one smoke would be an unacceptable resolution.
@@ -51,3 +52,9 @@ As of 2026-10-25, CodeQL discovered 32 open, pre-existing baseline alerts on pro
 Integrated PR #181 with a separate local merge, without conflicts. The combined PGlite research admission/search/compare and vector/OpenPencil security suites produced **49 passed / 1 pre-existing genuine-binary skip / 0 failed**. Strict Editor Adapters and Web TypeScript checks passed.
 
 CodeQL six inherited `js/polynomial-redos` alerts #11–#16 have **zero instances on `refs/pull/181/head`**, but remain visible on protected `main` until a qualified merge. Latest consolidated HEAD requires **new** CI and CodeQL results; successful scans for the prior seven-source HEAD do not apply to it. Remaining CodeQL baseline alerts remain tracked by Issue #180, and independent PStack security review remains mandatory.
+
+## Ninth source: verified storage publication
+
+Integrated Draft PR #182 without conflicts into the consolidated candidate. The combined real-filesystem storage, source→search→compare PGlite and SVG safety tests **18/18 PASS**, with strict Storage TypeScript and ESLint passing. Storage regression proves a source callback substituting a symlink under a temporary upload pathname fails closed, and the published target must remain the verified inode.
+
+**The ninth-source candidate must run its own CI and CodeQL.** The previous eight-source 15/15 and 3/3 results do not apply to this new HEAD. Independent PStack review remains incomplete, as do remaining baseline CodeQL triage and real rights-qualified corpus and competitor trials. No deployment, publication, release or paid provider.
