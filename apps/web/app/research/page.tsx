@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { SessionAccessBanner } from "../../components/session-access-banner";
+import { ResearchScreenPreview } from "../../components/research-screen-preview";
 import { sessionRequest } from "../../lib/browser-session";
 import {
   parseScreenSearchPage,
@@ -112,6 +113,7 @@ export default function ResearchPage() {
                     <div><dt>License claim</dt><dd>{screen.license}</dd></div>
                     <div><dt>Serving</dt><dd>{screen.serving}</dd></div>
                   </dl>
+                  <ResearchScreenPreview uri={screen.uri} title={screen.title} />
                   {screen.serving === "metadata-only" ?
                     <p className="sk-research-disclaimer">Metadata only — image bytes are not available from this result.</p> : null}
                 </li>
