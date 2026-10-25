@@ -21,7 +21,7 @@ This integration branch contains temporary local merge commits joining the six P
 - PGlite and Node cross-feature targeted checks: **30/30 PASS** on the combined codebase.
 - DB, Assets, Ingest and Web TypeScript checks, web ESLint, and production Next.js build: **PASS**.
 - Built Chromium research search, compare UI, and Gallery→Flows journeys: **PASS**, each across three viewport widths.
-- `apps/web/tests/integration-qualified-screen-journey.test.mjs`: a real PGlite source-to-UI-contract test, using **two synthetic screens** with author-claimed test rights. It verifies curator-provenance import, actor-scoped `kinds=screen` lookup, parsing by the actual Research UI contract, REST compare, parsing by the actual Compare UI contract, object lookup and persisted `rightsEvidence`. **1/1 PASS** before adding it to this integration candidate. No real competitors or external assets are imported.
+- `apps/web/tests/integration-qualified-screen-journey.test.mjs`: two real-PGlite source-to-UI-contract tests, using only **synthetic screens** with test rights evidence. It verifies curator-provenance import, actor-scoped `kinds=screen` lookup, parsing by the actual Research UI contract, REST compare, parsing by the actual Compare UI contract, object lookup and persisted `rightsEvidence`. **2/2 PASS** on current integration candidate. The second test validates workspace-public actor isolation across qualified corpus import, screen search facets and compare authorization (outsider denied, member admitted). No real competitors or external assets are imported.
 
 The cross-feature test is source-backed by Skilit's own ephemeral synthetic data only. It is not a copyright clearance, independent competitor benchmark, semantic search or proof of superiority over Mobbin/Refero.
 
@@ -33,3 +33,7 @@ The cross-feature test is source-backed by Skilit's own ephemeral synthetic data
 5. No merge to protected `main`, release, tag or deployment without the required approvals and release instruction.
 
 The integration candidate is a testing aid, not a shipping artifact.
+
+## Supplemental free static security analysis
+
+GitHub native CodeQL default setup was enabled for this **public** repository on 2026-10-25, using the `extended` query suite for GitHub Actions, JavaScript/TypeScript and Python. GitHub setup run `40171063239` completed successfully. CodeQL is a distinct machine-generated static analyzer; a successful setup **does not** mean that an analysis of this candidate has completed, detected no alerts, or satisfied PStack. The candidate requires its own scan and a human-quality independent PStack review under the existing governance. Public-repo scanning is available without a paid GitHub Code Security entitlement.
