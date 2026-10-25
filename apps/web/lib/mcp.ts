@@ -1914,12 +1914,21 @@ export async function dispatchMcp(
   return handleOne(db, ctx, body);
 }
 
+const MAX_BEARER_HEADER_CHARS = 8192;
+
+/** Parse the authentication scheme without ambiguous, backtracking regexes.
+ * Incoming HTTP headers are untrusted; length is bounded before trimming.
+ */
 export function bearerToken(header: string | null): string | null {
-  if (typeof header !== "string") return null;
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  if (match === null) return null;
-  const token = (match[1] ?? "").trim();
-  return token.length > 0 ? token : null;
+  if (typeof header !== "string" || header.length > MAX_BEARER_HEADER_CHARS) return null;
+  if (header.includes("\r") || header.includes("\n")) return null;
+  const normalized = header.trim();
+  if (normalized.length < 8 || normalized.slice(0, 6).toLowerCase() !== "bearer") return null;
+  const separator = normalized[6];
+  if (separator === undefined || separator.trim() !== "") return null;
+  const token = normalized.slice(7).trim();
+  if (token.length === 0) return null;
+  return token;
 }
 
 /**
