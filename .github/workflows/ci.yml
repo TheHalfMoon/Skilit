@@ -450,6 +450,7 @@ jobs:
           node --experimental-strip-types --test
           packages/ingest/tests/publish.test.mjs
           packages/ingest/tests/corpus.test.mjs
+          packages/ingest/tests/research-image.test.mjs
 
   assets:
     name: assets

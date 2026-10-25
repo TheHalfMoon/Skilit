@@ -2,6 +2,7 @@ import type { DbTransaction } from "../../../packages/db/src/db.ts";
 import { getArtifactForActor } from "../../../packages/db/src/artifact-access.ts";
 import { validateRightsEvidence } from "../../../packages/ingest/src/corpus.ts";
 import type { StorageProvider } from "../../../packages/storage/src/storage.ts";
+import { RESEARCH_IMAGE_MAX_BYTES, isResearchImageType, isApprovedPreviewLicense, matchesDeclaredImageType } from "../../../packages/ingest/src/research-media.ts";
 
 /** Local rights-qualified image previews, NEVER public raw-storage URLs.
  * The curator must explicitly approve preview use of the underlying screen
@@ -13,29 +14,8 @@ export interface ResearchPreview {
   mediaType: PreviewMediaType;
 }
 
-const MAX_PREVIEW_BYTES = 4 * 1024 * 1024;
+const MAX_PREVIEW_BYTES = RESEARCH_IMAGE_MAX_BYTES;
 const HASH = /^[0-9a-f]{64}$/;
-const ALLOWED_MEDIA: ReadonlySet<string> = new Set(["image/png", "image/jpeg", "image/webp"]);
-const PREVIEW_LICENSES: ReadonlySet<string> = new Set(["CC0-1.0", "MIT", "Apache-2.0", "ISC"]);
-
-function matchesDeclaredImageType(bytes: Uint8Array, mediaType: string): boolean {
-  if (mediaType === "image/png") {
-    return bytes.length >= 24 &&
-      Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) &&
-      Buffer.from(bytes.subarray(12, 16)).toString("ascii") === "IHDR";
-  }
-  if (mediaType === "image/jpeg") {
-    return bytes.length >= 16 &&
-      bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff &&
-      bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
-  }
-  if (mediaType === "image/webp") {
-    return bytes.length >= 16 &&
-      Buffer.from(bytes.subarray(0, 4)).toString("ascii") === "RIFF" &&
-      Buffer.from(bytes.subarray(8, 12)).toString("ascii") === "WEBP";
-  }
-  return false;
-}
 
 /** Return null for both denied and nonexistent screens, or missing/unsigned
  * media. Any actual blob I/O/integrity failure throws and must be answered
@@ -61,7 +41,7 @@ export async function loadResearchScreenPreview(
   } catch {
     return null;
   }
-  if (!PREVIEW_LICENSES.has(licenseId)) return null;
+  if (!isApprovedPreviewLicense(licenseId)) return null;
 
   const result = await db.query(
     `select sha256, media_type, byte_length from assets
@@ -73,7 +53,7 @@ export async function loadResearchScreenPreview(
   if (row === undefined) return null;
   const mediaType = String(row.media_type);
   const length = Number(row.byte_length);
-  if (!ALLOWED_MEDIA.has(mediaType) || !Number.isSafeInteger(length) ||
+  if (!isResearchImageType(mediaType) || !Number.isSafeInteger(length) ||
       length < 16 || length > MAX_PREVIEW_BYTES) return null;
 
   // The underlying storage provider hashes every byte before yielding.
