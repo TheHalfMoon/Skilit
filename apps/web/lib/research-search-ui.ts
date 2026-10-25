@@ -38,6 +38,13 @@ export function researchSearchPath(query: string, cursor?: string): string | nul
   return `/api/v1/assets?${params.toString()}`;
 }
 
+/** Only same-origin, UUID-derived preview paths; no user-controlled URLs. */
+export function researchPreviewPath(uri: string): string | null {
+  if (!ARTIFACT_URI.test(uri)) return null;
+  const id = uri.slice("skilit://artifact/".length);
+  return "/api/v1/research/screens/" + id + "/preview";
+}
+
 export function parseScreenSearchPage(raw: unknown): ScreenSearchPage | null {
   const envelope = record(raw);
   const result = record(envelope?.result);

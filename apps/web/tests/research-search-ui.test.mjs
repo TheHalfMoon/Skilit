@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import {
-  parseScreenSearchPage, researchSearchPath, searchFailure,
+  parseScreenSearchPage, researchSearchPath, researchPreviewPath, searchFailure,
 } from "../lib/research-search-ui.ts";
 
 const ID = "12345678-1234-4234-9234-1234567890ab";
@@ -66,4 +66,28 @@ test("P10-G24 real page wires cookie-based transport without remote media and ha
   assert.ok(!page.includes("localStorage"));
   assert.ok(!page.includes("Authorization:"));
   assert.ok(!page.includes("<img"));
+});
+
+test("G31 preview URL derives only from a validated same-origin artifact URI", () => {
+  assert.equal(researchPreviewPath("skilit://artifact/" + ID),
+    "/api/v1/research/screens/" + ID + "/preview");
+  for (const bad of [
+    "https://other.example/screenshot.png",
+    "javascript:alert(1)",
+    "skilit://artifact/../../etc/passwd",
+    "skilit://artifact/not-a-uuid",
+    "skilit://artifact/" + ID + "?token=secret",
+  ]) assert.equal(researchPreviewPath(bad), null);
+});
+
+test("G31 Research offers on-demand cookie-scoped previews without external URLs", async () => {
+  const component = await readFile(new URL("../components/research-screen-preview.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/research/page.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes("<ResearchScreenPreview uri={screen.uri}"));
+  assert.ok(component.includes("researchPreviewPath(uri)"));
+  assert.ok(component.includes("sessionRequest(path, { signal: controller.signal })"));
+  assert.ok(component.includes("URL.createObjectURL"));
+  assert.ok(component.includes("URL.revokeObjectURL"));
+  assert.ok(!component.includes("localStorage"));
+  assert.ok(!component.includes("dangerouslySetInnerHTML"));
 });
