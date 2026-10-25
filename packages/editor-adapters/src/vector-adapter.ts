@@ -38,6 +38,7 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, lstat, realpath, readFile } from "node:fs/promises";
 import { isAbsolute, resolve, sep } from "node:path";
+import { hasSvgEventHandlerAttribute, inspectSvgDimensionsLinear } from "./svg-guard.ts";
 
 export const VECTOR_ADAPTER_ID = "skilit-vector" as const;
 export const VECTOR_CAPABILITY = "vector-export" as const;
@@ -617,7 +618,7 @@ export function validateSvgOutput(svg: string, maxBytes: number): void {
   ) {
     fail("vector/malformed-output", "Vector SVG output carries unsafe content.");
   }
-  if (/on[a-z]+\s*=/i.test(svg)) {
+  if (hasSvgEventHandlerAttribute(svg)) {
     fail("vector/malformed-output", "Vector SVG output carries unsafe content.");
   }
 }
@@ -631,10 +632,7 @@ export interface SvgInspection {
 /** Deterministic reopen check: parse dimensions and count basic shapes. */
 export function inspectSvg(svg: string): SvgInspection {
   validateSvgOutput(svg, MAX_MAX_OUTPUT_BYTES);
-  const widthMatch = svg.match(/<svg[^>]*\bwidth="([0-9]+(?:\.[0-9]+)?)"/i);
-  const heightMatch = svg.match(/<svg[^>]*\bheight="([0-9]+(?:\.[0-9]+)?)"/i);
-  const width = widthMatch?.[1] !== undefined ? Number(widthMatch[1]) : NaN;
-  const height = heightMatch?.[1] !== undefined ? Number(heightMatch[1]) : NaN;
+  const { width, height } = inspectSvgDimensionsLinear(svg);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     fail("vector/malformed-output", "Vector SVG dimensions are invalid.");
   }
