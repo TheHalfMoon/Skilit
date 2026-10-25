@@ -117,7 +117,7 @@ function evidenceUrl(raw: unknown): raw is string {
   }
 }
 
-function validateRightsEvidence(value: unknown): CorpusRightsEvidence {
+export function validateRightsEvidence(value: unknown): CorpusRightsEvidence {
   if (!isRecord(value) ||
       !evidenceUrl(value.originUrl) ||
       !evidenceUrl(value.licenseEvidenceUrl) ||
