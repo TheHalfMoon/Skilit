@@ -50,7 +50,7 @@ export async function loadResearchScreenPreview(
   const artifact = await getArtifactForActor(db, artifactId, actorId);
   if (artifact === null || artifact.kind !== "screen" ||
       artifact.rightsClassification !== "permitted" || !HASH.test(artifact.contentHash)) return null;
-  const metadata = artifact.metadata;
+  const metadata = artifact.metadata ?? {};
   if (metadata.previewApproved !== true || metadata.trademark === true) return null;
 
   // A license label or permitted rights bit alone is never enough:
