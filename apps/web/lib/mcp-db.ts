@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync } from "node:fs";
+import { chmodSync, closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 
 import { openDatabase, type DbClient } from "../../../packages/db/src/db.ts";
@@ -27,12 +27,43 @@ export function prepareDataDir(dataDir: string): string {
     throw new Error("SKILIT_MCP_PGLITE_DATA_DIR must be an absolute path");
   }
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-  // `mode` only applies when the directory is created, so an existing
-  // directory keeps whatever permissions it had. The directory holds
-  // password verifiers and session-token hashes, so the owner-only
-  // permission is enforced rather than requested.
-  chmodSync(dataDir, 0o700);
-  return dataDir;
+  // Never chmod a symbolic link's target: the operator may have configured
+  // a stale path, or a local peer may have substituted its directory entry.
+  // Windows has different directory-handle semantics, but can still reject
+  // the final symlink before preserving its prior chmod behavior.
+  if (process.platform === "win32") {
+    const entry = lstatSync(dataDir);
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      throw new Error("PGlite data directory must be a real directory, not a symbolic link");
+    }
+    chmodSync(dataDir, 0o700);
+    return dataDir;
+  }
+
+  // Bind the permission change to an actual directory handle. O_NOFOLLOW
+  // rejects final-component symlinks and fchmod avoids name-based retargeting
+  // between a path check and the permission operation.
+  const fd = openSync(
+    dataDir,
+    constants.O_RDONLY | (constants.O_DIRECTORY ?? 0) | (constants.O_NOFOLLOW ?? 0),
+  );
+  try {
+    const info = fstatSync(fd);
+    if (!info.isDirectory()) {
+      throw new Error("PGlite data directory must be a real directory");
+    }
+    fchmodSync(fd, 0o700);
+    const secured = fstatSync(fd);
+    const entry = lstatSync(dataDir);
+    if (!entry.isDirectory() || entry.isSymbolicLink() ||
+        entry.dev !== secured.dev || entry.ino !== secured.ino ||
+        (secured.mode & 0o077) !== 0) {
+      throw new Error("PGlite data directory changed or is not owner-only");
+    }
+    return dataDir;
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /**

@@ -237,6 +237,12 @@ jobs:
       - name: Brand chrome responsive and keyboard smoke
         run: node scripts/smoke-brand-chrome.mjs 3104
 
+      - name: Research screen search responsive and denied-state smoke
+        run: node scripts/smoke-research-search.mjs 3197
+
+      - name: Compare UI responsive, input and denied-state smoke
+        run: node scripts/smoke-compare-ui.mjs 3111
+
       - name: Authenticated browser journey smoke
         run: node scripts/smoke-auth-journey.mjs 3105
 

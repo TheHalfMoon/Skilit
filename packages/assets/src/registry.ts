@@ -30,9 +30,14 @@ import {
  */
 
 export type RegistryKind = "icon" | "logo" | "font";
+export type AssetSearchKind = RegistryKind | "screen";
 export type ServingDecision = "download" | "metadata-only";
 
 const REGISTRY_KINDS: readonly string[] = ["icon", "logo", "font"];
+// Search is additive: explicitly requested research screens are readable
+// as metadata only. Registration remains icon/logo/font, and default
+// asset search retains its prior three kinds for backward compatibility.
+const SEARCH_KINDS: readonly string[] = [...REGISTRY_KINDS, "screen"];
 
 /**
  * Licenses whose terms permit redistribution of the bytes. Anything
@@ -69,7 +74,7 @@ export interface RegistryMetadata {
 
 export interface AssetRecord {
   artifactId: string;
-  kind: RegistryKind;
+  kind: AssetSearchKind;
   title: string;
   summary: string | null;
   collection: string | null;
@@ -242,7 +247,7 @@ function toRecord(row: Record<string, unknown>): AssetRecord {
   }
   return {
     artifactId: String(row.id),
-    kind: String(row.kind) as RegistryKind,
+    kind: String(row.kind) as AssetSearchKind,
     title: String(row.title),
     summary: row.summary === null ? null : String(row.summary),
     collection: validated.collection ?? null,
@@ -361,7 +366,7 @@ export async function registerAsset(
 
 export interface AssetSearch {
   query: string;
-  kinds?: RegistryKind[] | undefined;
+  kinds?: AssetSearchKind[] | undefined;
   rights?: string[] | undefined;
   licenses?: string[] | undefined;
   trademarkFree?: boolean | undefined;
@@ -436,9 +441,11 @@ function buildAssetSearchPlan(search: AssetSearch, actorId: string | null): Asse
     throw new RegistryError("assets/invalid-record", "Collection filter is invalid.");
   }
 
-  const kinds = search.kinds ?? (["icon", "logo", "font"] as RegistryKind[]);
-  for (const kind of kinds) validateKind(kind);
-  if (kinds.length === 0 || kinds.length > REGISTRY_KINDS.length || new Set(kinds).size !== kinds.length) {
+  const kinds = search.kinds ?? (["icon", "logo", "font"] as AssetSearchKind[]);
+  if (!Array.isArray(kinds) || kinds.length === 0 ||
+      kinds.length > SEARCH_KINDS.length ||
+      kinds.some((kind) => typeof kind !== "string" || !SEARCH_KINDS.includes(kind)) ||
+      new Set(kinds).size !== kinds.length) {
     throw new RegistryError("assets/invalid-record", "Asset kinds are invalid.");
   }
 
@@ -491,14 +498,19 @@ function buildAssetSearchPlan(search: AssetSearch, actorId: string | null): Asse
 
   // Access control is part of the SQL predicate before row ranking, facets,
   // counts, or pagination. Never compute facets from an unscoped corpus.
-  let scopeFilter = "a.workspace_id is null";
+  // Research screens can be globally visible only when explicitly public.
+  // Legacy global/private non-registry rows must stay hidden, matching
+  // AF-SEC-00 getArtifactForActor instead of using the old registry shortcut.
+  const globalReadable =
+    "(a.workspace_id is null and (a.kind in ('icon', 'logo', 'font') or a.visibility = 'public'))";
+  let scopeFilter = globalReadable;
   if (actorId !== null) {
     params.push(actorId);
     const memberParam = "$" + params.length;
     params.push(actorId);
     const ownerParam = "$" + params.length;
     scopeFilter =
-      "(a.workspace_id is null or (a.workspace_id is not null and exists (" +
+      "(" + globalReadable + " or (a.workspace_id is not null and exists (" +
       "select 1 from workspace_members m where m.workspace_id = a.workspace_id " +
       "and m.user_id = " + memberParam + " and (" +
       "a.visibility = 'workspace' or a.visibility = 'public' or " +
@@ -715,8 +727,10 @@ export async function resolveAssetForActor(
   }
   const result = await tx.query(
     `select ${RECORD_COLUMNS} from artifacts a join sources s on s.id = a.source_id
-     where a.id = $1 and a.kind in ('icon', 'logo', 'font')
-       and (a.workspace_id is null or (a.workspace_id is not null and exists (
+     where a.id = $1 and a.kind in ('icon', 'logo', 'font', 'screen')
+       and ((a.workspace_id is null and
+          (a.kind in ('icon', 'logo', 'font') or a.visibility = 'public'))
+        or (a.workspace_id is not null and exists (
          select 1 from workspace_members m where m.workspace_id = a.workspace_id
            and m.user_id = $2 and (a.visibility = 'workspace' or a.visibility = 'public' or
              (a.visibility = 'private' and a.owner_subject = $3)))))`,

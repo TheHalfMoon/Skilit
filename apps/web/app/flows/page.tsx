@@ -2,8 +2,9 @@
 
 import { SessionAccessBanner } from "../../components/session-access-banner";
 import { sessionRequest } from "../../lib/browser-session";
+import { versionFilterFromSearch } from "../../lib/gallery-flow-navigation";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface FlowView {
   uri: string;
@@ -123,7 +124,7 @@ function flowIdOf(uri: string): string {
 }
 
 export default function FlowsPage() {
-    const [versionFilter, setVersionFilter] = useState("");
+  const [versionFilter, setVersionFilter] = useState("");
   const [flowId, setFlowId] = useState("");
   const [flows, setFlows] = useState<FlowView[] | null>(null);
   const [flowsCursor, setFlowsCursor] = useState<string | null>(null);
@@ -137,6 +138,13 @@ export default function FlowsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<AgentFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    // From the gallery: prefill only a valid version id. The user must
+    // still request the listing, and the server authorizes every result.
+    const versionId = versionFilterFromSearch(window.location.search);
+    if (versionId !== null) setVersionFilter(versionId);
+  }, []);
 
   function readFailure(payload: unknown, fallback: string): AgentFailure {
     const record = asRecord(payload);
