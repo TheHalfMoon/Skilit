@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { LocalContentAddressedStorage } from "../../../../../../../packages/storage/src/storage.ts";
-import { getSharedDb } from "../../../../../lib/mcp-db";
-import { resolveRequestUserFromRequest, requestToken } from "../../../../../lib/session";
-import { loadResearchScreenPreview } from "../../../../../lib/research-preview";
-import { checkRateLimit } from "../../../../../lib/rate-limit";
-import { clientKey } from "../../../../../lib/http";
-import { AgentContractError, newRequestId } from "../../../../../lib/agent-contract";
+import { LocalContentAddressedStorage } from "../../../../../../../../../packages/storage/src/storage.ts";
+import { getSharedDb } from "../../../../../../../lib/mcp-db";
+import { resolveRequestUserFromRequest, requestToken } from "../../../../../../../lib/session";
+import { loadResearchScreenPreview } from "../../../../../../../lib/research-preview";
+import { checkRateLimit } from "../../../../../../../lib/rate-limit";
+import { clientKey } from "../../../../../../../lib/http";
+import { AgentContractError, newRequestId } from "../../../../../../../lib/agent-contract";
 
 function failure(code: "UNAUTHENTICATED" | "FORBIDDEN_OR_NOT_FOUND" | "INTERNAL_OPAQUE" | "RATE_LIMITED",
   id: string, retryAfter?: number): NextResponse {
