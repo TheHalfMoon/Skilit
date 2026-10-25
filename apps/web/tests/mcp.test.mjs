@@ -324,6 +324,12 @@ test("bearer token parsing is strict", () => {
   assert.equal(bearerToken("Bearer test-token"), "test-token");
   assert.equal(bearerToken("  Bearer test-token  "), "test-token");
   assert.equal(bearerToken("bearer spaced-token"), "spaced-token");
+  assert.equal(bearerToken("BeArEr\tvalid-token"), "valid-token");
+  assert.equal(bearerToken("Bearerx-token"), null);
+  assert.equal(bearerToken("Bearer\nmultiline-token"), null);
+  assert.equal(bearerToken("Bearer   token\nnext-line"), null);
+  assert.equal(bearerToken("Bearer" + " ".repeat(100_000) + "\ninvalid"), null);
+  assert.equal(bearerToken("Bearer " + "a".repeat(8192)), null);
 });
 
 test("envelope edge cases stay protocol-clean", async () => {
