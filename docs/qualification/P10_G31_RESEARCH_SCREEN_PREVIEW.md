@@ -22,7 +22,7 @@ Missing/unauthorized/not-approved/no-data all produce a common opaque `FORBIDDEN
 
 `apps/web/tests/research-preview.test.mjs` exercises real ephemeral PGlite, private workspaces, `publishArtifact`, the actual local byte store, actor-authorization parity (missing vs denied), rights/license/approval refusal before byte IO, and active SVG/MIME-spoof refusal. These use only synthetic author-owned fixtures.
 
-GitHub CI and CodeQL must run on the **exact candidate head**. Local Mac test execution is unavailable because the authorized Desktop Commander quota was exhausted; no local tests are claimed. A future UI grain must only show previews when the authenticated server confirms eligibility, rather than generating image URLs indiscriminately. Existing Research metadata-only results remain unchanged.
+GitHub CI and CodeQL must run on the **exact candidate head**. Local Mac test execution is unavailable because the authorized Desktop Commander quota was exhausted; no local tests are claimed. The Research page now offers a **user-initiated** View approved image control. It derives only local UUID-based URLs, fetches with the existing cookie-session transport, accepts only bounded PNG/JPEG/WebP blobs, creates a revocable in-memory object URL and shows a clear unavailable state for unapproved or absent images. Search results still retain all metadata-only fields; no image requests are made automatically.
 
 ## Required independent gates
 
