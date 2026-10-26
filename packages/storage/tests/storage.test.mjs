@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {createHash,randomUUID} from "node:crypto";
-import {mkdtemp,mkdir,readdir,readFile,rm,symlink,utimes,writeFile} from "node:fs/promises";
+import {mkdtemp,mkdir,readdir,readFile,rename,rm,symlink,utimes,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import test from "node:test";
@@ -189,4 +189,44 @@ test("POSIX refuses a storage root readable by other accounts",{
    error=>error instanceof StorageError && error.code==="UNSAFE_PATH");
   await chmod(root,0o700);
  }finally{await close();}
+});
+
+test("source-controlled temp pathname swap cannot publish unverified symlink bytes",{
+ skip:process.platform==="win32", // Windows can refuse rename of an open descriptor.
+},async(t)=>{
+ const {root,storage,close}=await fixture();
+ const outside=await mkdtemp(join(tmpdir(),"skilit-race-outside-"));
+ const payload=Buffer.from("actual contents held on the original open descriptor");
+ const sha=digest(payload);
+ try{
+  const attackerTarget=join(outside,"unrelated");
+  await writeFile(attackerTarget,"untrusted remote-looking content");
+  const probe=join(outside,"probe-link");
+  try{await symlink(attackerTarget,probe);}
+  catch(error){
+   if(["EPERM","EACCES","ENOTSUP"].includes(error.code)){
+    t.skip("Filesystem does not permit symlink substitution");
+    return;
+   }
+   throw error;
+  }
+  await rm(probe);
+  async function* swappedName(){
+   const tempDir=join(root,".tmp");
+   const [name]=await readdir(tempDir);
+   assert.ok(name,"The upload must create a private temp inode before asking the source");
+   const temporary=join(tempDir,name);
+   await rename(temporary,join(root,"displaced-open-inode"));
+   await symlink(attackerTarget,temporary);
+   yield payload;
+  }
+  await assert.rejects(()=>storage.put(swappedName()),
+   error=>error instanceof StorageError && error.code==="UNSAFE_PATH");
+  const canonical=join(root,"sha256",sha.slice(0,2),sha);
+  await assert.rejects(()=>readFile(canonical),error=>error.code==="ENOENT");
+  assert.equal((await readFile(attackerTarget)).toString(),"untrusted remote-looking content");
+ }finally{
+  await close();
+  await rm(outside,{recursive:true,force:true});
+ }
 });
