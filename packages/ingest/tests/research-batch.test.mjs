@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -149,6 +149,63 @@ test("G34 rejects symlink image roots and symlink intermediate directories", asy
     await symlink(join(fx.imageRoot, "screens"), join(nested, "screens"), "dir");
     await assert.rejects(planCuratedImageBatch(nested, manifest()), CuratedBatchError);
   } finally { await rm(fx.dir, { recursive: true, force: true }); }
+});
+
+test("G35 symlinked image filenames are denied, even when a matching real PNG exists", async () => {
+  const fx = await fixture();
+  try {
+    const target = join(fx.imageRoot, "screens", "first.png");
+    const saved = join(fx.imageRoot, "screens", "real-first.png");
+    await rename(target, saved);
+    await symlink(saved, target, "file");
+    await assert.rejects(planCuratedImageBatch(fx.imageRoot, manifest()), CuratedBatchError);
+    const cli = execute([fx.manifestPath, fx.imageRoot]);
+    assert.notEqual(cli.status, 0);
+    assert.equal(cli.stdout, "");
+  } finally { await rm(fx.dir, { recursive: true, force: true }); }
+});
+
+test("G35 CLI rejects a symlinked manifest before any DB or media setup", async () => {
+  const fx = await fixture();
+  try {
+    const alias = join(fx.dir, "manifest-link.json");
+    await symlink(fx.manifestPath, alias, "file");
+    for (const args of [[alias, fx.imageRoot], [alias, fx.imageRoot, "--commit"]]) {
+      const command = execute(args, {
+        SKILIT_MCP_PGLITE_DATA_DIR: join(fx.dir, "not-created-db"),
+        SKILIT_RESEARCH_MEDIA_ROOT: join(fx.dir, "not-created-media"),
+      });
+      assert.notEqual(command.status, 0);
+      assert.equal(command.stdout, "");
+    }
+  } finally { await rm(fx.dir, { recursive: true, force: true }); }
+});
+
+test("G35 bounded descriptor image and manifest readers refuse oversized files", async () => {
+  const fx = await fixture();
+  try {
+    const huge = Buffer.alloc(4 * 1024 * 1024 + 1);
+    await writeFile(join(fx.imageRoot, "screens", "second.png"), huge);
+    await assert.rejects(planCuratedImageBatch(fx.imageRoot, manifest()), CuratedBatchError);
+    await writeFile(fx.manifestPath, " ".repeat(128 * 1024 + 1));
+    const result = execute([fx.manifestPath, fx.imageRoot]);
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout, "");
+  } finally { await rm(fx.dir, { recursive: true, force: true }); }
+});
+
+test("G35 bounded file-read implementation never reads unbounded EOF and verifies same descriptor", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../src/research-batch.ts", import.meta.url), "utf8");
+  const cli = await readFile(new URL("../../../scripts/import_curated_images.mjs", import.meta.url), "utf8");
+  assert.ok(source.includes("Buffer.alloc(expectedSize)"));
+  assert.ok(source.includes("handle.read(bytes, offset, bytes.length - offset, offset)"));
+  assert.ok(source.includes("lstat(absolute)"));
+  assert.ok(source.includes("sameEntry(nameAfter, after)"));
+  assert.ok(!source.includes("await handle.readFile()"));
+  assert.ok(cli.includes("Buffer.alloc(st.size)"));
+  assert.ok(cli.includes("nameAfter.isSymbolicLink()"));
+  assert.ok(!cli.includes("await handle.readFile("));
 });
 
 test("G34 CLI dry run never accesses DB or emits unverified-rights claim", async () => {

@@ -4,7 +4,7 @@
  * Dry-run by default. No HTTP endpoint, crawler, or automatic rights approval.
  */
 import { constants } from "node:fs";
-import { open } from "node:fs/promises";
+import { lstat, open } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
 import { openDatabase } from "../packages/db/src/db.ts";
@@ -20,15 +20,31 @@ function refuse() {
   process.exitCode = 1;
 }
 async function readManifest(path) {
+  const nameBefore = await lstat(path);
+  if (!nameBefore.isFile() || nameBefore.isSymbolicLink() ||
+      nameBefore.size < 2 || nameBefore.size > 128 * 1024) throw Error("manifest invalid");
   const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const st = await handle.stat();
-    if (!st.isFile() || st.size < 2 || st.size > 128 * 1024) throw Error("manifest size");
-    const raw = await handle.readFile("utf8");
+    if (!st.isFile() || st.size !== nameBefore.size ||
+        st.dev !== nameBefore.dev || st.ino !== nameBefore.ino) throw Error("manifest changed");
+    // Fixed-size, positional reads avoid unbounded growth on concurrent append.
+    const data = Buffer.alloc(st.size);
+    let offset = 0;
+    while (offset < data.length) {
+      const read = await handle.read(data, offset, data.length - offset, offset);
+      if (read.bytesRead <= 0) throw Error("manifest truncated");
+      offset += read.bytesRead;
+    }
+    if ((await handle.read(Buffer.alloc(1), 0, 1, st.size)).bytesRead !== 0) {
+      throw Error("manifest grew");
+    }
     const next = await handle.stat();
-    if (Buffer.byteLength(raw, "utf8") !== st.size || st.ino !== next.ino ||
-        st.dev !== next.dev || st.size !== next.size) throw Error("manifest changed");
-    return JSON.parse(raw);
+    const nameAfter = await lstat(path);
+    if (st.ino !== next.ino || st.dev !== next.dev || st.size !== next.size ||
+        !nameAfter.isFile() || nameAfter.isSymbolicLink() ||
+        nameAfter.ino !== next.ino || nameAfter.dev !== next.dev) throw Error("manifest changed");
+    return JSON.parse(data.toString("utf8"));
   } finally {
     await handle.close();
   }

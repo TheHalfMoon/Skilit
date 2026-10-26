@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open } from "node:fs/promises";
+import { lstat, open, type FileHandle } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { validateRightsEvidence, type CorpusRightsEvidence } from "./corpus.ts";
 import {
@@ -135,6 +135,26 @@ export function validateCuratedBatchManifest(raw: unknown): {
     curatorId: raw.curatorId, entries };
 }
 
+/** Never read until EOF: a concurrent append could otherwise consume unbounded memory. */
+async function readBoundedImage(handle: FileHandle, expectedSize: number): Promise<Buffer> {
+  // expectedSize has already been checked against RESEARCH_IMAGE_MAX_BYTES.
+  const bytes = Buffer.alloc(expectedSize);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const read = await handle.read(bytes, offset, bytes.length - offset, offset);
+    if (read.bytesRead <= 0) throw new CuratedBatchError();
+    offset += read.bytesRead;
+  }
+  // Detect a file which gained bytes after the initial descriptor stat.
+  const extra = await handle.read(Buffer.alloc(1), 0, 1, expectedSize);
+  if (extra.bytesRead !== 0) throw new CuratedBatchError();
+  return bytes;
+}
+
+function sameEntry(a: { dev: number | bigint; ino: number | bigint }, b: { dev: number | bigint; ino: number | bigint }): boolean {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
 /** Validate every file and digest before returning a publishable plan. */
 export async function planCuratedImageBatch(
   imageRoot: string, raw: unknown,
@@ -148,25 +168,41 @@ export async function planCuratedImageBatch(
     const entries: CuratedBatchEntry[] = [];
     for (const entry of manifest.entries) {
       let folder = imageRoot;
+      const ancestors: { path: string; stat: Awaited<ReturnType<typeof lstat>> }[] = [
+        { path: imageRoot, stat: rootStat },
+      ];
       for (const segment of entry.parts.slice(0, -1)) {
         folder = join(folder, segment);
         const parent = await lstat(folder);
         if (!parent.isDirectory() || parent.isSymbolicLink()) throw new CuratedBatchError();
+        ancestors.push({ path: folder, stat: parent });
       }
       const absolute = join(folder, entry.parts[entry.parts.length - 1] ?? "");
-      // No network reads. Same-descriptor size/identity check, and
-      // final-component O_NOFOLLOW on supported POSIX platforms.
+      // lstat is required even on Windows, where O_NOFOLLOW may be absent.
+      const nameBefore = await lstat(absolute);
+      if (!nameBefore.isFile() || nameBefore.isSymbolicLink()) throw new CuratedBatchError();
       const handle = await open(absolute, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
       let bytes: Buffer;
       try {
         const before = await handle.stat();
-        if (!before.isFile() || before.size < 16 ||
+        if (!before.isFile() || !sameEntry(nameBefore, before) || before.size < 16 ||
             before.size > RESEARCH_IMAGE_MAX_BYTES ||
             totalBytes + before.size > CURATED_BATCH_MAX_BYTES) throw new CuratedBatchError();
-        bytes = await handle.readFile();
+        bytes = await readBoundedImage(handle, before.size);
         const after = await handle.stat();
-        if (bytes.byteLength !== before.size || before.size !== after.size ||
-            before.dev !== after.dev || before.ino !== after.ino) throw new CuratedBatchError();
+        if (before.size !== after.size || !sameEntry(before, after)) {
+          throw new CuratedBatchError();
+        }
+        const nameAfter = await lstat(absolute);
+        if (!nameAfter.isFile() || nameAfter.isSymbolicLink() ||
+            !sameEntry(nameAfter, after)) throw new CuratedBatchError();
+        // Check the directory name chain again. This detects ordinary
+        // substitutions, but not an attacker racing every individual check.
+        for (const parent of ancestors) {
+          const now = await lstat(parent.path);
+          if (!now.isDirectory() || now.isSymbolicLink() ||
+              !sameEntry(parent.stat, now)) throw new CuratedBatchError();
+        }
       } finally {
         await handle.close();
       }
