@@ -7,7 +7,8 @@ import { getMembership } from "./workspaces.ts";
  *
  * Policy (fail-closed, no existence oracle — denied and missing both read
  * as null to callers):
- * - `public` artifacts are readable by any authenticated actor.
+ * - Global `public` artifacts are readable by any authenticated actor.
+ *   Workspace-bound `public` artifacts still require workspace membership.
  * - Global registry rows (workspace_id IS NULL with kind icon/logo/font)
  *   are readable by any authenticated actor. This preserves the curated
  *   Iconify/Fontsource-like corpus, whose bytes remain gated separately by
@@ -40,15 +41,18 @@ export async function getArtifactForActor(
   if (typeof actorId !== "string" || !UUID_PATTERN.test(actorId)) return null;
   const artifact = await getArtifact(tx, artifactId);
   if (artifact === null) return null;
-  if (artifact.visibility === "public") return artifact;
   if (artifact.workspaceId === undefined) {
-    // Curated global corpus only; every other non-public global is denied.
-    if (GLOBAL_REGISTRY_KINDS.has(artifact.kind)) return artifact;
+    // Only truly global public records or curated global registry kinds
+    // bypass workspace membership. A workspace-bound public label must
+    // never short-circuit this gate.
+    if (artifact.visibility === "public" || GLOBAL_REGISTRY_KINDS.has(artifact.kind)) {
+      return artifact;
+    }
     return null;
   }
   const role = await getMembership(tx, artifact.workspaceId, actorId);
   if (role === null) return null;
-  if (artifact.visibility === "workspace") return artifact;
+  if (artifact.visibility === "workspace" || artifact.visibility === "public") return artifact;
   if (artifact.visibility === "private" && artifact.ownerSubject === actorId) {
     return artifact;
   }
