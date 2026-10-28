@@ -38,17 +38,13 @@ test("G37 supports missing declared length but still enforces verified stream si
 });
 
 test("G37 rejects an oversized Content-Length before reading the stream", async () => {
-  let pulled = 0;
-  const response = new Response(new ReadableStream({
-    pull() { pulled += 1; },
-  }), { headers: {
+  const response = streamedResponse([png], {
     "content-type": "image/png",
     "content-length": String(RESEARCH_PREVIEW_MAX_BYTES + 1),
-  } });
+  });
   await assert.rejects(readBoundedResearchPreview(response), ResearchPreviewResponseError);
-  // An underlying ReadableStream may eagerly pull once, but the function
-  // never calls getReader or reads a body when the declared size is invalid.
-  assert.ok(pulled <= 1);
+  // The invalid header must be refused before a body reader is acquired.
+  assert.equal(response.body.locked, false);
   await response.body.cancel();
 });
 
