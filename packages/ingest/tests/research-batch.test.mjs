@@ -15,6 +15,9 @@ import { signUp } from "../../db/src/auth.ts";
 import { createWorkspace } from "../../db/src/workspaces.ts";
 import { LocalContentAddressedStorage } from "../../storage/src/storage.ts";
 import { loadResearchScreenPreview } from "../../../apps/web/lib/research-preview.ts";
+import { searchAssetsRoute, compareArtifactsRoute } from "../../../apps/web/lib/rest.ts";
+import { parseScreenSearchPage } from "../../../apps/web/lib/research-search-ui.ts";
+import { toggleResearchSelection, researchComparisonPath, parseResearchComparison } from "../../../apps/web/lib/research-compare-ui.ts";
 import {
   planCuratedImageBatch,
   CuratedBatchError, CURATED_BATCH_VERSION,
@@ -271,6 +274,49 @@ test("G34 CLI commits two real PNGs to disk PGlite, gate outsider, and refuses r
       const allowed = await loadResearchScreenPreview(verify, store, owner.id, lines[0].artifactId);
       assert.deepEqual(Buffer.from(allowed?.bytes ?? []), first);
       assert.equal(await loadResearchScreenPreview(verify, store, outsider.id, lines[0].artifactId), null);
+
+      // G36: exercise the real actor-scoped REST research workflow against
+      // both image-backed artifacts admitted by the operator CLI above.
+      const ownerSearch = await searchAssetsRoute(verify, {
+        query: "Synthetic checkout", kinds: "screen", limit: "20",
+      }, owner.id);
+      assert.equal(ownerSearch.status, 200);
+      const ownerPage = parseScreenSearchPage(ownerSearch.body);
+      assert.ok(ownerPage);
+      assert.equal(ownerPage.screens.length, 2);
+      assert.deepEqual(
+        new Set(ownerPage.screens.map((screen) => screen.uri)),
+        new Set(lines.slice(0, 2).map((line) => `skilit://artifact/${line.artifactId}`)),
+      );
+      let selected = [];
+      for (const screen of ownerPage.screens) {
+        selected = toggleResearchSelection(selected, screen.uri);
+      }
+      assert.equal(selected.length, 2);
+      const comparePath = researchComparisonPath(selected);
+      assert.ok(comparePath);
+      const compareQuery = Object.fromEntries(
+        new URL(comparePath, "http://localhost").searchParams.entries(),
+      );
+      const ownerCompare = await compareArtifactsRoute(verify, compareQuery, owner.id);
+      assert.equal(ownerCompare.status, 200);
+      assert.ok(parseResearchComparison(ownerCompare.body, selected));
+
+      // No third-party private title, URI or image bytes are exposed when
+      // searching or comparing as an outsider, including workspace-visible.
+      const outsiderSearch = await searchAssetsRoute(verify, {
+        query: "Synthetic checkout", kinds: "screen",
+      }, outsider.id);
+      assert.equal(outsiderSearch.status, 200);
+      assert.deepEqual(parseScreenSearchPage(outsiderSearch.body)?.screens, []);
+      const outsiderCompare = await compareArtifactsRoute(verify, compareQuery, outsider.id);
+      assert.notEqual(outsiderCompare.status, 200);
+      assert.equal(parseResearchComparison(outsiderCompare.body, selected), null);
+      assert.ok(!JSON.stringify(outsiderCompare.body).includes("Synthetic checkout"));
+      assert.equal(
+        await loadResearchScreenPreview(verify, store, outsider.id, lines[1].artifactId),
+        null,
+      );
     } finally { await verify.close(); }
 
     // A replay is refused before first write, rather than duplicating screens.
