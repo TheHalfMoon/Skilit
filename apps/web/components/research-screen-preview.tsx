@@ -4,9 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { sessionRequest } from "../lib/browser-session";
 import { researchPreviewPath } from "../lib/research-search-ui";
+import { readBoundedResearchPreview } from "../lib/research-preview-response";
 
-const MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const MAX_BYTES = 4 * 1024 * 1024;
 
 /** Images are fetched only on demand; no external URL or token exposure. */
 export function ResearchScreenPreview({ uri, title }: { uri: string; title: string }) {
@@ -46,16 +45,7 @@ export function ResearchScreenPreview({ uri, title }: { uri: string; title: stri
         setMessage("The local image preview could not be loaded.");
         return;
       }
-      const mime = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
-      if (!MIME_TYPES.has(mime)) {
-        setMessage("The preview returned an unsupported image type.");
-        return;
-      }
-      const blob = await response.blob();
-      if (blob.size < 16 || blob.size > MAX_BYTES || blob.type !== mime) {
-        setMessage("The preview image has an invalid size or type.");
-        return;
-      }
+      const blob = await readBoundedResearchPreview(response);
       if (!controller.signal.aborted) setPreviewUrl(URL.createObjectURL(blob));
     } catch {
       if (!controller.signal.aborted) setMessage("The local image preview could not be loaded.");
